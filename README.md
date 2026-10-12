@@ -8,8 +8,8 @@ This README describes the current repository setup. The [historical README](READ
 
 - Node.js satisfying `^20.19.0 || >=22.12.0` and npm 9 or newer. Both packages enforce these requirements with `engine-strict=true`.
 - Git to clone the repository, or download its ZIP.
-- A reachable development MongoDB instance.
-- SMTP credentials to exercise invitations, reminders, and password resets.
+- Docker for local MongoDB and Mailpit containers.
+- No Atlas or Mailtrap account is required for local development.
 
 Use a Node version manager such as nvm. In WSL, install and run Linux Node/npm inside WSL; for native Windows, use nvm-windows. Verify your installation:
 
@@ -28,21 +28,44 @@ cd ProjectPeerEvaluation-P25-02
 npm run setup
 ```
 
-The setup command installs the frontend and backend dependencies once each.
+The setup command currently installs frontend and backend dependencies.
+Automatic .env creation and random JWT_SECRET generation are planned separately
+and are not implemented yet.
 
 Configure `src/backend/.env` using `src/backend/.env.example` as a reference. Preserve any existing configuration. Set these values for your development environment:
 
 | Variable | Purpose |
 | --- | --- |
-| `MONGODB_URI` | Connection URI for your development MongoDB database. |
-| `JWT_SECRET` | A unique signing secret; add it explicitly because the example omits it. |
+| `MONGODB_URI` | Native-local default: `mongodb://localhost:27017/peer-eval`. MongoDB must be running separately. |
+| `JWT_SECRET` | Replace `REPLACE_WITH_RANDOM_SECRET` with a unique random signing secret. |
 | `PORT` | Backend port; defaults to `5000`. |
 | `FRONTEND_URL` | Use `http://localhost:3000` for local email links. |
-| `SMTP_HOST`, `SMTP_PORT` | Your SMTP server and port. |
+| `SMTP_HOST`, `SMTP_PORT` | Native-local Mailpit: `localhost`, `1025`. |
 | `SMTP_SECURE` | `true` for implicit TLS; port `465` also enables it. |
-| `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | SMTP credentials and sender address. |
+| `SMTP_AUTH_REQUIRED` | Defaults to `true`; explicitly set `false` for local/CI Mailpit. |
+| `SMTP_USER`, `SMTP_PASS` | Leave both empty for default Mailpit; supply both for authenticated SMTP. |
+| `SMTP_FROM` | Sender address displayed on email; local example: `peers-test@example.com`. |
 
-The repository currently tracks `src/backend/.env`, and its ignore rules do not exclude environment files. Do not commit credentials or real student data.
+Local `.env` and `.env.*` files are ignored; `.env.example` remains tracked.
+Copy the example only if `src/backend/.env` is absent. If it exists,
+merge the settings manually and preserve configured values.
+Do not commit credentials or real student data.
+
+### Manual local Mailpit setup
+
+Until the Compose stack is implemented, start Mailpit separately:
+
+```bash
+docker run -d --name peers-mailpit-test \
+  -p 127.0.0.1:1025:1025 \
+  -p 127.0.0.1:8025:8025 \
+  axllent/mailpit:v1.27.4
+```
+
+For an existing container, use `docker start peers-mailpit-test`.
+The backend submits email on SMTP port `1025`; inspect captured messages
+at http://localhost:8025. Keep forwarding and relay disabled.
+MongoDB must also be running at the configured URI.
 
 Start both servers:
 

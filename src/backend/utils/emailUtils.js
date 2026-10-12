@@ -1,16 +1,33 @@
 const nodemailer = require('nodemailer');
 
-// Email configuration
-// In production, these should come from environment variables
+// Require authentication unless configuration explicitly opts out.
+const authSetting = process.env.SMTP_AUTH_REQUIRED ?? 'true';
+if (!['true', 'false'].includes(authSetting)) {
+  throw new Error('SMTP_AUTH_REQUIRED must be true or false');
+}
+const authRequired = authSetting === 'true';
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+
+if (Boolean(smtpUser) !== Boolean(smtpPass)) {
+  throw new Error('SMTP_USER and SMTP_PASS must both be set or both be empty');
+}
+if (authRequired && (!smtpUser || !smtpPass)) {
+  throw new Error('SMTP authentication requires SMTP_USER and SMTP_PASS');
+}
+if (authRequired && !process.env.SMTP_SERVICE &&
+    (!process.env.SMTP_HOST || !process.env.SMTP_PORT)) {
+  throw new Error('Authenticated SMTP requires SMTP_HOST and SMTP_PORT or SMTP_SERVICE');
+}
+
 const EMAIL_CONFIG = {
   service: process.env.SMTP_SERVICE || undefined, // Use 'gmail' for better compatibility
   host: process.env.SMTP_SERVICE ? undefined : (process.env.SMTP_HOST || 'localhost'),
-  port: process.env.SMTP_SERVICE ? undefined : (parseInt(process.env.SMTP_PORT) || 587),
+  port: process.env.SMTP_SERVICE ? undefined : (parseInt(process.env.SMTP_PORT) || 1025),
   secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465', // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER || 'test@example.com',
-    pass: process.env.SMTP_PASS || 'password'
-  },
+  ...(smtpUser && smtpPass ? {
+    auth: { user: smtpUser, pass: smtpPass }
+  } : {}),
   // Add connection timeout and other options for better reliability
   connectionTimeout: 60000, // 60 seconds
   greetingTimeout: 30000,   // 30 seconds

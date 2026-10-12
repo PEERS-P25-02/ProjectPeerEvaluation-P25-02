@@ -11,3 +11,4 @@ Team P25-02 reports for the PEERS Peer Evaluation System. Each report folder con
 - [Containerization Assessment](containerization-assessment/README.md)
 - [Automated Testing Strategy](automated-testing-strategy/README.md)
 - [CI/CD Architecture Design](ci-cd-architecture-design/README.md)
+- [Known Bugs](known-bugs.md)

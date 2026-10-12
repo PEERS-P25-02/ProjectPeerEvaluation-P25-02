@@ -76,7 +76,8 @@ The target architecture is a GitHub-based workflow where developers work on feat
 | Docker and Docker Compose | Repeatable local and test environments |
 | Render (proposed) | Staging host for the frontend and backend |
 | MongoDB Atlas (proposed) | Managed staging database |
-| Mailtrap or an approved equivalent | Staging email sandbox |
+| MongoDB and Mailpit containers | Disposable isolated CI database and email inbox; no Atlas/Mailtrap credentials |
+| Mailtrap Email Testing | Separate authenticated staging email sandbox |
 | ESLint and Prettier | Code-quality and formatting checks |
 | Dependabot and/or an OWASP dependency scanning tool | Dependency and security visibility |
 
@@ -96,7 +97,7 @@ Continuous Integration will validate proposed changes before they are merged int
 | Dependency installation | Install dependencies using the repository lock files and fail the workflow if dependency installation fails. |
 | Application build | Build the React application using the existing npm build command. |
 | Code quality | Run ESLint/formatting validation using the agreed project rules. |
-| Automated testing | Run the automated test suites defined in the Automated Testing Strategy. |
+| Automated testing | Run agreed suites with disposable MongoDB/Mailpit services, explicit test configuration, an ephemeral JWT_SECRET, and SMTP_AUTH_REQUIRED=false. Wait for readiness, isolate concurrent jobs, and clean up services/storage even after failure. |
 | Dependency and security checks | Run dependency and security checks and expose results to maintainers. |
 | Merge requirements | Require configured checks to pass before merge. |
 | Branch protection | Protect main so normal changes are merged through pull requests rather than direct unvalidated changes. |

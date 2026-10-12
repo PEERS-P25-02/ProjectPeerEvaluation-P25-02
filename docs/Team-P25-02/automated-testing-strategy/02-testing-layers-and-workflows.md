@@ -27,8 +27,8 @@
 | Authorization | Verify protected routes with valid, invalid, missing, and insufficient authorization. |
 | Data relationships | Verify course, roster, team, rubric, evaluation, response, and reporting data relationships. |
 | CSV upload | Verify CSV upload behavior from request through persisted result. |
-| Email integration | Verify email behavior through a controlled sandbox/test configuration rather than real student recipients. |
-| Test setup and cleanup | Use repeatable setup/teardown or seeded data so tests do not depend on prior runs. |
+| Email integration | Send through isolated local/CI Mailpit SMTP services and assert recipients, content, and links through its API. Use mocks for isolated unit tests; keep forwarding/relay disabled. |
+| Test setup and cleanup | Use synthetic data and repeatable setup/teardown. Isolate MongoDB databases and Mailpit inboxes between concurrent runs; cleanup must not remove another run's data. |
 | Failure diagnosis | Produce clear failures that identify the component boundary that failed. |
 
 <a id="09-functional-regression-testing-strategy"></a>
@@ -88,5 +88,5 @@ End-to-end tests should stay focused on representative, high-value workflows rat
 | Health endpoint | Call the existing GET /api/health endpoint and confirm a successful health response. |
 | Database connectivity | Verify that the backend can connect to the staging MongoDB database. |
 | Critical workflow | Verify a small selected critical workflow after deployment. |
-| Email safety | Verify that staging email is captured by the approved sandbox and does not reach unintended real users. |
+| Email safety | Verify authenticated staging SMTP sends to the separate Mailtrap Email Testing sandbox and does not reach real users. |
 | Validation enforcement | Fail deployment validation when required health/smoke checks do not pass. |
