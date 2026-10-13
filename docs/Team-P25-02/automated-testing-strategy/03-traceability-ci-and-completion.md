@@ -22,6 +22,18 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 | Related defect | Links failed verification to the corresponding defect when applicable. |
 | Notes | Explains any additional details relevant to the requirement. |
 
+## Initial Unit Test Cases and Results
+
+The following cases were added for issue #28. The cases use synthetic in-memory request and browser state; they do not require MongoDB, a live backend, or real email delivery.
+
+| Test ID | Package / level | Purpose and steps | Expected result | Actual result | Status |
+| --- | --- | --- | --- | --- | --- |
+| UNIT-FE-001 | Frontend / unit | Run `npm test`; render `App` at the initial route inside `AuthProvider`; inspect the rendered login page. | The Professor Login heading, email field, password field, and Login button are present. | Vitest reported 1 test file and 1 test passed in `src/frontend/tests/App.test.jsx`. | Passed |
+| UNIT-BE-001 | Backend / unit | Run `cd src/backend; npm test`; call `authenticateToken` with a request that has no authorization header. | The middleware calls `next` with an error whose message is `No token provided.`, code is `UNAUTHORIZED`, and status is 401. | Vitest reported 1 test file and 1 test passed in `src/backend/tests/auth.test.js`. | Passed |
+| UNIT-CI-001 | Frontend / command verification | Temporarily change one expected frontend assertion to an incorrect value and run `npm test`. Restore the assertion and rerun the command. | The temporary run exits nonzero; the restored run passes. | The temporary run failed with a nonzero exit code; after restoration, the frontend suite passed with 2 test files and 2 tests. | Passed |
+
+The initial tests verify test-runner setup and representative existing behavior. They are not a substitute for the planned integration, regression, end-to-end, health, and smoke coverage.
+
 <a id="13-test-data-privacy-and-email-safety"></a>
 
 <a id="section-15"></a>
