@@ -48,6 +48,7 @@ The following cases were added for issue #28. The cases use synthetic in-memory 
 | UNIT-FE-001 | Root `npm test` reported 1 test file and 1 test passed in [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx). | Passed |
 | UNIT-BE-001 | `cd src/backend; npm test` reported 1 test file and 1 test passed in [`auth.test.js`](../../../src/backend/tests/auth.test.js). | Passed |
 | UNIT-CI-001 | The temporary incorrect frontend assertion failed with exit code 1. After restoration, root `npm test` reported 1 test file and 1 test passed. | Passed |
+| UNIT-CI-002 | `npm run test:all` reported 1 frontend test file and 1 backend test file passed; the combined command exited with code 0. | Passed |
 
 The initial tests verify test-runner setup and representative existing behavior. They are not a substitute for the planned integration, regression, end-to-end, health, and smoke coverage.
 
@@ -89,7 +90,7 @@ The initial tests verify test-runner setup and representative existing behavior.
 
 | Risk | Impact | Planned Response |
 | --- | --- | --- |
-| No established backend automated test framework | Critical backend behavior cannot be reliably gated in CI. | Add framework/scripts and start with high-risk backend logic and routes. |
+| Initial backend automated coverage is limited | Critical backend behavior beyond the authentication middleware cannot yet be reliably gated in CI. | Expand coverage to high-risk backend logic and routes. |
 | Frontend testing infrastructure exists but suite maturity is unconfirmed | The team may overestimate current test coverage. | Inventory existing test files and run the current test command to establish the baseline. |
 | Manual test\_api.js may be mistaken for automated coverage | A diagnostic script can pass without providing broad or repeatable validation. | Treat it as a diagnostic artifact and implement structured tests with assertions and CI-compatible exit status. |
 | Expected behavior is unclear for some inherited features | Tests could automate the wrong behavior. | Confirm acceptance criteria with the sponsor before locking regression expectations. |
@@ -125,7 +126,7 @@ The initial tests verify test-runner setup and representative existing behavior.
 | Area | Next Step |
 | --- | --- |
 | Frontend baseline | Inventory any existing frontend test files and run the current frontend test command to record a baseline. |
-| Backend framework | Select and configure the backend automated test framework and add CI-compatible test scripts. |
+| Backend coverage | Expand the Vitest suite to high-risk backend logic and routes. |
 | Unit and integration coverage | Build unit and integration tests for the highest-risk logic and routes. |
 | Regression coverage | Build regression coverage for sponsor-approved priority workflows. |
 | End-to-end coverage | Build focused Playwright instructor and student end-to-end journeys. |
