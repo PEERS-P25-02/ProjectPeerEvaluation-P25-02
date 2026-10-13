@@ -35,6 +35,7 @@ The following cases were added for issue #28. The cases use synthetic in-memory 
 | UNIT-FE-001 | Frontend / unit | Run `npm test`; render `App` at the initial route inside `AuthProvider`; inspect the rendered login page. | The Professor Login heading, email field, password field, and Login button are present. | [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx) |
 | UNIT-BE-001 | Backend / unit | Run `cd src/backend; npm test`; call `authenticateToken` with a request that has no authorization header. | The middleware calls `next` with an error whose message is `No token provided.`, code is `UNAUTHORIZED`, and status is 401. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
 | UNIT-CI-001 | Frontend / command verification | Temporarily change one expected frontend assertion to an incorrect value and run `npm test`; restore the assertion and rerun the command. | The temporary run exits nonzero; the restored run passes. | [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx) |
+| UNIT-CI-002 | Frontend + backend / command verification | Run `npm run test:all` from the repository root. | Both package suites run once, both pass, and the combined command exits successfully. | Root `package.json`, frontend and backend test results |
 
 <a id="14-initial-test-results"></a>
 
