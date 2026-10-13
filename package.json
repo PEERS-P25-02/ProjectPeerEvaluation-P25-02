@@ -28,8 +28,8 @@
     "build": "vite build",
     "start:backend": "cd src/backend && npm start",
     "start:frontend": "vite",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run src/frontend",
+    "test:watch": "vitest src/frontend",
     "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "setup": "npm install && cd src/backend && npm install",
     "preview": "vite preview"

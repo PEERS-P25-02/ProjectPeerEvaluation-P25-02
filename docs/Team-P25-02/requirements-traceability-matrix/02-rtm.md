@@ -247,11 +247,11 @@
 <td>The project shall use Jest and React Testing Library for appropriate frontend automated tests.</td>
 <td>High</td>
 <td>Client</td>
-<td>Jest / React Testing Library</td>
+<td>Vitest / React Testing Library</td>
 <td></td>
 <td></td>
 <td>Unit Test + Integration Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
 <td></td>
 <td></td>
 <td></td>

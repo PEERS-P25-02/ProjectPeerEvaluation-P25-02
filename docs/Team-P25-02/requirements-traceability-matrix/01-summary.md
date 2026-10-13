@@ -31,11 +31,11 @@
 </tr>
 <tr>
 <td>Not Started</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;Not Started&quot;)">36</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;Not Started&quot;)">35</span></td>
 </tr>
 <tr>
 <td>In Progress</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;In Progress&quot;)">0</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;In Progress&quot;)">1</span></td>
 </tr>
 <tr>
 <td>Implemented</td>

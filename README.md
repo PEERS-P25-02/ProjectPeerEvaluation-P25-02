@@ -89,10 +89,33 @@ Run these from the repository root:
 | `npm run start:backend` | Start Express from `src/backend`. |
 | `npm run build` | Build the frontend into `build/`. |
 | `npm run preview` | Preview the frontend production build locally. |
+| `npm test` | Run the frontend Vitest suite once and exit. |
+| `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
+| `cd src/backend; npm test` | Run the backend Vitest suite once and exit. |
+| `cd src/backend; npm run test:watch` | Run the backend Vitest suite in watch mode for local development. |
 
 Production builds, including local previews, use the configured deployed backend. Use the development server at `localhost:3000` for local API testing. The shared API service also selects the deployed backend on hosts other than `localhost`.
 
-No automated test command is currently configured in either package. Verify relevant browser/API workflows against development data, and run `npm run build` for frontend changes. Testing infrastructure is planned separately.
+The frontend and backend each have a Vitest command that runs once and returns a nonzero exit code when a test fails. The initial unit tests are documented in the [Automated Testing Strategy](docs/Team-P25-02/automated-testing-strategy/README.md); broader integration, regression, and end-to-end coverage remains planned.
+
+### Adding a test
+
+Frontend tests belong in `src/frontend/tests/` and use `.test.jsx` or `.spec.jsx`
+filenames. Use React Testing Library for rendered component behavior and import
+test functions and mocks from Vitest. The frontend Vitest setup is loaded
+automatically from `src/frontend/test/setup.js`.
+
+Backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js`
+filenames. Keep unit tests isolated from MongoDB, SMTP, and live application
+startup unless the test is specifically an integration test.
+
+Run the relevant one-shot command after adding a test:
+
+```powershell
+npm test
+cd src/backend
+npm test
+```
 
 ## Project structure
 

@@ -22,21 +22,37 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 | Related defect | Links failed verification to the corresponding defect when applicable. |
 | Notes | Explains any additional details relevant to the requirement. |
 
-## Initial Unit Test Cases and Results
+<a id="13-initial-unit-test-cases"></a>
+
+<a id="section-15"></a>
+
+# Initial Unit Test Cases
 
 The following cases were added for issue #28. The cases use synthetic in-memory request and browser state; they do not require MongoDB, a live backend, or real email delivery.
 
-| Test ID | Package / level | Purpose and steps | Expected result | Actual result | Status |
-| --- | --- | --- | --- | --- | --- |
-| UNIT-FE-001 | Frontend / unit | Run `npm test`; render `App` at the initial route inside `AuthProvider`; inspect the rendered login page. | The Professor Login heading, email field, password field, and Login button are present. | Vitest reported 1 test file and 1 test passed in `src/frontend/tests/App.test.jsx`. | Passed |
-| UNIT-BE-001 | Backend / unit | Run `cd src/backend; npm test`; call `authenticateToken` with a request that has no authorization header. | The middleware calls `next` with an error whose message is `No token provided.`, code is `UNAUTHORIZED`, and status is 401. | Vitest reported 1 test file and 1 test passed in `src/backend/tests/auth.test.js`. | Passed |
-| UNIT-CI-001 | Frontend / command verification | Temporarily change one expected frontend assertion to an incorrect value and run `npm test`. Restore the assertion and rerun the command. | The temporary run exits nonzero; the restored run passes. | The temporary run failed with a nonzero exit code; after restoration, the frontend suite passed with 2 test files and 2 tests. | Passed |
+| Test ID | Package / level | Purpose and steps | Expected result | Source |
+| --- | --- | --- | --- | --- |
+| UNIT-FE-001 | Frontend / unit | Run `npm test`; render `App` at the initial route inside `AuthProvider`; inspect the rendered login page. | The Professor Login heading, email field, password field, and Login button are present. | [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx) |
+| UNIT-BE-001 | Backend / unit | Run `cd src/backend; npm test`; call `authenticateToken` with a request that has no authorization header. | The middleware calls `next` with an error whose message is `No token provided.`, code is `UNAUTHORIZED`, and status is 401. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
+| UNIT-CI-001 | Frontend / command verification | Temporarily change one expected frontend assertion to an incorrect value and run `npm test`; restore the assertion and rerun the command. | The temporary run exits nonzero; the restored run passes. | [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx) |
+
+<a id="14-initial-test-results"></a>
+
+<a id="section-16"></a>
+
+# Initial Test Results
+
+| Test ID | Actual result | Status |
+| --- | --- | --- |
+| UNIT-FE-001 | Root `npm test` reported 1 test file and 1 test passed in [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx). | Passed |
+| UNIT-BE-001 | `cd src/backend; npm test` reported 1 test file and 1 test passed in [`auth.test.js`](../../../src/backend/tests/auth.test.js). | Passed |
+| UNIT-CI-001 | The temporary incorrect frontend assertion failed with exit code 1. After restoration, root `npm test` reported 1 test file and 1 test passed. | Passed |
 
 The initial tests verify test-runner setup and representative existing behavior. They are not a substitute for the planned integration, regression, end-to-end, health, and smoke coverage.
 
-<a id="13-test-data-privacy-and-email-safety"></a>
+<a id="15-test-data-privacy-and-email-safety"></a>
 
-<a id="section-15"></a>
+<a id="section-17"></a>
 
 # Test Data, Privacy, and Email Safety
 
@@ -50,9 +66,9 @@ The initial tests verify test-runner setup and representative existing behavior.
 | Secret storage | Keep database credentials, SMTP credentials, tokens, and other environment secrets outside the repository. |
 | Configuration review | Review the currently tracked backend .env file and remediate any real secrets or environment-specific values. |
 
-<a id="14-ci-test-execution-plan"></a>
+<a id="16-ci-test-execution-plan"></a>
 
-<a id="section-16"></a>
+<a id="section-18"></a>
 
 # CI Test Execution Plan
 
@@ -64,9 +80,9 @@ The initial tests verify test-runner setup and representative existing behavior.
 | Staging deployment | Health checks, smoke tests, and selected critical workflow validation. |
 | Milestone / final evidence | Results showing passed/failed tests, related defects, and traceability to requirements. |
 
-<a id="15-current-testing-risks"></a>
+<a id="17-current-testing-risks"></a>
 
-<a id="section-17"></a>
+<a id="section-19"></a>
 
 # Current Testing Risks
 
@@ -80,9 +96,9 @@ The initial tests verify test-runner setup and representative existing behavior.
 | Email testing could reach real users | Privacy and communication risk. | Use an approved email sandbox and synthetic recipients. |
 | Environment inconsistency | Tests may pass locally and fail in CI/staging. | Correct Docker/database configuration and use documented environment-specific configuration. |
 
-<a id="16-milestone-1-completion-criteria"></a>
+<a id="18-milestone-1-completion-criteria"></a>
 
-<a id="section-18"></a>
+<a id="section-20"></a>
 
 # Milestone 1 Completion Criteria
 
@@ -99,9 +115,9 @@ The initial tests verify test-runner setup and representative existing behavior.
 | CI execution | The CI execution plan is defined. |
 | Implementation planning | Testing implementation is decomposed into Milestone 2 work, with staging health/smoke validation carried into Milestone 3. |
 
-<a id="17-next-steps-after-milestone-1"></a>
+<a id="19-next-steps-after-milestone-1"></a>
 
-<a id="section-19"></a>
+<a id="section-21"></a>
 
 # Next Steps After Milestone 1
 
@@ -116,9 +132,9 @@ The initial tests verify test-runner setup and representative existing behavior.
 | Milestone 3 staging validation | Implement staging health and smoke testing in Milestone 3. |
 | Ongoing traceability | Maintain RTM status and retained test evidence throughout implementation. |
 
-<a id="18-source-alignment"></a>
+<a id="20-source-alignment"></a>
 
-<a id="section-20"></a>
+<a id="section-22"></a>
 
 # Source Alignment
 
