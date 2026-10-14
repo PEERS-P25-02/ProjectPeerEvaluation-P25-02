@@ -99,7 +99,7 @@ Production builds, including local previews, use the configured deployed backend
 
 The one-shot test commands return a nonzero exit code when a test fails. The
 initial unit tests are documented in the
-[Milestone 2 implementation record](docs/Team-P25-02/development-environment-validation/04-milestone-2-implementation.md#initial-unit-test-cases);
+[Unit Testing Implementation](docs/Team-P25-02/testing/01-unit-testing-implementation.md#initial-unit-test-cases);
 broader integration, regression, and end-to-end coverage remains planned.
 
 ### Testing
