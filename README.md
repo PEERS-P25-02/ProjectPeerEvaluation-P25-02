@@ -91,8 +91,8 @@ Run these from the repository root:
 | `npm run preview` | Preview the frontend production build locally. |
 | `npm test` | Run the frontend Vitest suite once and exit. |
 | `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
-| `cd src/backend; npm test` | Run the backend Vitest suite once and exit. |
-| `cd src/backend; npm run test:watch` | Run the backend Vitest suite in watch mode for local development. |
+| `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
+| `npm --prefix src/backend run test:watch` | Run the backend Vitest suite in watch mode for local development. |
 | `npm run test:all` | Run the frontend and backend Vitest suites together once and exit; convenient for local validation. |
 
 Production builds, including local previews, use the configured deployed backend. Use the development server at `localhost:3000` for local API testing. The shared API service also selects the deployed backend on hosts other than `localhost`.

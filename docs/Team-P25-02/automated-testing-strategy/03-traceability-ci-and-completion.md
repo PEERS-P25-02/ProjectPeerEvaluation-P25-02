@@ -33,7 +33,7 @@ The following cases were added for issue #28. The cases use synthetic in-memory 
 | Test ID | Package / level | Purpose and steps | Expected result | Source |
 | --- | --- | --- | --- | --- |
 | UNIT-FE-001 | Frontend / unit | Run `npm test`; render `App` at the initial route inside `AuthProvider`; inspect the rendered login page. | The Professor Login heading, email field, password field, and Login button are present. | [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx) |
-| UNIT-BE-001 | Backend / unit | Run `cd src/backend; npm test`; call `authenticateToken` with a request that has no authorization header. | The middleware calls `next` with an error whose message is `No token provided.`, code is `UNAUTHORIZED`, and status is 401. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
+| UNIT-BE-001 | Backend / unit | Run `npm --prefix src/backend test`; call `authenticateToken` with a request that has no authorization header. | The middleware calls `next` with an error whose message is `No token provided.`, code is `UNAUTHORIZED`, and status is 401. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
 | UNIT-CI-001 | Frontend / command verification | Temporarily change one expected frontend assertion to an incorrect value and run `npm test`; restore the assertion and rerun the command. | The temporary run exits nonzero; the restored run passes. | [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx) |
 | UNIT-CI-002 | Frontend + backend / command verification | Run `npm run test:all` from the repository root. | Both package suites run once, both pass, and the combined command exits successfully. | Root `package.json`, frontend and backend test results |
 
@@ -46,7 +46,7 @@ The following cases were added for issue #28. The cases use synthetic in-memory 
 | Test ID | Actual result | Status |
 | --- | --- | --- |
 | UNIT-FE-001 | Root `npm test` reported 1 test file and 1 test passed in [`App.test.jsx`](../../../src/frontend/tests/App.test.jsx). | Passed |
-| UNIT-BE-001 | `cd src/backend; npm test` reported 1 test file and 1 test passed in [`auth.test.js`](../../../src/backend/tests/auth.test.js). | Passed |
+| UNIT-BE-001 | `npm --prefix src/backend test` reported 1 test file and 1 test passed in [`auth.test.js`](../../../src/backend/tests/auth.test.js). | Passed |
 | UNIT-CI-001 | The temporary incorrect frontend assertion failed with exit code 1. After restoration, root `npm test` reported 1 test file and 1 test passed. | Passed |
 | UNIT-CI-002 | `npm run test:all` reported 1 frontend test file and 1 backend test file passed; the combined command exited with code 0. | Passed |
 
