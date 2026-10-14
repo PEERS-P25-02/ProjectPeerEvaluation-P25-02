@@ -6,7 +6,7 @@ This README describes the current repository setup. The [historical README](READ
 
 ## Requirements
 
-- Node.js satisfying `^20.19.0 || >=22.12.0` and npm 9 or newer. Both packages enforce these requirements with `engine-strict=true`.
+- Node.js satisfying `^22.22.2 || ^24.15.0 || >=26.0.0` and npm 9 or newer. Node 24 LTS is recommended for development. Both packages enforce these requirements with `engine-strict=true`.
 - Git to clone the repository, or download its ZIP.
 - Docker for local MongoDB and Mailpit containers.
 - No Atlas or Mailtrap account is required for local development.
@@ -89,10 +89,47 @@ Run these from the repository root:
 | `npm run start:backend` | Start Express from `src/backend`. |
 | `npm run build` | Build the frontend into `build/`. |
 | `npm run preview` | Preview the frontend production build locally. |
+| `npm test` | Run the frontend Vitest suite once and exit. |
+| `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
+| `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
+| `npm --prefix src/backend run test:watch` | Run the backend Vitest suite in watch mode for local development. |
+| `npm run test:all` | Run the frontend and backend Vitest suites together once and exit; convenient for local validation. |
 
 Production builds, including local previews, use the configured deployed backend. Use the development server at `localhost:3000` for local API testing. The shared API service also selects the deployed backend on hosts other than `localhost`.
 
-No automated test command is currently configured in either package. Verify relevant browser/API workflows against development data, and run `npm run build` for frontend changes. Testing infrastructure is planned separately.
+The one-shot test commands return a nonzero exit code when a test fails. The
+initial unit tests are documented in the
+[Unit Testing Implementation](docs/Team-P25-02/testing/01-unit-testing-implementation.md#initial-unit-test-cases);
+broader integration, regression, and end-to-end coverage remains planned.
+
+### Testing
+
+Run the package-specific command when working on one package:
+
+```powershell
+# Frontend, from the repository root
+npm test
+
+# Backend, from the repository root
+npm --prefix src/backend test
+```
+
+Use the combined command as a local convenience check when you want to verify
+both packages. CI should run the package-specific commands separately so
+frontend and backend failures are reported independently:
+
+```powershell
+npm run test:all
+```
+
+Frontend tests belong in `src/frontend/tests/` and use `.test.jsx` or `.spec.jsx`
+filenames. Use React Testing Library for rendered component behavior and import
+test functions and mocks from Vitest. The frontend Vitest setup is loaded
+automatically from `src/frontend/test/setup.js`.
+
+Backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js`
+filenames. Keep unit tests isolated from MongoDB, SMTP, and live application
+startup unless the test is specifically an integration test.
 
 ## Project structure
 

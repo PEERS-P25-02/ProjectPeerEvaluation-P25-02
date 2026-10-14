@@ -84,7 +84,8 @@ The SLA provides the current proposed priority workflow list. These workflows sh
 
 | Proposed Tool | Purpose |
 | --- | --- |
-| Jest | JavaScript unit/integration testing where appropriate. |
+| Vitest | Selected frontend/backend JavaScript runner; initial unit-test tooling is implemented. |
+| jsdom | Browser environment for frontend component tests. |
 | React Testing Library | React component and user-visible behavior tests. |
 | Playwright | Sponsor-approved end-to-end and regression browser workflows. |
 | GitHub Actions | Unattended execution and quality-gate enforcement. |
@@ -92,4 +93,6 @@ The SLA provides the current proposed priority workflow list. These workflows sh
 | Mailpit | Isolated local/CI SMTP capture with forwarding disabled and no SMTP credentials. |
 | Mailtrap Email Testing | Separate authenticated staging email sandbox. |
 
-The frontend already includes React Testing Library packages, while the backend still needs a structured automated test framework and scripts. Tooling should be validated against the current codebase before the team treats it as finalized.
+Issue #28 selected Vitest to share one runner across the Vite frontend and the CommonJS backend, with React Testing Library and jsdom for rendered frontend behavior. Framework configuration and the initial unit tests are implemented; broader coverage and CI execution remain planned. See [Unit Testing Implementation](../testing/01-unit-testing-implementation.md) for the tooling decisions and verification evidence.
+
+The implementation uses Vitest in place of the original Jest proposal. FR-16 still specifies Jest; the selected runner does not itself amend that requirement. Reconciliation remains open in the [requirements tracker](../requirements-traceability-matrix/02-rtm.md).

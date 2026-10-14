@@ -65,12 +65,15 @@ use a named MongoDB development volume, and leave Mailpit relay disabled.
 
 ### 5.4 CI Configuration Contract
 
-CI jobs and email integration assertions are planned separately.
-Each test job must provision isolated MongoDB and Mailpit services,
+CI jobs and email integration assertions remain planned. The initial unit
+suites run without MongoDB, SMTP, or application startup. Planned unit jobs
+should run `npm test` and `npm --prefix src/backend test` separately.
+
+Integration test jobs must provision isolated MongoDB and Mailpit services,
 wait for readiness, seed synthetic data, and clean up even after failure.
 Do not use Atlas or Mailtrap credentials for these jobs.
 
-Supply configuration explicitly through the job environment or Compose.
+For integration jobs, supply configuration explicitly through the job environment or Compose.
 Use the address appropriate to where the backend runs, a disposable
 test database, an ephemeral random JWT_SECRET, SMTP_SECURE=false,
 SMTP_AUTH_REQUIRED=false, and empty SMTP credentials.
@@ -102,9 +105,11 @@ Do not commit staging credential values. Staging provisioning is separate work.
 
 ### 5.6 Automated Testing Support
 
-The planned development environment will support local unit and integration
-testing using isolated configuration and controlled test data. GitHub Actions
-will execute the required automated suites once their tooling is implemented.
+Local frontend/backend unit-test tooling is implemented through issue #28;
+see [Unit Testing Implementation](../testing/01-unit-testing-implementation.md).
+The planned development environment still needs integration support using
+isolated configuration and controlled test data. GitHub Actions execution
+requires separate workflow implementation.
 
 Database tests will use reproducible seeding and reset procedures. Unit tests
 may mock email sending. SMTP integration tests will use isolated Mailpit services
@@ -120,7 +125,8 @@ separate Mailtrap Email Testing sandbox.
 | Email functionality | Local/CI email is captured in isolated Mailpit inboxes with forwarding disabled. |
 | JWT authentication | Protected functions work with valid JWTs using a configured random signing secret. |
 | Environment configuration | Required settings and explicit SMTP authentication policy are documented without committing secrets. |
-| Automated testing | Tests run locally and in CI with synthetic data, readiness checks, isolation, and cleanup. |
+| Unit testing | Frontend and backend one-shot suites run locally without external services; initial results are linked in the implementation document. |
+| Integration and CI testing | Planned suites run with synthetic data, readiness checks, isolation, cleanup, and retained CI evidence. |
 
 ### 5.8 Verification and Limitations
 

@@ -93,16 +93,16 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 
 # Next Steps After Milestone 1
 
-| Area | Next Step |
-| --- | --- |
-| Frontend baseline | Inventory any existing frontend test files and run the current frontend test command to record a baseline. |
-| Backend framework | Select and configure the backend automated test framework and add CI-compatible test scripts. |
-| Unit and integration coverage | Build unit and integration tests for the highest-risk logic and routes. |
-| Regression coverage | Build regression coverage for sponsor-approved priority workflows. |
-| End-to-end coverage | Build focused Playwright instructor and student end-to-end journeys. |
-| Milestone 2 CI integration | Connect required tests to GitHub Actions and merge quality gates in Milestone 2. |
-| Milestone 3 staging validation | Implement staging health and smoke testing in Milestone 3. |
-| Ongoing traceability | Maintain RTM status and retained test evidence throughout implementation. |
+| Area | Progress | Remaining Action / Evidence |
+| --- | --- | --- |
+| Frontend baseline | Initial baseline recorded | One login-rendering test is documented with its results in [Unit Testing Implementation](../testing/01-unit-testing-implementation.md#initial-test-results). Maintain that baseline as coverage grows. |
+| Backend framework | Implemented | Vitest and one-shot/watch scripts are configured. Expand the initial missing-token test to high-risk backend logic and routes. |
+| Unit and integration coverage | In Progress | Two initial unit tests exist. Expand high-risk unit coverage and implement service-backed integration tests. |
+| Regression coverage | Not Started | Build regression coverage for sponsor-approved priority workflows. |
+| End-to-end coverage | Not Started | Build focused Playwright instructor and student end-to-end journeys. |
+| Milestone 2 CI integration | Not Started | Connect package-specific commands to GitHub Actions and merge quality gates. Local command checks do not establish CI execution. |
+| Milestone 3 staging validation | Planned | Implement staging health and smoke testing in Milestone 3. |
+| Ongoing traceability | In Progress | Link implemented artifacts, test IDs, and evidence in the RTM; retain results as coverage grows. |
 
 <a id="18-source-alignment"></a>
 
