@@ -23,7 +23,7 @@ The inherited system relies on external packages and services for frontend build
 
 ### 7.2 Planned Direction
 
-Frontend development and production build tooling will migrate from Create React App/react-scripts to Vite while retaining React. The existing react-scripts dependency remains part of the current baseline until the migration is complete.
+The planned CRA-to-Vite migration has been implemented while retaining React; see the [migration record](../CRA-to-Vite%20migration.md). Issue #28 subsequently added Vitest to both packages and jsdom to the frontend. Dependency additions, removals, and runtime alignment are recorded in [Dependency Updates](../dependency-updates.md), with testing evidence in [Unit Testing Implementation](../testing/01-unit-testing-implementation.md).
 
 Dependency management should be simplified by removing or justifying unused declarations, ensuring both frontend and backend installations are reproducible from lockfiles, and adding automated dependency/security checking as part of the CI process. The specific scanning configuration will be defined in the CI/CD Architecture Design.
 
