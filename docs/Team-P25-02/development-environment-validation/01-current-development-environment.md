@@ -92,7 +92,7 @@ The PEERS backend uses Mongoose to connect to MongoDB. The database must be prov
 
 The inherited repository has some testing infrastructure but does not currently demonstrate a complete automated testing environment.
 
-The frontend uses Vitest with React Testing Library dependencies, and the backend has a Vitest command for service-free unit tests. The initial test cases and execution results are recorded in the [Automated Testing Strategy](../automated-testing-strategy/03-traceability-ci-and-completion.md#13-initial-unit-test-cases) and [test-results section](../automated-testing-strategy/03-traceability-ci-and-completion.md#14-initial-test-results). The existing test_api.js remains a manual diagnostic script rather than part of the automated suite.
+The frontend includes a react-scripts test command and React Testing Library dependencies. The backend has no established automated test command or framework in its package configuration. Its existing test_api.js is a manual diagnostic script rather than an automated suite with reliable assertions and pass/fail results.
 
 The detailed test cases, fixtures, coverage decisions and execution rules will remain in the Automated Testing Strategy.
 

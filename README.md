@@ -6,7 +6,7 @@ This README describes the current repository setup. The [historical README](READ
 
 ## Requirements
 
-- Node.js satisfying `^20.19.0 || >=22.12.0` and npm 9 or newer. Both packages enforce these requirements with `engine-strict=true`.
+- Node.js satisfying `^22.22.2 || ^24.15.0 || >=26.0.0` and npm 9 or newer. Node 24 LTS is recommended for development. Both packages enforce these requirements with `engine-strict=true`.
 - Git to clone the repository, or download its ZIP.
 - Docker for local MongoDB and Mailpit containers.
 - No Atlas or Mailtrap account is required for local development.
@@ -99,7 +99,7 @@ Production builds, including local previews, use the configured deployed backend
 
 The one-shot test commands return a nonzero exit code when a test fails. The
 initial unit tests are documented in the
-[Automated Testing Strategy](docs/Team-P25-02/automated-testing-strategy/README.md);
+[Milestone 2 implementation record](docs/Team-P25-02/development-environment-validation/04-milestone-2-implementation.md#initial-unit-test-cases);
 broader integration, regression, and end-to-end coverage remains planned.
 
 ### Testing

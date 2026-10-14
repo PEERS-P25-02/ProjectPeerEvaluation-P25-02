@@ -8,11 +8,11 @@
 
 ### 11.1 Current State
 
-Current verification relies primarily on manual testing, diagnostic scripts, database inspection utilities, sample-data tools, and ESLint. The frontend now has a Vitest command with React Testing Library and an initial login-rendering test. The backend now has a Vitest command and an initial authentication-middleware test. Broader automated coverage and CI execution remain incomplete.
+Current verification relies primarily on manual testing, diagnostic scripts, database inspection utilities, sample-data tools, and ESLint. The frontend includes a Jest-based test command and React Testing Library dependencies, but no meaningful implemented frontend test cases were identified. The backend does not currently define a comprehensive automated test command or suite.
 
 | Capability | Current Assessment |
 | --- | --- |
-| Unit testing | Initial frontend route rendering and backend missing-token behavior are covered; core business logic such as grading, token handling, and validation still needs coverage. |
+| Unit testing | No meaningful automated suite was identified for core business logic such as grading, token handling, or validation. |
 | Integration testing | Authentication, API/database interactions, CSV imports, and email integration are not automatically verified end-to-end between components. |
 | Regression testing | Critical professor and student workflows rely mainly on manual verification. |
 | Failure-path testing | Database outages, email failures, invalid tokens, retries, partial writes, and concurrent submissions are not systematically tested. |
@@ -21,7 +21,7 @@ Current verification relies primarily on manual testing, diagnostic scripts, dat
 
 ### 11.2 Planned Direction
 
-The SLA requires automated unit, integration, regression, and end-to-end testing, followed by health and smoke validation in staging. The implementation uses Vitest with React Testing Library for the initial frontend and backend unit tests; Playwright remains specified for agreed end-to-end and regression workflows. The detailed test layering, scope, data strategy, and test-case design are documented in the Automated Testing Strategy.
+The SLA requires automated unit, integration, regression, and end-to-end testing, followed by health and smoke validation in staging. Jest and React Testing Library are specified for appropriate frontend tests, and Playwright is specified for agreed end-to-end and regression workflows. The detailed test layering, scope, data strategy, and test-case design will be defined in the Automated Testing Strategy.
 
 ## 12. CI/CD and Operational Readiness
 

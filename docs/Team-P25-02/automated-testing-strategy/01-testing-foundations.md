@@ -14,18 +14,18 @@ This directly supports the Milestone 1 rubric by demonstrating requirements unde
 
 # Current Repository Testing State
 
-The testing baseline below is based on a direct review of the current main branch of jonpauljah/ProjectPeerEvaluation-P25-02 and the initial unit-test implementation for issue #28.
+The testing baseline below is based on a direct review of the current main branch of jonpauljah/ProjectPeerEvaluation-P25-02.
 
 | Area | Observed State |
 | --- | --- |
-| Frontend test command | The root package runs `npm test`, which invokes `vitest run src/frontend` once and exits. |
+| Frontend test command | The root frontend package includes the standard react-scripts test command. |
 | React testing dependencies | React Testing Library packages are already present in the frontend dependencies, including @testing-library/react, @testing-library/jest-dom, and @testing-library/user-event. |
-| Frontend test tooling | Vitest provides the test runner, jsdom provides the browser-like environment, and `@testing-library/jest-dom/vitest` provides DOM assertions through the Vitest setup file. |
-| Frontend test coverage | The initial suite includes a passing application smoke-level unit test in `src/frontend/tests/App.test.jsx`; broader component and workflow coverage remains planned. |
-| Backend test tooling | The backend uses Vitest with `npm test` mapped to `vitest run`; the initial suite tests authentication middleware without starting Express or connecting to MongoDB. |
+| Frontend lint configuration | The root ESLint configuration extends react-app and react-app/jest, so the frontend already has part of the tooling foundation needed for Jest-based testing. |
+| Frontend test coverage | No established automated frontend test suite was identified during the initial repository review; the team should confirm this again during implementation by inventorying test files and running the existing test command. |
+| Backend test tooling | The backend package.json currently contains only a start script and does not define an npm test command or test framework dependency. |
 | Manual API diagnostic | The backend contains test\_api.js, but it is a manual Axios diagnostic that calls one localhost evaluation endpoint and logs the response. It is not a repeatable automated unit/integration suite and does not provide CI-quality pass/fail coverage. |
 | Backend health endpoint | The backend exposes GET /api/health, which can later support automated post-deployment health validation. |
-| CI automation | Automated CI execution is not currently present because no .github/workflows directory was identified on main. The test commands are CI-compatible because they run once and return a nonzero status on failure. |
+| CI automation | Automated CI execution is not currently present because no .github/workflows directory was identified on main. |
 
 <a id="03-testing-goals"></a>
 
@@ -84,7 +84,7 @@ The SLA provides the current proposed priority workflow list. These workflows sh
 
 | Proposed Tool | Purpose |
 | --- | --- |
-| Vitest | Frontend and backend JavaScript unit testing with one-shot and watch commands. |
+| Jest | JavaScript unit/integration testing where appropriate. |
 | React Testing Library | React component and user-visible behavior tests. |
 | Playwright | Sponsor-approved end-to-end and regression browser workflows. |
 | GitHub Actions | Unattended execution and quality-gate enforcement. |
@@ -92,6 +92,4 @@ The SLA provides the current proposed priority workflow list. These workflows sh
 | Mailpit | Isolated local/CI SMTP capture with forwarding disabled and no SMTP credentials. |
 | Mailtrap Email Testing | Separate authenticated staging email sandbox. |
 
-The frontend and backend now use Vitest. React Testing Library remains the frontend component-testing library, and `@testing-library/jest-dom/vitest` is loaded from `src/frontend/test/setup.js`. The root `npm test` command runs only frontend tests once; `npm --prefix src/backend test` runs only backend tests once. The root `npm run test:all` command runs both one-shot suites together through the existing `concurrently` dependency. The optional `test:watch` scripts are similarly scoped to their package and intended for local development.
-
-**Backend tool choice:** Vitest was selected for backend unit tests because the project already uses it for frontend tests, allowing the team to use one test runner and one command pattern across both packages. Its `vitest run` command supports one-shot CI execution and a nonzero failure status, while its mocking utilities support isolated middleware and business-logic tests without requiring MongoDB, SMTP, or a running Express server. This keeps the initial backend tests fast and repeatable while leaving integration testing for later work.
+The frontend already includes React Testing Library packages, while the backend still needs a structured automated test framework and scripts. Tooling should be validated against the current codebase before the team treats it as finalized.

@@ -23,7 +23,7 @@ This structure is appropriate for the current project size and is not planned fo
 | Authentication | bcryptjs, jsonwebtoken | Hashes professor passwords and supports JWT-based professor API authentication. |
 | Communication | Nodemailer, external SMTP provider | Sends evaluation invitations, reminders, and password-reset email. |
 | Configuration | dotenv | Loads environment-dependent backend configuration. |
-| Code quality/build support | ESLint, React tooling, Vite | Supports linting, frontend build operations, and JavaScript transformation. |
+| Code quality/build support | ESLint, React tooling, Babel/react-scripts | Supports linting, frontend build operations, and JavaScript transformation. |
 
 ### 4.2 Planned Supporting Technologies
 
@@ -31,7 +31,7 @@ The core application stack will be preserved. The following technologies are ide
 
 | Technology | Planned Role |
 | --- | --- |
-| Vitest / React Testing Library | Unit, integration, and frontend behavior testing. |
+| Jest / React Testing Library | Unit, integration, and frontend behavior testing. |
 | Playwright | End-to-end and regression workflow validation. |
 | ESLint / Prettier | Automated code-quality and formatting checks. |
 | GitHub Actions | CI/CD orchestration and automated validation. |
