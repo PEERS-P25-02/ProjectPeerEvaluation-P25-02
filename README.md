@@ -111,7 +111,7 @@ The workflow runs automatically when:
 - A pull request targeting `main` is opened or updated.
 - Changes are pushed to the `main` branch.
 
-The workflow uses Ubuntu and Node.js 22 to:
+The workflow uses Ubuntu and Node.js 24 to:
 
 1. Check out the repository.
 2. Configure Node.js and npm dependency caching.
@@ -131,7 +131,7 @@ cd src/backend
 npm ci
 ```
 
-Use a supported Node.js/npm version as specified in the README.
+Use Node.js 24 locally to match CI, with npm 9 or newer.
 
 ### Viewing CI Results
 
