@@ -67,6 +67,21 @@ The backend submits email on SMTP port `1025`; inspect captured messages
 at http://localhost:8025. Keep forwarding and relay disabled.
 MongoDB must also be running at the configured URI.
 
+### Frontend container
+
+Build and run the production frontend image from the repository root:
+
+```bash
+docker build -t peers-frontend .
+docker run --rm --name peers-frontend -p 127.0.0.1:3000:80 peers-frontend
+```
+
+Open **http://localhost:3000**. The image serves the compiled frontend through
+Nginx and supports client-side routes. It currently uses the existing deployed
+backend URL; connecting it to a local Docker backend is part of the planned
+four-service Compose work. See the [frontend container guide](docs/Team-P25-02/containerization-assessment/03-frontend-dockerfile-validation.md)
+for the verification checklist and limitations.
+
 Start both servers:
 
 ```bash
