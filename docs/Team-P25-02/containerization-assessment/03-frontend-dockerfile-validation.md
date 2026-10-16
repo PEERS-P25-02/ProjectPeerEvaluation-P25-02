@@ -42,4 +42,16 @@ This is intentional for this issue because the existing production-build behavio
 - In browser developer tools, confirm that API calls use the documented deployed API destination.
 - Record the Docker version, commands, and results in the pull request.
 
-Docker was not available in the implementation environment when this document was added, so the image build and browser smoke test still need to be run on a machine with Docker before closing the issue.
+## Recorded verification
+
+Validated on October 16, 2026 with Docker Desktop client and server version
+29.8.2.
+
+- `docker build --tag peers-frontend:issue-24 .` completed successfully.
+- `docker run --rm --name peers-frontend-smoke -p 127.0.0.1:3000:80 peers-frontend:issue-24` started Nginx successfully.
+- A browser loaded the login page at `http://127.0.0.1:3000/`.
+- Requests to `/` and `/course-management` both returned HTTP 200, and the
+  client-route response matched `index.html`, confirming the SPA fallback.
+
+The image is about 77 MB. The smoke-test container was stopped and removed
+after verification; the local image is retained as `peers-frontend:issue-24`.
