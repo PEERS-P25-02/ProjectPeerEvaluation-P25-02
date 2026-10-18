@@ -6,10 +6,10 @@ This README describes the current repository setup. The [historical README](READ
 
 ## Requirements
 
-- Node.js satisfying `^20.19.0 || >=22.12.0` and npm 9 or newer. Both packages enforce these requirements with `engine-strict=true`.
+- Node.js satisfying `^22.22.2 || ^24.15.0 || >=26.0.0` and npm 9 or newer. Node 24 LTS is recommended for development. Both packages enforce these requirements with `engine-strict=true`.
 - Git to clone the repository, or download its ZIP.
-- A reachable development MongoDB instance.
-- SMTP credentials to exercise invitations, reminders, and password resets.
+- Docker for local MongoDB and Mailpit containers.
+- No Atlas or Mailtrap account is required for local development.
 
 Use a Node version manager such as nvm. In WSL, install and run Linux Node/npm inside WSL; for native Windows, use nvm-windows. Verify your installation:
 
@@ -28,21 +28,59 @@ cd ProjectPeerEvaluation-P25-02
 npm run setup
 ```
 
-The setup command installs the frontend and backend dependencies once each.
+The setup command currently installs frontend and backend dependencies.
+Automatic .env creation and random JWT_SECRET generation are planned separately
+and are not implemented yet.
 
 Configure `src/backend/.env` using `src/backend/.env.example` as a reference. Preserve any existing configuration. Set these values for your development environment:
 
 | Variable | Purpose |
 | --- | --- |
-| `MONGODB_URI` | Connection URI for your development MongoDB database. |
-| `JWT_SECRET` | A unique signing secret; add it explicitly because the example omits it. |
+| `MONGODB_URI` | Native-local default: `mongodb://localhost:27017/peer-eval`. MongoDB must be running separately. |
+| `JWT_SECRET` | Replace `REPLACE_WITH_RANDOM_SECRET` with a unique random signing secret. |
 | `PORT` | Backend port; defaults to `5000`. |
 | `FRONTEND_URL` | Use `http://localhost:3000` for local email links. |
-| `SMTP_HOST`, `SMTP_PORT` | Your SMTP server and port. |
+| `SMTP_HOST`, `SMTP_PORT` | Native-local Mailpit: `localhost`, `1025`. |
 | `SMTP_SECURE` | `true` for implicit TLS; port `465` also enables it. |
-| `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | SMTP credentials and sender address. |
+| `SMTP_AUTH_REQUIRED` | Defaults to `true`; explicitly set `false` for local/CI Mailpit. |
+| `SMTP_USER`, `SMTP_PASS` | Leave both empty for default Mailpit; supply both for authenticated SMTP. |
+| `SMTP_FROM` | Sender address displayed on email; local example: `peers-test@example.com`. |
 
-The repository currently tracks `src/backend/.env`, and its ignore rules do not exclude environment files. Do not commit credentials or real student data.
+Local `.env` and `.env.*` files are ignored; `.env.example` remains tracked.
+Copy the example only if `src/backend/.env` is absent. If it exists,
+merge the settings manually and preserve configured values.
+Do not commit credentials or real student data.
+
+### Manual local Mailpit setup
+
+Until the Compose stack is implemented, start Mailpit separately:
+
+```bash
+docker run -d --name peers-mailpit-test \
+  -p 127.0.0.1:1025:1025 \
+  -p 127.0.0.1:8025:8025 \
+  axllent/mailpit:v1.27.4
+```
+
+For an existing container, use `docker start peers-mailpit-test`.
+The backend submits email on SMTP port `1025`; inspect captured messages
+at http://localhost:8025. Keep forwarding and relay disabled.
+MongoDB must also be running at the configured URI.
+
+### Frontend container
+
+Build and run the production frontend image from the repository root:
+
+```bash
+docker build -t peers-frontend .
+docker run --rm --name peers-frontend -p 127.0.0.1:3000:80 peers-frontend
+```
+
+Open **http://localhost:3000**. The image serves the compiled frontend through
+Nginx and supports client-side routes. It currently uses the existing deployed
+backend URL; connecting it to a local Docker backend is part of the planned
+four-service Compose work. See the [frontend container guide](docs/Team-P25-02/containerization-assessment/03-frontend-dockerfile-validation.md)
+for the verification checklist and limitations.
 
 Start both servers:
 
@@ -66,10 +104,47 @@ Run these from the repository root:
 | `npm run start:backend` | Start Express from `src/backend`. |
 | `npm run build` | Build the frontend into `build/`. |
 | `npm run preview` | Preview the frontend production build locally. |
+| `npm test` | Run the frontend Vitest suite once and exit. |
+| `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
+| `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
+| `npm --prefix src/backend run test:watch` | Run the backend Vitest suite in watch mode for local development. |
+| `npm run test:all` | Run the frontend and backend Vitest suites together once and exit; convenient for local validation. |
 
 Production builds, including local previews, use the configured deployed backend. Use the development server at `localhost:3000` for local API testing. The shared API service also selects the deployed backend on hosts other than `localhost`.
 
-No automated test command is currently configured in either package. Verify relevant browser/API workflows against development data, and run `npm run build` for frontend changes. Testing infrastructure is planned separately.
+The one-shot test commands return a nonzero exit code when a test fails. The
+initial unit tests are documented in the
+[Unit Testing Implementation](docs/Team-P25-02/testing/01-unit-testing-implementation.md#initial-unit-test-cases);
+broader integration, regression, and end-to-end coverage remains planned.
+
+### Testing
+
+Run the package-specific command when working on one package:
+
+```powershell
+# Frontend, from the repository root
+npm test
+
+# Backend, from the repository root
+npm --prefix src/backend test
+```
+
+Use the combined command as a local convenience check when you want to verify
+both packages. CI should run the package-specific commands separately so
+frontend and backend failures are reported independently:
+
+```powershell
+npm run test:all
+```
+
+Frontend tests belong in `src/frontend/tests/` and use `.test.jsx` or `.spec.jsx`
+filenames. Use React Testing Library for rendered component behavior and import
+test functions and mocks from Vitest. The frontend Vitest setup is loaded
+automatically from `src/frontend/test/setup.js`.
+
+Backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js`
+filenames. Keep unit tests isolated from MongoDB, SMTP, and live application
+startup unless the test is specifically an integration test.
 
 ## Project structure
 

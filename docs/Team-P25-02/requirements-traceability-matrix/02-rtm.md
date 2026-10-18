@@ -247,14 +247,14 @@
 <td>The project shall use Jest and React Testing Library for appropriate frontend automated tests.</td>
 <td>High</td>
 <td>Client</td>
-<td>Jest / React Testing Library</td>
-<td></td>
-<td></td>
+<td>Vitest / React Testing Library / jsdom</td>
+<td><a href="../../../package.json">Frontend package</a>; <a href="../../../vite.config.mjs">Vitest configuration</a>; <a href="../../../src/frontend/test/setup.js">DOM assertion setup</a>; <a href="../../../src/frontend/tests/App.test.jsx">Frontend test</a></td>
+<td>UNIT-FE-001; UNIT-CI-001; UNIT-CI-002</td>
 <td>Unit Test + Integration Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../testing/01-unit-testing-implementation.md#initial-test-results">Initial recorded results</a>; <a href="../testing/01-unit-testing-implementation.md#verification-after-runtime-alignment">Verification after runtime alignment</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Initial unit coverage is implemented; integration coverage remains planned. The implementation uses Vitest in place of the specified Jest runner; requirement reconciliation remains open. UNIT-CI identifiers refer to local command checks, not CI workflow execution.</td>
 </tr>
 <tr>
 <td>FR-17</td>

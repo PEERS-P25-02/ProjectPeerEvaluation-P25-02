@@ -105,7 +105,7 @@ Continuous Delivery begins after a change has passed CI and has been approved fo
 | Milestone | Next Step |
 | --- | --- |
 | Milestone 2 | Correct and finalize the repeatable container/development environment. |
-| Milestone 2 | Implement automated unit, integration, regression, and end-to-end tests. |
+| Milestone 2 | Expand the initial unit tests and implement integration, regression, and end-to-end coverage. Unit-test runner setup and the first two tests are implemented in [issue #28's implementation record](../testing/01-unit-testing-implementation.md). |
 | Milestone 2 | Implement GitHub Actions CI workflows and required merge quality gates. |
 | Milestone 2 | Establish branch protection and required-check enforcement. |
 | Milestone 3 | Implement automated staging deployment. |

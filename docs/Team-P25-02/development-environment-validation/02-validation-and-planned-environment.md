@@ -24,13 +24,13 @@ The following table summarizes the results of the team's local development envir
 
 ### 3.1 Current Validation Summary
 
-The initial validation confirmed that the PEERS repository can be retrieved, its dependencies installed, and both the frontend and backend started successfully. MongoDB connectivity and SMTP functionality were also successfully tested, but both required manually creating and configuring separate Docker containers. MongoDB was used for database connectivity, while Mailpit was used to capture and test outgoing emails. Note that while Mailpit was used for this local testing, automated testing and local environments will use Mailtrap.
+The initial validation confirmed that the PEERS repository can be retrieved, its dependencies installed, and both the frontend and backend started successfully. MongoDB connectivity and SMTP functionality were also successfully tested, but both required manually creating and configuring separate Docker containers. MongoDB was used for database connectivity, while Mailpit was used to capture and test outgoing emails. The agreed local and CI environments will also use Mailpit; Mailtrap is reserved for shared staging.
 
 JWT authentication was also successfully validated. Protected functions were accessible with a valid JWT. Changing the signing secret and restarting the backend invalidated the existing token, while restoring the original secret and restarting the backend restored access.
 
 The current development environment is functional but not fully repeatable. Developers must provide their own environment variables and manually configure supporting services. There is also no established automated test suite or working integrated containerized setup.
 
-These findings support the planned introduction of Docker Compose to coordinate PEERS, MongoDB, and Mailtrap, along with improved environment configuration, JWT secret management, and automated testing support.
+These findings support the planned introduction of Docker Compose to coordinate PEERS, MongoDB, and Mailpit, along with improved environment configuration, JWT secret management, and automated testing support.
 
 ## 4. Current Environment Assessment
 
@@ -48,7 +48,7 @@ These findings establish the basis for the planned development environment descr
 
 ## 5. Planned Development Environment
 
-The planned PEERS development environment will use Docker Compose to provide a repeatable local setup for Windows, macOS, and Linux. Docker Compose will run the React frontend, Express backend, and MongoDB database. Mailtrap will be used as an external email-testing service for both local development and staging, with separate sandboxes for each environment.
+The planned PEERS development environment will use Docker Compose to provide a repeatable local setup for Windows, macOS, and Linux. Docker Compose will run the React frontend, Express backend, MongoDB database, and Mailpit email service. Each developer will have independent local data and an inbox; CI will use disposable isolated services. MongoDB Atlas and a separate Mailtrap Email Testing sandbox are reserved for shared staging.
 
 Native npm commands will remain available as an alternative to Docker Compose. These improvements will reduce manual configuration and establish a consistent environment for development and automated testing.
 
@@ -61,8 +61,8 @@ The planned development environment will include the following components:
 | Frontend | React Docker container | Runs the PEERS user interface locally. |
 | Backend | Express Docker container | Runs the API and handles JWT authentication. |
 | Database | MongoDB Docker container | Stores development data. |
-| Email | Email Sandbox | Captures outgoing test emails. |
-| Docker Compose | Container orchestration | Coordinates the three containers and passes the required configuration to them. |
+| Email | Mailpit Docker container | Captures outgoing local test emails with forwarding disabled. |
+| Docker Compose | Container orchestration | Coordinates the four containers and passes the required configuration to them. |
 
 ## Related Documents
 

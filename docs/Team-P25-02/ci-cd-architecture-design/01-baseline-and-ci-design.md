@@ -76,7 +76,8 @@ The target architecture is a GitHub-based workflow where developers work on feat
 | Docker and Docker Compose | Repeatable local and test environments |
 | Render (proposed) | Staging host for the frontend and backend |
 | MongoDB Atlas (proposed) | Managed staging database |
-| Mailtrap or an approved equivalent | Staging email sandbox |
+| MongoDB and Mailpit containers | Disposable isolated CI database and email inbox; no Atlas/Mailtrap credentials |
+| Mailtrap Email Testing | Separate authenticated staging email sandbox |
 | ESLint and Prettier | Code-quality and formatting checks |
 | Dependabot and/or an OWASP dependency scanning tool | Dependency and security visibility |
 
@@ -93,11 +94,15 @@ Continuous Integration will validate proposed changes before they are merged int
 | Area | Requirement |
 | --- | --- |
 | Workflow triggers | Trigger the required CI workflow for each code commit pushed to the repository and each pull request targeting main, consistent with the approved requirements. |
-| Dependency installation | Install dependencies using the repository lock files and fail the workflow if dependency installation fails. |
-| Application build | Build the React application using the existing npm build command. |
+| Node runtime | Use Node satisfying `^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0`; include checks of the supported minimum versions as runtime validation is implemented. |
+| Dependency installation | Run `npm ci` and `npm --prefix src/backend ci` from the repository root using the separate lockfiles; fail the workflow if either installation fails. |
+| Application build | Build the React application with `npm run build` from the repository root. |
 | Code quality | Run ESLint/formatting validation using the agreed project rules. |
-| Automated testing | Run the automated test suites defined in the Automated Testing Strategy. |
+| Unit testing | Run `npm test` and `npm --prefix src/backend test` in separate jobs or steps for independent reporting. These initial suites do not require MongoDB or SMTP services. |
+| Integration testing | Add integration commands as coverage is implemented. Run those suites with disposable MongoDB/Mailpit services, explicit configuration, an ephemeral JWT_SECRET, and SMTP_AUTH_REQUIRED=false. Wait for readiness, isolate concurrent jobs, and clean up services/storage even after failure. |
 | Dependency and security checks | Run dependency and security checks and expose results to maintainers. |
 | Merge requirements | Require configured checks to pass before merge. |
 | Branch protection | Protect main so normal changes are merged through pull requests rather than direct unvalidated changes. |
 | Logs and reports | Retain logs/reports needed to demonstrate pipeline, test, security, and build results. |
+
+Unit-test commands and initial local results are documented in [Unit Testing Implementation](../testing/01-unit-testing-implementation.md). The CI workflow and integration-service jobs described above remain planned; no workflow execution is claimed.

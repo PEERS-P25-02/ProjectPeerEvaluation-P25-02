@@ -1,0 +1,21 @@
+.git
+.gitignore
+node_modules
+build
+.env
+.env.*
+!.env.example
+npm-debug.log*
+coverage
+src/backend
+docs
+README-historical.md
+DEPLOYMENT_GUIDE.md
+Frontend-Backend API Contract Document
+PROJECT STRUCTURE
+frontend-backend-integration-guide.txt
+render-build-info.txt
+render-env-variables.txt
+start.bat
+start.ps1
+docker-compose.yml

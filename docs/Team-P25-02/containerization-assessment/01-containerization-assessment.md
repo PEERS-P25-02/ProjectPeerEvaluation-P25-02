@@ -20,7 +20,7 @@ The documented container setup does not match the inherited application. The arc
 | --- | --- | --- |
 | Compose database does not match MongoDB | Local setup can fail or use a false database dependency. | Define a MongoDB service and use the backend connection variable. |
 | Environment values are partly hard coded | Local and staging behavior can diverge. | Move host names, ports, secrets, and email settings to environment configuration. |
-| Email can contact an external SMTP provider | Test activity can send messages outside the project. | Use Mailtrap for local environment and in staging environments. |
+| Email can contact an external SMTP provider | Test activity can send messages outside the project. | Use Mailpit for local/CI capture with forwarding disabled and a separate Mailtrap Email Testing sandbox for staging. |
 | Service readiness is not proven | The frontend or backend can start before dependencies are ready. | Add health checks and dependency conditions where supported. |
 | Setup steps depend on developer knowledge | New developers can reach different results. | Provide one startup command and a short validation checklist. |
 
@@ -34,7 +34,7 @@ Each supported machine must run the same PEERS components. The architecture revi
 
 ![](assets/image3.png)
 
-Figure 1. Proposed local container arrangement for PEERS.
+Figure 1. Proposed local container arrangement for PEERS. The agreed local/CI email service is Mailpit; any older provider labels in the diagram are superseded by this configuration.
 
 The frontend needs to present the existing user interface from a service that is separate from the API. The PEERS architecture review identifies React as the frontend tier that calls the backend REST API. The frontend configuration should use an API base URL that points to the backend service or approved local host route rather than a hard coded staging address. That separation allows the backend service to use its own image and dependency plan.
 
@@ -48,13 +48,13 @@ Local test data must survive normal restarts without entering the repository. Th
 
 ## Configuration and Security
 
-Local and staging environments need different values without exposing secrets. The architecture review identifies hard-coded settings and credential handling as high-priority concerns. A committed .env.example file should name every required variable without real values, while .env and staging secrets remain outside version control. This boundary keeps the Compose file readable and prepares the project for CI secret storage.
+Local and staging environments need different values without exposing secrets. The architecture review identifies hard-coded settings and credential handling as high-priority concerns. A committed .env.example file should name every required variable without real values, while .env and staging secrets remain outside version control. This boundary keeps the Compose file readable. CI will use disposable MongoDB/Mailpit services without Atlas or Mailtrap credentials; staging credentials remain in protected settings. See the [configuration contract](../development-environment-validation/03-configuration-and-testing.md) for addresses and explicit backend environment injection.
 
 | Configuration area | Local approach | Staging approach |
 | --- | --- | --- |
 | Database connection | Use the Compose service host, port, and a development database name. | Use the approved MongoDB Atlas connection string from protected secrets. |
 | JWT and token secrets | Load placeholder-free values from an ignored local .env file. | Load protected values from the deployment platform or GitHub Actions secrets. |
-| Email delivery | Route SMTP to Mailtrap so messages stay in the local test inbox. | Route SMTP to Mailtrap. |
+| Email delivery | Use `mailpit:1025`, `SMTP_SECURE=false`, `SMTP_AUTH_REQUIRED=false`, and empty credentials. | Use the separate Mailtrap sandbox with `SMTP_AUTH_REQUIRED=true` and protected credentials. |
 | Frontend API URL | Use the local backend route defined for the Compose network or browser proxy. | Use the deployed staging API address. |
 | Logs and debug mode | Use readable console logs without student data. | Use deployment logs with debugging limited to approved settings. |
 

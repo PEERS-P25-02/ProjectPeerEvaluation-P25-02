@@ -36,6 +36,8 @@ Production builds passed, the Vite development server served HTML and React modu
 
 CRA's test runner was removed with `react-scripts`. Testing Library remains installed; Vitest setup and further browser/backend workflow testing are deferred to the testing branch. Deployment runtime/settings still require verification. Docker configuration is unchanged and deferred to separate work. Production browser targets are explicitly configured; real-browser compatibility checks remain pending. Dependency changes and accepted tooling risks are recorded in [dependency-updates.md](dependency-updates.md).
 
+**Milestone 2 follow-up (#28):** The deferred Vitest setup is implemented for both packages, with jsdom for frontend tests and two initial unit tests. See [Unit Testing Implementation](testing/01-unit-testing-implementation.md) for cases, results, and remaining verification. The runtime range in the migration table records the original migration; the packages now require Node `^22.22.2 || ^24.15.0 || >=26.0.0` to support the test tooling. Broader browser/backend workflow testing, Docker implementation, and deployment verification remain outstanding.
+
 ## Possible Future Update: Use Vite's Default Output Directory
 
 Vite currently outputs to `build/` to preserve the existing repository
