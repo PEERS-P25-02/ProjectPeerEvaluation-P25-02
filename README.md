@@ -184,7 +184,7 @@ Workflow file: `.github/workflows/ci.yml`
 The workflow runs automatically when:
 
 - A pull request targeting `main` is opened or updated.
-- Changes are pushed to the `main` branch.
+- Changes are pushed to any branch, including feature branches and `main`.
 
 The workflow uses Ubuntu and Node.js 24 to:
 
@@ -216,7 +216,7 @@ Use Node.js 24 locally to match CI, with npm 9 or newer.
 4. Select a workflow run to review its status.
 5. Open the "Install Frontend and Backend" job to inspect logs.
 
-Pull requests also display workflow check results.
+Pull requests also display workflow check results. Branch-push runs provide early feedback, while the PR check should be configured as a required status check for merging into `main` by a repository administrator.
 
 ### Troubleshooting
 
