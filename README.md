@@ -171,3 +171,63 @@ The frontend uses React and Vite; the backend uses Express, Mongoose/MongoDB, JW
 See the [Team P25-02 documentation index](docs/Team-P25-02/README.md) and the [Vite migration notes](docs/Team-P25-02/CRA-to-Vite%20migration.md). The historical README records earlier plans; proposed features there do not establish current implementation.
 
 Use feature branches, link relevant issues in pull requests, describe behavior changes, and report validation. Check applicable `AGENTS.md` instructions before editing.
+
+## Continuous Integration (CI)
+
+The project uses GitHub Actions to validate dependency installation
+for both the frontend and backend.
+
+### Workflow
+
+Workflow file: `.github/workflows/ci.yml`
+
+The workflow runs automatically when:
+
+- A pull request targeting `main` is opened or updated.
+- Changes are pushed to the `main` branch.
+
+The workflow uses Ubuntu and Node.js 24 to:
+
+1. Check out the repository.
+2. Configure Node.js and npm dependency caching.
+3. Install frontend dependencies using `npm ci`.
+4. Install backend dependencies using `npm ci`.
+
+Both installations use the committed package lockfiles.
+If either installation fails, the workflow reports a failed job.
+
+### Running Installation Checks Locally
+
+From the repository root:
+
+```bash
+npm ci
+cd src/backend
+npm ci
+```
+
+Use Node.js 24 locally to match CI, with npm 9 or newer.
+
+### Viewing CI Results
+
+1. Open the repository on GitHub.
+2. Select the Actions tab.
+3. Open the "CI - Dependency Installation" workflow.
+4. Select a workflow run to review its status.
+5. Open the "Install Frontend and Backend" job to inspect logs.
+
+Pull requests also display workflow check results.
+
+### Troubleshooting
+
+If an installation fails:
+
+- Review the failed step in the GitHub Actions logs.
+- Verify that both package-lock.json files are committed.
+- Confirm that package.json and package-lock.json are consistent.
+- Reproduce the issue locally with npm ci.
+- Confirm that the Node.js/npm versions meet project requirements.
+
+This initial CI workflow validates dependency installation only.
+Build, lint, unit, integration, regression, and end-to-end
+testing are tracked in separate issues.
