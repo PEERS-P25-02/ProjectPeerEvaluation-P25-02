@@ -245,17 +245,18 @@ If an installation fails:
 - Reproduce the issue locally with npm ci.
 - Confirm that the Node.js/npm versions meet project requirements.
 
-The CI workflow now contains independent jobs for dependency installation, frontend production build, frontend ESLint, frontend Vitest, and backend Vitest. All jobs use Node.js 24 and committed lockfiles. Any nonzero command exit fails its job. Run these locally from the repository root:
+Issue #45 extends the CI workflow with independent frontend build, repository-wide ESLint (frontend, backend, tests and tooling), Prettier formatting, frontend Vitest, and backend Vitest jobs. Each job uses Node.js 24, locked dependencies, and fails when its command exits nonzero. To reproduce:
 
 ```bash
 npm ci
 npm run build
 npm run lint
+npm run format:check
 npm test
 npm --prefix src/backend ci
 npm --prefix src/backend test
 ```
 
-The backend currently has no documented lint script, so CI lint is frontend-only. Unit coverage is limited to the existing suites; integration, regression and end-to-end tests remain separate work. GitHub Actions results (including failures) must be verified on this PR before treating CI as passing. An administrator should configure the passing PR checks as required status checks on `main`.
+The lint and formatting commands use Issue #85's ESLint 9 flat configuration and Prettier setup. These checks do not replace integration, regression or E2E tests. Repository administrators must configure desired PR job names as required status checks.
 
-See [Issue #45 CI Test Document addendum](docs/Team-P25-02/testing/02-ci-build-lint-unit-verification.md) for cases, evidence, and limitations.
+See [Issue #45 CI verification](docs/Team-P25-02/testing/02-ci-build-lint-unit-verification.md) for planned cases and recorded evidence.
