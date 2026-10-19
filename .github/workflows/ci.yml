@@ -54,7 +54,12 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            src/backend/package-lock.json
       - run: npm ci
+      - run: npm ci
+        working-directory: ./src/backend
       - run: npm run lint
 
   frontend-unit-tests:
