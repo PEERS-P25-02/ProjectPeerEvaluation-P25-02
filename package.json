@@ -26,7 +26,6 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "lint": "eslint src/frontend --ext .js,.jsx",
     "start:backend": "cd src/backend && npm start",
     "start:frontend": "vite",
     "test": "vitest run src/frontend",
