@@ -245,6 +245,18 @@ If an installation fails:
 - Reproduce the issue locally with npm ci.
 - Confirm that the Node.js/npm versions meet project requirements.
 
-This initial CI workflow validates dependency installation only.
-Build, lint, unit, integration, regression, and end-to-end
-testing are tracked in separate issues.
+Issue #45 extends the CI workflow with independent frontend build, repository-wide ESLint (frontend, backend, tests and tooling), Prettier formatting, frontend Vitest, and backend Vitest jobs. Each job uses Node.js 24, locked dependencies, and fails when its command exits nonzero. To reproduce:
+
+```bash
+npm ci
+npm run build
+npm run lint
+npm run format:check
+npm test
+npm --prefix src/backend ci
+npm --prefix src/backend test
+```
+
+The lint and formatting commands use Issue #85's ESLint 9 flat configuration and Prettier setup. These checks do not replace integration, regression or E2E tests. Repository administrators must configure desired PR job names as required status checks.
+
+See [Issue #45 CI verification](docs/Team-P25-02/testing/02-ci-build-lint-unit-verification.md) for planned cases and recorded evidence.
