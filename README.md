@@ -104,9 +104,9 @@ Run these from the repository root:
 | `npm run start:backend` | Start Express from `src/backend`. |
 | `npm run build` | Build the frontend into `build/`. |
 | `npm run preview` | Preview the frontend production build locally. |
-| `npm run lint` | Lint repository JavaScript and JSX, including frontend, backend, tests, and tooling configuration. |
-| `npm run format:check` | Check JavaScript/JSX formatting, including application code, tests, setup helpers, manual scripts, and tooling. |
-| `npm run format` | Apply that Prettier formatting. |
+| `npm run lint` | Check JavaScript and JSX with ESLint. |
+| `npm run format:check` | Check Prettier formatting without changing files. |
+| `npm run format` | Apply Prettier formatting. |
 | `npm test` | Run the frontend Vitest suite once and exit. |
 | `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
 | `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
@@ -151,50 +151,17 @@ startup unless the test is specifically an integration test.
 
 ### Linting and formatting
 
-Run `npm run lint` from the repository root. The standalone
-`eslint.config.mjs` covers `.js`, `.jsx`, `.mjs`, and `.cjs` files. It excludes
-`node_modules/`, `build/`, `dist/`, and `coverage/` at any depth, plus hidden
-files and directories. HTML, CSS, JSON, and Markdown are outside its scope.
-Warnings are reported without failing the command; lint errors return exit
-status 1. ESLint configuration or execution failures return status 2.
-
-The configuration uses core, React, Hooks, accessibility, and import
-recommended presets with project overrides. React rules use the modern JSX
-runtime, and the import resolver handles JSX paths and package exports.
-Prettier owns formatting for application code, tests, setup helpers, and
-manual API scripts. `prettier.config.cjs` sets two spaces and single-quoted
-JavaScript strings; `.prettierignore` excludes dependencies, generated output,
-and hidden paths. Use
-`npm run format:check` to inspect formatting without changing files, or
-`npm run format` to apply it. Lint currently passes with zero errors and
-zero warnings after unused backend declarations and field-level dialog
-autofocus were removed. MUI retains dialog focus management. The reminder
-query's duplicate `_id` condition is fixed, and the
-sample-data script now uses Node's built-in `crypto.randomUUID()`.
-
-Automated `.test.*` and `.spec.*` files under `src/` also use the Vitest
-recommended lint preset. Focused tests, invalid assertions, and duplicate
-test titles are errors; skipped tests are warnings. Test helpers remain
-explicitly imported from Vitest. Existing test cases and assertions are
-unchanged; their source receives the same formatting as application code.
-
-Both root commands include the backend. It uses Node globals, CommonJS
-parsing for application files, core/import checks, and the same Prettier
-formatting policy. To check only the backend, run these from the repository
-root:
+Run from the repository root. These commands cover frontend, backend, tests,
+and tooling JavaScript/JSX:
 
 ```bash
-npx eslint src/backend
-npx prettier --check "src/backend/**/*.{js,mjs,cjs}"
+npm run lint          # Check code with ESLint
+npm run format:check  # Check Prettier formatting
+npm run format        # Apply Prettier formatting
 ```
 
-ESLint 9.39.5 is the newest release compatible with the published plugins,
-but it is end-of-life; using ESLint 10 remains deferred until the React,
-import, and accessibility plugins support it. See the
-[ESLint migration record](docs/Team-P25-02/eslint-migration.md) for the final
-configuration, reviewed rule changes, cleanup, verification results, and
-accepted support limitation. The current GitHub Actions workflow installs
-dependencies only; lint and formatting CI integration remain separate work.
+See the [ESLint migration notes](docs/Team-P25-02/eslint-migration.md) for
+configuration details and limitations.
 
 ## Project structure
 
