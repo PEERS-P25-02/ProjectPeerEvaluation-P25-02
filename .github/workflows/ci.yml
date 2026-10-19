@@ -45,8 +45,8 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  frontend-lint:
-    name: Frontend Lint
+  repository-lint:
+    name: Repository Lint (Frontend and Backend)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,3 +83,15 @@ jobs:
         working-directory: ./src/backend
       - run: npm test
         working-directory: ./src/backend
+
+  formatting-check:
+    name: Prettier Formatting Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run format:check
