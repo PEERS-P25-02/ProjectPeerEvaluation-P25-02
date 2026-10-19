@@ -9,24 +9,30 @@ async function viewDatabaseContent() {
     // Connect to MongoDB
     await mongoose.connect('mongodb://localhost:27017/peer-eval', {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
     });
     console.log('✅ Connected to MongoDB (peer-eval database)');
 
     // Get all professors
     const professors = await Professor.find({});
     console.log('\n📚 PROFESSORS:');
-    professors.forEach(prof => {
+    professors.forEach((prof) => {
       console.log(`- ${prof.name} (${prof.email}) - ID: ${prof._id}`);
     });
 
     // Get all courses
     const courses = await Course.find({}).populate('professor_id');
     console.log('\n🏫 COURSES:');
-    courses.forEach(course => {
-      console.log(`- ${course.course_name} (${course.course_number} ${course.course_section}) - ${course.semester}`);
-      console.log(`  Professor: ${course.professor_id?.name || 'Unknown'} - Status: ${course.course_status}`);
-      console.log(`  Students: ${course.student_count}, Teams: ${course.team_count}`);
+    courses.forEach((course) => {
+      console.log(
+        `- ${course.course_name} (${course.course_number} ${course.course_section}) - ${course.semester}`,
+      );
+      console.log(
+        `  Professor: ${course.professor_id?.name || 'Unknown'} - Status: ${course.course_status}`,
+      );
+      console.log(
+        `  Students: ${course.student_count}, Teams: ${course.team_count}`,
+      );
     });
 
     // Get all students
@@ -42,7 +48,6 @@ async function viewDatabaseContent() {
       console.log(`Professor ID: ${professors[0]._id}`);
       console.log(`Email: ${professors[0].email}`);
     }
-
   } catch (error) {
     console.error('❌ Error:', error);
   } finally {

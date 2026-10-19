@@ -6,30 +6,136 @@ const Team = require('../models/Team');
 
 // KSU-style test data
 const KSU_COURSES = [
-  { name: 'Software Engineering', number: 'CS 4850', section: '01', semester: 'Fall 2025' },
-  { name: 'Database Systems', number: 'CS 4420', section: '01', semester: 'Fall 2025' },
-  { name: 'Computer Networks', number: 'CS 4720', section: '02', semester: 'Fall 2025' },
-  { name: 'Cybersecurity Fundamentals', number: 'CS 4722', section: '01', semester: 'Fall 2025' },
-  { name: 'Web Development', number: 'CS 3030', section: '03', semester: 'Fall 2025' },
-  { name: 'Data Structures', number: 'CS 2302', section: '01', semester: 'Fall 2025' },
-  { name: 'Computer Organization', number: 'CS 2400', section: '02', semester: 'Fall 2025' },
-  { name: 'Algorithms', number: 'CS 3305', section: '01', semester: 'Fall 2025' },
-  { name: 'Mobile App Development', number: 'CS 4490', section: '01', semester: 'Fall 2025' },
-  { name: 'Machine Learning', number: 'CS 4267', section: '01', semester: 'Fall 2025' }
+  {
+    name: 'Software Engineering',
+    number: 'CS 4850',
+    section: '01',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Database Systems',
+    number: 'CS 4420',
+    section: '01',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Computer Networks',
+    number: 'CS 4720',
+    section: '02',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Cybersecurity Fundamentals',
+    number: 'CS 4722',
+    section: '01',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Web Development',
+    number: 'CS 3030',
+    section: '03',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Data Structures',
+    number: 'CS 2302',
+    section: '01',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Computer Organization',
+    number: 'CS 2400',
+    section: '02',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Algorithms',
+    number: 'CS 3305',
+    section: '01',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Mobile App Development',
+    number: 'CS 4490',
+    section: '01',
+    semester: 'Fall 2025',
+  },
+  {
+    name: 'Machine Learning',
+    number: 'CS 4267',
+    section: '01',
+    semester: 'Fall 2025',
+  },
 ];
 
 const FIRST_NAMES = [
-  'Emily', 'Michael', 'Sarah', 'David', 'Jessica', 'Christopher', 'Ashley', 'Matthew', 
-  'Amanda', 'Joshua', 'Brittany', 'Andrew', 'Samantha', 'Daniel', 'Elizabeth', 'Anthony',
-  'Lauren', 'Ryan', 'Megan', 'Tyler', 'Nicole', 'Justin', 'Stephanie', 'Brandon',
-  'Rachel', 'Kevin', 'Hannah', 'Zachary', 'Alexis', 'Jonathan', 'Taylor', 'Nicholas'
+  'Emily',
+  'Michael',
+  'Sarah',
+  'David',
+  'Jessica',
+  'Christopher',
+  'Ashley',
+  'Matthew',
+  'Amanda',
+  'Joshua',
+  'Brittany',
+  'Andrew',
+  'Samantha',
+  'Daniel',
+  'Elizabeth',
+  'Anthony',
+  'Lauren',
+  'Ryan',
+  'Megan',
+  'Tyler',
+  'Nicole',
+  'Justin',
+  'Stephanie',
+  'Brandon',
+  'Rachel',
+  'Kevin',
+  'Hannah',
+  'Zachary',
+  'Alexis',
+  'Jonathan',
+  'Taylor',
+  'Nicholas',
 ];
 
 const LAST_NAMES = [
-  'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
-  'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas',
-  'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White',
-  'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson', 'Walker', 'Young'
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Garcia',
+  'Miller',
+  'Davis',
+  'Rodriguez',
+  'Martinez',
+  'Hernandez',
+  'Lopez',
+  'Gonzalez',
+  'Wilson',
+  'Anderson',
+  'Thomas',
+  'Taylor',
+  'Moore',
+  'Jackson',
+  'Martin',
+  'Lee',
+  'Perez',
+  'Thompson',
+  'White',
+  'Harris',
+  'Sanchez',
+  'Clark',
+  'Ramirez',
+  'Lewis',
+  'Robinson',
+  'Walker',
+  'Young',
 ];
 
 function generateStudentId() {
@@ -68,7 +174,7 @@ async function generateTestData(professorEmail) {
 
     console.log('📚 Creating courses...');
     const createdCourses = [];
-    
+
     for (const courseData of KSU_COURSES) {
       const course = new Course({
         course_name: courseData.name,
@@ -76,11 +182,13 @@ async function generateTestData(professorEmail) {
         course_section: courseData.section,
         semester: courseData.semester,
         professor_id: professor._id,
-        course_status: 'Active'
+        course_status: 'Active',
       });
       await course.save();
       createdCourses.push(course);
-      console.log(`  ✅ Created: ${course.course_number} ${course.course_section} - ${course.course_name}`);
+      console.log(
+        `  ✅ Created: ${course.course_number} ${course.course_section} - ${course.course_name}`,
+      );
     }
 
     console.log('👥 Creating students and teams...');
@@ -88,15 +196,17 @@ async function generateTestData(professorEmail) {
     let totalTeams = 0;
 
     for (const course of createdCourses) {
-      console.log(`\n📖 Processing ${course.course_number} - ${course.course_name}:`);
-      
+      console.log(
+        `\n📖 Processing ${course.course_number} - ${course.course_name}:`,
+      );
+
       // Create 24-32 students per course (3-4 students per team)
       const numStudents = 24 + Math.floor(Math.random() * 9); // 24-32 students
       const studentsPerTeam = 3 + Math.floor(Math.random() * 2); // 3-4 students per team
       const numTeams = Math.ceil(numStudents / studentsPerTeam);
-      
+
       console.log(`  👥 Creating ${numStudents} students in ${numTeams} teams`);
-      
+
       // Create teams (Team 01 - Team 32)
       const teams = [];
       for (let i = 1; i <= numTeams && i <= 32; i++) {
@@ -106,7 +216,7 @@ async function generateTestData(professorEmail) {
           course_id: course._id,
           students: [],
           student_count: 0,
-          team_status: 'Active'
+          team_status: 'Active',
         });
         await team.save();
         teams.push(team);
@@ -116,7 +226,7 @@ async function generateTestData(professorEmail) {
       // Create students
       const students = [];
       const usedNames = new Set();
-      
+
       for (let i = 0; i < numStudents; i++) {
         let name;
         let attempts = 0;
@@ -125,44 +235,47 @@ async function generateTestData(professorEmail) {
           name = `${firstName} ${lastName}`;
           attempts++;
         } while (usedNames.has(name) && attempts < 50);
-        
+
         usedNames.add(name);
         const [firstName, lastName] = name.split(' ');
-        
+
         const student = new Student({
           student_id: generateStudentId(),
           name: name,
           email: generateEmail(firstName, lastName),
-          course_id: course._id
+          course_id: course._id,
         });
-        
+
         students.push(student);
       }
 
       // Assign students to teams
       let teamIndex = 0;
       let studentsInCurrentTeam = 0;
-      
+
       for (const student of students) {
         const team = teams[teamIndex];
         student.team_id = team._id;
         student.group_assignment = team.team_name;
         await student.save();
-        
+
         // Update team
         team.students.push(student._id);
         team.student_count++;
-        
+
         studentsInCurrentTeam++;
-        
+
         // Move to next team when current team is full
-        if (studentsInCurrentTeam >= studentsPerTeam && teamIndex < teams.length - 1) {
+        if (
+          studentsInCurrentTeam >= studentsPerTeam &&
+          teamIndex < teams.length - 1
+        ) {
           await team.save();
           teamIndex++;
           studentsInCurrentTeam = 0;
         }
       }
-      
+
       // Save the last team
       if (teams.length > 0) {
         await teams[teamIndex].save();
@@ -172,9 +285,11 @@ async function generateTestData(professorEmail) {
       course.student_count = numStudents;
       course.team_count = teams.length;
       await course.save();
-      
+
       totalStudents += numStudents;
-      console.log(`  ✅ Created ${numStudents} students in ${teams.length} teams`);
+      console.log(
+        `  ✅ Created ${numStudents} students in ${teams.length} teams`,
+      );
     }
 
     console.log('\n🎉 Test data generation complete!');
@@ -183,7 +298,6 @@ async function generateTestData(professorEmail) {
     console.log(`  - Students: ${totalStudents}`);
     console.log(`  - Teams: ${totalTeams}`);
     console.log(`  - Professor: ${professor.name} (${professor.email})`);
-    
   } catch (error) {
     console.error('❌ Error generating test data:', error);
   }
@@ -201,9 +315,11 @@ if (require.main === module) {
   }
 
   // Connect to MongoDB
-  const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/peer_evaluation';
-  
-  mongoose.connect(MONGO_URI)
+  const MONGO_URI =
+    process.env.MONGO_URI || 'mongodb://localhost:27017/peer_evaluation';
+
+  mongoose
+    .connect(MONGO_URI)
     .then(() => {
       console.log('✅ Connected to MongoDB');
       return generateTestData(professorEmail);
@@ -212,7 +328,7 @@ if (require.main === module) {
       console.log('✅ Test data generation completed');
       process.exit(0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('❌ Error:', error);
       process.exit(1);
     });

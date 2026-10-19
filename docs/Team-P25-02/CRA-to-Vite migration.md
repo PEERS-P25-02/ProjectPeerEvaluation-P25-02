@@ -12,6 +12,14 @@ Official announcement: [Sunsetting Create React App](https://react.dev/blog/2025
 
 Branch: `60-migrate-frontend-build-tooling-from-create-react-app-to-vite`
 
+This record describes the CRA-to-Vite migration baseline. Subsequent work
+added Vitest and replaced inline ESLint configuration with ESLint 9 flat
+configuration, recommended presets, and Prettier commands. Current lint
+reports zero errors and zero warnings; the earlier eight-warning result below
+is historical. See [ESLint Upgrade and Flat Configuration](eslint-migration.md)
+and [Unit Testing Implementation](testing/01-unit-testing-implementation.md)
+for the implemented follow-up tooling and its remaining limitations.
+
 ## Configuration Changes
 
 | Configuration | Issue with previous configuration | New configuration | Reason for change |

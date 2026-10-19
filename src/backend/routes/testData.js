@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Sample data for generating random courses
 const courseNames = [
   'Software Engineering',
-  'Data Structures and Algorithms', 
+  'Data Structures and Algorithms',
   'Database Management Systems',
   'Web Development',
   'Machine Learning',
@@ -15,7 +15,7 @@ const courseNames = [
   'Operating Systems',
   'Artificial Intelligence',
   'Cybersecurity',
-  'Mobile App Development'
+  'Mobile App Development',
 ];
 
 const courseCodes = ['CS', 'CIS', 'IT', 'SE', 'EE', 'CE'];
@@ -32,7 +32,7 @@ function generateRandomCourse(professorId) {
   const courseNumber = Math.floor(Math.random() * 9000) + 1000;
   const section = getRandomElement(sections);
   const semester = getRandomElement(semesters);
-  
+
   return {
     course_name: courseName,
     course_number: `${courseCode} ${courseNumber}`,
@@ -45,8 +45,8 @@ function generateRandomCourse(professorId) {
     evaluation_status: {
       total: 0,
       completed: 0,
-      pending: 0
-    }
+      pending: 0,
+    },
   };
 }
 
@@ -57,33 +57,32 @@ router.post('/load-test-data', authMiddleware, async (req, res) => {
 
     console.log('📚 Generating 10 random courses...');
     const courses = [];
-    
+
     for (let i = 0; i < 10; i++) {
       courses.push(generateRandomCourse(req.professor.id));
     }
 
     console.log('💾 Inserting courses into database...');
     const insertedCourses = await Course.insertMany(courses);
-    
+
     console.log(`✅ Successfully added ${insertedCourses.length} courses`);
 
     res.status(200).json({
       success: true,
       message: `Successfully loaded ${insertedCourses.length} test courses`,
-      courses: insertedCourses.map(course => ({
+      courses: insertedCourses.map((course) => ({
         course_name: course.course_name,
         course_number: course.course_number,
         course_section: course.course_section,
-        semester: course.semester
-      }))
+        semester: course.semester,
+      })),
     });
-
   } catch (error) {
     console.error('❌ Error loading test data:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to load test data',
-      error: error.message
+      error: error.message,
     });
   }
 });

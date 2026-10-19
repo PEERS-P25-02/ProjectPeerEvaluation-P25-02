@@ -4,13 +4,14 @@ const Professor = require('../models/Professor');
 async function getCurrentProfessor() {
   try {
     // Connect to MongoDB
-    const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/peer_evaluation';
+    const MONGO_URI =
+      process.env.MONGO_URI || 'mongodb://localhost:27017/peer_evaluation';
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
     // Find the most recently created professor (assuming that's you)
     const professor = await Professor.findOne().sort({ created_at: -1 });
-    
+
     if (professor) {
       console.log('👤 Found professor:');
       console.log(`   Name: ${professor.name}`);
@@ -32,14 +33,14 @@ async function getCurrentProfessor() {
 // If run directly
 if (require.main === module) {
   getCurrentProfessor()
-    .then(email => {
+    .then((email) => {
       if (email) {
         console.log(`\n🎯 To generate test data, run:`);
         console.log(`node generateTestData.js ${email}`);
       }
       process.exit(0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('❌ Error:', error);
       process.exit(1);
     });

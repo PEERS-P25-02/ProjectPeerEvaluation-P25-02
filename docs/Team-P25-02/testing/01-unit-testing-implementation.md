@@ -83,6 +83,17 @@ The initial tests verify test-runner setup and representative existing behavior.
 
 The recorded initial results predate the runtime alignment. Developer-reported local success does not establish execution in CI or compatibility across every declared Node version. The `UNIT-CI` identifiers above describe command checks, not implemented GitHub Actions jobs.
 
+Subsequent verification for issue #85 on October 19, 2026 used Node 24.21.0
+and npm 11.19.0: the existing frontend and backend suites each passed one
+test. Existing cases and assertions are unchanged; the shared Prettier
+baseline now includes tests, setup helpers, and manual API scripts. ESLint
+checks both suites and applies `@vitest/eslint-plugin` recommended rules only
+to automated test/spec files. Focused tests, invalid assertions, and duplicate
+titles are errors; skipped tests warn. Helpers are imported explicitly from
+Vitest. These checks do not expand test coverage. See the
+[ESLint implementation record](../eslint-migration.md)
+for the associated lint, formatting, build, and in-memory verification.
+
 ## Remaining Testing Work
 
 - Verify watch-mode reruns and frontend, backend, and combined failure exit codes after runtime alignment.

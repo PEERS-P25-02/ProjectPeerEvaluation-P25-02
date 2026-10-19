@@ -14,11 +14,11 @@ describe('App', () => {
     render(
       <AuthProvider>
         <App />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     expect(
-      screen.getByRole('heading', { name: 'Professor Login' })
+      screen.getByRole('heading', { name: 'Professor Login' }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Email:')).toBeInTheDocument();
     expect(screen.getByLabelText('Password:')).toBeInTheDocument();

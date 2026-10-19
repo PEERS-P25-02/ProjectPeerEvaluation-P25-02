@@ -15,27 +15,38 @@ if (Boolean(smtpUser) !== Boolean(smtpPass)) {
 if (authRequired && (!smtpUser || !smtpPass)) {
   throw new Error('SMTP authentication requires SMTP_USER and SMTP_PASS');
 }
-if (authRequired && !process.env.SMTP_SERVICE &&
-    (!process.env.SMTP_HOST || !process.env.SMTP_PORT)) {
-  throw new Error('Authenticated SMTP requires SMTP_HOST and SMTP_PORT or SMTP_SERVICE');
+if (
+  authRequired &&
+  !process.env.SMTP_SERVICE &&
+  (!process.env.SMTP_HOST || !process.env.SMTP_PORT)
+) {
+  throw new Error(
+    'Authenticated SMTP requires SMTP_HOST and SMTP_PORT or SMTP_SERVICE',
+  );
 }
 
 const EMAIL_CONFIG = {
   service: process.env.SMTP_SERVICE || undefined, // Use 'gmail' for better compatibility
-  host: process.env.SMTP_SERVICE ? undefined : (process.env.SMTP_HOST || 'localhost'),
-  port: process.env.SMTP_SERVICE ? undefined : (parseInt(process.env.SMTP_PORT) || 1025),
+  host: process.env.SMTP_SERVICE
+    ? undefined
+    : process.env.SMTP_HOST || 'localhost',
+  port: process.env.SMTP_SERVICE
+    ? undefined
+    : parseInt(process.env.SMTP_PORT) || 1025,
   secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465', // true for 465, false for other ports
-  ...(smtpUser && smtpPass ? {
-    auth: { user: smtpUser, pass: smtpPass }
-  } : {}),
+  ...(smtpUser && smtpPass
+    ? {
+        auth: { user: smtpUser, pass: smtpPass },
+      }
+    : {}),
   // Add connection timeout and other options for better reliability
   connectionTimeout: 60000, // 60 seconds
-  greetingTimeout: 30000,   // 30 seconds
-  socketTimeout: 60000,     // 60 seconds
+  greetingTimeout: 30000, // 30 seconds
+  socketTimeout: 60000, // 60 seconds
   // Add TLS options for better Gmail compatibility
   tls: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 };
 
 // Create transporter
@@ -49,11 +60,17 @@ const transporter = nodemailer.createTransport(EMAIL_CONFIG);
  * @param {String} frontendUrl - Base URL of the frontend application
  * @param {Date} deadline - Evaluation deadline
  */
-async function sendEvaluationInvitation(student, course, evaluationToken, frontendUrl = 'http://localhost:3000', deadline) {
+async function sendEvaluationInvitation(
+  student,
+  course,
+  evaluationToken,
+  frontendUrl = 'http://localhost:3000',
+  deadline,
+) {
   const evaluationUrl = `${frontendUrl}/evaluate/${evaluationToken}`;
-  
+
   const subject = `Peer Evaluation for ${course.course_name} - ${course.course_number}`;
-  
+
   const htmlContent = `
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -109,7 +126,7 @@ async function sendEvaluationInvitation(student, course, evaluationToken, fronte
     from: process.env.SMTP_FROM || 'noreply@peerevaluation.com',
     to: student.email,
     subject: subject,
-    html: htmlContent
+    html: htmlContent,
   };
 
   try {
@@ -125,10 +142,16 @@ async function sendEvaluationInvitation(student, course, evaluationToken, fronte
 /**
  * Send reminder email to a student
  */
-async function sendEvaluationReminder(student, course, evaluationToken, frontendUrl = 'http://localhost:3000', deadline) {
+async function sendEvaluationReminder(
+  student,
+  course,
+  evaluationToken,
+  frontendUrl = 'http://localhost:3000',
+  deadline,
+) {
   const evaluationUrl = `${frontendUrl}/evaluate/${evaluationToken}`;
   const subject = `Reminder: Peer Evaluation Due for ${course.course_name}`;
-  
+
   const htmlContent = `
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -151,7 +174,7 @@ async function sendEvaluationReminder(student, course, evaluationToken, frontend
     from: process.env.SMTP_FROM || 'noreply@peerevaluation.com',
     to: student.email,
     subject: subject,
-    html: htmlContent
+    html: htmlContent,
   };
 
   try {
@@ -170,7 +193,11 @@ async function sendEvaluationReminder(student, course, evaluationToken, frontend
  * @param {String} email - Professor's email
  * @param {String} token - Reset token
  */
-async function sendPasswordResetEmail(email, token, frontendUrl = 'http://localhost:3000') {
+async function sendPasswordResetEmail(
+  email,
+  token,
+  frontendUrl = 'http://localhost:3000',
+) {
   const baseUrl = process.env.FRONTEND_URL || frontendUrl;
   const resetUrl = `${baseUrl}/reset-password/${token}`;
   const subject = 'Password Reset Request';
@@ -195,7 +222,7 @@ async function sendPasswordResetEmail(email, token, frontendUrl = 'http://localh
     from: process.env.SMTP_FROM || 'noreply@peerevaluation.com',
     to: email,
     subject: subject,
-    html: htmlContent
+    html: htmlContent,
   };
   try {
     const info = await transporter.sendMail(mailOptions);
@@ -210,5 +237,5 @@ async function sendPasswordResetEmail(email, token, frontendUrl = 'http://localh
 module.exports = {
   sendEvaluationInvitation,
   sendEvaluationReminder,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
 };
