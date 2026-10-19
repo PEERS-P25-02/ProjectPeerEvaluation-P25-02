@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,7 +36,9 @@ function LoginPage() {
         ? 'https://peer-evaluation-backend.onrender.com/api'
         : 'http://localhost:5000/api';
       await axios.post(`${baseURL}/auth/reset-password`, { email: resetEmail });
-      setResetStatus('If your email is registered, you will receive password reset instructions.');
+      setResetStatus(
+        'If your email is registered, you will receive password reset instructions.',
+      );
     } catch (err) {
       setResetStatus('Failed to send reset instructions.');
     }
@@ -54,7 +56,7 @@ function LoginPage() {
     const baseURL = import.meta.env.PROD
       ? 'https://peer-evaluation-backend.onrender.com/api'
       : 'http://localhost:5000/api';
-      
+
     const endpoint = isRegistering
       ? `${baseURL}/auth/register`
       : `${baseURL}/auth/login`;
@@ -115,7 +117,12 @@ function LoginPage() {
           </>
         )}
         <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="login-email" style={{ display: 'block', marginBottom: '4px' }}>Email:</label>
+          <label
+            htmlFor="login-email"
+            style={{ display: 'block', marginBottom: '4px' }}
+          >
+            Email:
+          </label>
           <input
             id="login-email"
             type="email"
@@ -127,7 +134,12 @@ function LoginPage() {
           />
         </div>
         <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="login-password" style={{ display: 'block', marginBottom: '4px' }}>Password:</label>
+          <label
+            htmlFor="login-password"
+            style={{ display: 'block', marginBottom: '4px' }}
+          >
+            Password:
+          </label>
           <input
             id="login-password"
             type="password"
@@ -140,7 +152,12 @@ function LoginPage() {
         </div>
         <button
           type="submit"
-          style={{ width: '100%', padding: '10px', display: 'block', maxWidth: '100%' }}
+          style={{
+            width: '100%',
+            padding: '10px',
+            display: 'block',
+            maxWidth: '100%',
+          }}
         >
           {isRegistering ? 'Register' : 'Login'}
         </button>
@@ -154,7 +171,7 @@ function LoginPage() {
               border: 'none',
               color: '#007bff',
               cursor: 'pointer',
-              textDecoration: 'underline'
+              textDecoration: 'underline',
             }}
           >
             Forgot Password?
@@ -169,7 +186,7 @@ function LoginPage() {
           border: 'none',
           color: '#007bff',
           cursor: 'pointer',
-          textDecoration: 'underline'
+          textDecoration: 'underline',
         }}
       >
         {isRegistering
@@ -181,27 +198,61 @@ function LoginPage() {
 
       {/* Password Reset Dialog */}
       {showResetDialog && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320 }}>
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              padding: 24,
+              borderRadius: 8,
+              minWidth: 320,
+            }}
+          >
             <h3>Reset Password</h3>
             <form onSubmit={handlePasswordReset}>
               <input
                 type="email"
                 placeholder="Enter your email"
                 value={resetEmail}
-                onChange={e => setResetEmail(e.target.value)}
+                onChange={(e) => setResetEmail(e.target.value)}
                 style={{ width: '100%', marginBottom: 12, padding: 8 }}
                 required
               />
               <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '8px 16px' }}>Send Reset Link</button>
-                <button type="button" style={{ padding: '8px 16px' }} onClick={() => setShowResetDialog(false)}>Cancel</button>
+                <button type="submit" style={{ padding: '8px 16px' }}>
+                  Send Reset Link
+                </button>
+                <button
+                  type="button"
+                  style={{ padding: '8px 16px' }}
+                  onClick={() => setShowResetDialog(false)}
+                >
+                  Cancel
+                </button>
               </div>
             </form>
-            {resetStatus && <p style={{ color: resetStatus.startsWith('If') ? 'green' : 'red', marginTop: 10 }}>{resetStatus}</p>}
+            {resetStatus && (
+              <p
+                style={{
+                  color: resetStatus.startsWith('If') ? 'green' : 'red',
+                  marginTop: 10,
+                }}
+              >
+                {resetStatus}
+              </p>
+            )}
           </div>
         </div>
       )}

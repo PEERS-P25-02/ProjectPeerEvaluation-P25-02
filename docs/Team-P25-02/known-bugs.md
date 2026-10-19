@@ -32,3 +32,30 @@ marking a finding resolved. Use synthetic data; omit credentials and tokens.
 - Follow-up: Align the response contract and verify success, invalid/expired
   tokens, and login with the updated password.
 - Fix issue / PR: Not yet assigned.
+
+## BUG-003: Selected-student reminders lose the selection filter
+
+- Status: Resolved locally on October 19, 2026 during #85; no fix PR recorded yet.
+- Previous behavior: The reminder query declared `_id` twice. The second key,
+  containing `$nin: completedEvaluations`, overwrote `$in: student_ids`, so
+  unselected students with pending evaluations could be included.
+- Fix: Combine `$in` and `$nin` under the same `_id` field in
+  `src/backend/controllers/evaluationController.js`.
+- Verification: Three in-memory recipient checks passed: selected pending
+  students only, all pending students without a selection, and no recipients
+  for a completed-only selection. MongoDB and SMTP dependencies were stubbed;
+  no permanent test cases were added and no live reminders were sent.
+- Evidence: [ESLint implementation and verification](eslint-migration.md).
+
+## BUG-004: Sample-data script imports an undeclared UUID package
+
+- Status: Resolved locally on October 19, 2026 during #85; no fix PR recorded yet.
+- Previous behavior: `src/backend/scripts/createITManagementTeams.js` imported
+  `uuid`, but neither manifest declared it. Resolution in the local environment
+  failed with `MODULE_NOT_FOUND`.
+- Fix: Use `randomUUID()` from Node's built-in `node:crypto`, preserving the
+  version-4 UUID format without adding a package.
+- Verification: Import and token-generation checks passed, including 20
+  generated values matching the version-4 UUID format. Full-repository lint
+  passes with zero errors and warnings. The database-mutating script was not run.
+- Evidence: [ESLint implementation and verification](eslint-migration.md).

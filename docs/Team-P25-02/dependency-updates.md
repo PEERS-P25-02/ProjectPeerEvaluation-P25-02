@@ -2,7 +2,7 @@
 
 ## Overview
 
-Dependency changes for branch `60-migrate-frontend-build-tooling-from-create-react-app-to-vite` replace CRA tooling, remove unnecessary direct Babel dependencies, and upgrade backend email tooling. ESLint and its existing plugins remain. Configuration changes are documented in [CRA-to-Vite migration.md](CRA-to-Vite%20migration.md). The issue #28 testing additions and subsequent runtime alignment are recorded in the Unit Testing Dependencies section below.
+Dependency changes for branch `60-migrate-frontend-build-tooling-from-create-react-app-to-vite` replace CRA tooling, remove unnecessary direct Babel dependencies, and upgrade backend email tooling. Configuration changes are documented in [CRA-to-Vite migration.md](CRA-to-Vite%20migration.md). The issue #28 testing additions and subsequent runtime alignment are recorded in the Unit Testing Dependencies section below. Issue #85 subsequently upgrades ESLint to 9.39.5 and moves its configuration into `eslint.config.mjs`; see the [migration record](eslint-migration.md) for compatibility and support limitations.
 
 The Dependabot configuration, reviewed updates, and verification limits for #62 are recorded in [Dependabot and Reviewed Updates](#dependabot-and-reviewed-updates-62).
 
@@ -29,32 +29,42 @@ Risk: removing Babel could break parsing or another tool that relies on it. Like
 
 Mitigation: compared Espree and Babel across all 62 source/configuration files using the same 113 rules. Both produced identical diagnostics: zero errors, eight warnings, and no parsing failures. No build or backend script invoked Babel. Direct Babel dependencies were then removed, and the production build passed. Vite's Oxc/Rolldown pipeline remains responsible for compilation.
 
-## Explicit ESLint Configuration: Risk and Mitigation
+## Historical Explicit ESLint Configuration: Risk and Mitigation
 
 Risk: removing CRA presets without a replacement leaves ESLint unconfigured or loses checks. Probability was high without mitigation.
 
 Mitigation: applied explicit Espree configuration using the existing React, Hooks, import, and accessibility plugins. Preserved 113 rules with their options and severities, excluding unused Flow rules and TypeScript/Jest overrides. ESLint checked all 62 files with zero errors and the same eight warnings; build and whitespace checks passed.
 
-Possible future improvement: replace the explicit 113-rule listing
-with maintained shared presets and a small set of overrides. Compare
-effective rules, options, severities, and lint results before switching
-to avoid silently losing checks. Restoring `react-app` and
-`react-app/jest` would reintroduce Babel parsing and the previously
-flagged dependency chain, so that option is deferred.
+Issue #85 subsequently replaced the inline 113-rule listing with maintained
+core, React, Hooks, import, and accessibility presets plus explicit project
+overrides. Rule names, options, severities, and diagnostics were compared
+before the approved policy changes. Current lint reports zero errors and
+zero warnings. See the [ESLint migration record](eslint-migration.md) for the
+comparison and intentional differences. CRA presets were not restored.
 
-## Accepted Risk: ESLint 8
+## Historical Accepted Risk: ESLint 8
+
+The following records the CRA migration decision. Issue #85 replaces ESLint 8
+with 9.39.5 and a native flat configuration. ESLint 9 is also end-of-life;
+the current support limitation and plugin compatibility constraints are
+documented in the [ESLint migration record](eslint-migration.md).
 
 **Retaining ESLint 8 is a temporary scope decision, not a Vite requirement.**
 We chose to preserve the verified ESLint/plugin setup while completing
 the CRA-to-Vite migration. Upgrading to supported ESLint 10 requires
 separate plugin compatibility checks and configuration changes.
 
-ESLint 8.57.1 remains in place because the current configuration passed
-all 62 files with zero errors and eight existing warnings. ESLint 8 is unsupported, and its dependency chain includes deprecated packages such as `inflight`, `glob`, `rimraf`, and `@humanwhocodes` configuration packages.
+ESLint 8.57.1 was retained at that stage because its configuration passed
+all 62 files with zero errors and eight existing warnings. ESLint 8 was
+unsupported, and its dependency chain included deprecated packages such as
+`inflight`, `glob`, `rimraf`, and `@humanwhocodes` configuration packages.
 
 Accepted risk: this tooling no longer receives upstream maintenance, and future security or compatibility issues may remain unresolved. Deprecation warnings alone do not establish an exploitable vulnerability.
 
-Mitigation: retain the lockfile, continue dependency audits, and verify linting after changes. The current configuration passed all 62 files with zero errors and eight existing warnings. A supported ESLint/plugin upgrade is deferred to separate work.
+The mitigation at that stage was to retain the lockfile, continue dependency
+audits, and verify linting after changes. The supported-release goal remains
+limited by plugin compatibility after the ESLint 9 upgrade; current evidence
+is recorded separately below.
 
 ## Nodemailer Upgrade
 
@@ -85,6 +95,44 @@ React Testing Library and `@testing-library/jest-dom` were already present; the 
 Vitest 5 excludes Node 20, and jsdom 30 requires Node `^22.22.2 || ^24.15.0 || >=26.0.0`. Both manifests and lockfile root entries now declare that shared range. npm remains `>=9.0.0`, with `engine-strict=true` retained in both packages. The earlier runtime advice in the Nodemailer upgrade record describes that upgrade; hosting must satisfy the newer package requirements before deployment.
 
 The developer reported successful `npm run setup` and both individual test suites after runtime alignment. Minimum-version installation/test checks and hosting runtime verification remain outstanding. Initial recorded command results and further verification limits are documented in [Unit Testing Implementation](testing/01-unit-testing-implementation.md). No new dependency audit result is claimed for these additions.
+
+## ESLint Dependencies (#85)
+
+| Dependency | Change | Purpose |
+| --- | --- | --- |
+| ESLint | `^8.57.0` (resolved 8.57.1) to `^9.39.5`. | Newest compatible major for the existing published plugins; native flat configuration. ESLint 9 remains unsupported upstream. |
+| `@eslint/js` | Add `^9.39.5` directly. | Supplies the core recommended preset imported by the flat configuration. |
+| `globals` | Add `^17.13.0` directly. | Explicit browser and Node global definitions replace legacy `env`. |
+| `eslint-import-resolver-typescript` | Add `^4.4.5`. | Resolves JavaScript/JSX and package exports for import checks, including Vite's ESM entry points. No TypeScript application migration is involved. |
+| `eslint-config-prettier` | Add `^10.1.8`. | Disables formatting rules after the lint presets so Prettier owns formatting. |
+| `@vitest/eslint-plugin` | Add `^1.6.27`. | Recommended Vitest checks scoped to automated test/spec files. Its ESLint utility dependencies bring TypeScript tooling transitively; application files still use JavaScript and Espree. |
+| `@eslint/eslintrc` | Remove the direct `^3.3.1` dependency. | No `FlatCompat` adapter is needed. ESLint still brings this package transitively. |
+
+React 7.37.5, Hooks 5.2.0, import 2.32.0, and accessibility 6.10.2 remain
+unchanged. The root lockfile changes the ESLint/global dependency tree and
+adds the preset, resolver, Vitest lint, and Prettier integration dependencies;
+backend dependencies and its lockfile are unchanged. See the
+[migration record](eslint-migration.md) for the implementation, preset
+comparison, resolved warnings, and validation. Prettier was already installed;
+`prettier.config.cjs`, `.prettierignore`, and the `format`/`format:check`
+commands now define its shared application/test/tooling baseline. Automated
+tests, setup helpers, and manual API scripts are included in formatting;
+test cases and assertions are unchanged.
+
+The Vitest lint plugin's recommended preset adds 17 active rules to matching
+test/spec files. Focused tests, invalid assertions, and duplicate titles are
+explicitly errors; skipped tests are warnings. Ordinary application code,
+setup helpers, and the manual API script do not receive the Vitest preset.
+Installation resolves TypeScript 6.0.3 and `@typescript-eslint` utilities as
+tooling dependencies; no TypeScript parser or project configuration is added.
+An existing ESLint utility also resolves from 4.9.0 to 4.10.1 within its range.
+
+The sample-data script's undeclared `uuid` dependency was replaced by
+`randomUUID()` from Node's built-in `node:crypto`; no UUID package was added.
+Final checks on Node 24.21.0/npm 11.19.0 reported zero lint errors and warnings,
+passing formatting, passing production build, and one passing existing test
+per package. The build's >500 kB chunk warning remains. No new dependency audit
+or multi-runtime result is claimed for #85.
 
 ## Dependabot and Reviewed Updates (#62)
 

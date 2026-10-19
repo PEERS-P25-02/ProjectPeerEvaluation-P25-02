@@ -2,14 +2,13 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Course = require('../models/Course');
 
-
 const Professor = require('../models/Professor');
 const PROFESSOR_EMAIL = 'pbj2711@gmail.com';
 
 // Sample data for generating random courses
 const courseNames = [
   'Software Engineering',
-  'Data Structures and Algorithms', 
+  'Data Structures and Algorithms',
   'Database Management Systems',
   'Web Development',
   'Machine Learning',
@@ -17,7 +16,7 @@ const courseNames = [
   'Operating Systems',
   'Artificial Intelligence',
   'Cybersecurity',
-  'Mobile App Development'
+  'Mobile App Development',
 ];
 
 const courseCodes = ['CS', 'CIS', 'IT', 'SE', 'EE', 'CE'];
@@ -34,7 +33,7 @@ function generateRandomCourse(professorId) {
   const courseNumber = Math.floor(Math.random() * 9000) + 1000;
   const section = getRandomElement(sections);
   const semester = getRandomElement(semesters);
-  
+
   return {
     course_name: courseName,
     course_number: `${courseCode} ${courseNumber}`,
@@ -47,8 +46,8 @@ function generateRandomCourse(professorId) {
     evaluation_status: {
       total: 0,
       completed: 0,
-      pending: 0
-    }
+      pending: 0,
+    },
   };
 }
 
@@ -74,12 +73,13 @@ async function addRandomCoursesForYou() {
 
     console.log('💾 Inserting courses into database...');
     const insertedCourses = await Course.insertMany(courses);
-    
+
     console.log(`✅ Successfully added ${insertedCourses.length} courses:`);
     insertedCourses.forEach((course, index) => {
-      console.log(`${index + 1}. ${course.course_name} (${course.course_number} - ${course.course_section}) - ${course.semester}`);
+      console.log(
+        `${index + 1}. ${course.course_name} (${course.course_number} - ${course.course_section}) - ${course.semester}`,
+      );
     });
-
   } catch (error) {
     console.error('❌ Error adding courses:', error);
   } finally {

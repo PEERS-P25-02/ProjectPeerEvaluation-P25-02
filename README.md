@@ -104,6 +104,9 @@ Run these from the repository root:
 | `npm run start:backend` | Start Express from `src/backend`. |
 | `npm run build` | Build the frontend into `build/`. |
 | `npm run preview` | Preview the frontend production build locally. |
+| `npm run lint` | Check JavaScript and JSX with ESLint. |
+| `npm run format:check` | Check Prettier formatting without changing files. |
+| `npm run format` | Apply Prettier formatting. |
 | `npm test` | Run the frontend Vitest suite once and exit. |
 | `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
 | `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
@@ -145,6 +148,20 @@ automatically from `src/frontend/test/setup.js`.
 Backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js`
 filenames. Keep unit tests isolated from MongoDB, SMTP, and live application
 startup unless the test is specifically an integration test.
+
+### Linting and formatting
+
+Run from the repository root. These commands cover frontend, backend, tests,
+and tooling JavaScript/JSX:
+
+```bash
+npm run lint          # Check code with ESLint
+npm run format:check  # Check Prettier formatting
+npm run format        # Apply Prettier formatting
+```
+
+See the [ESLint migration notes](docs/Team-P25-02/eslint-migration.md) for
+configuration details and limitations.
 
 ## Project structure
 
