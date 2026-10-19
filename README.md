@@ -28,27 +28,28 @@ cd ProjectPeerEvaluation-P25-02
 npm run setup
 ```
 
-The setup command currently installs frontend and backend dependencies.
-Automatic .env creation and random JWT_SECRET generation are planned separately
-and are not implemented yet.
+The setup command installs frontend and backend dependencies, then prepares
+`src/backend/.env` for local development. It preserves configured values,
+adds missing settings, and generates a JWT secret when missing or set to
+a recognized placeholder.
 
-Configure `src/backend/.env` using `src/backend/.env.example` as a reference. Preserve any existing configuration. Set these values for your development environment:
+Run `npm run setup:env` to prepare local environment configuration without reinstalling dependencies. The settings below are a reference.
 
 | Variable | Purpose |
 | --- | --- |
 | `MONGODB_URI` | Native-local default: `mongodb://localhost:27017/peer-eval`. MongoDB must be running separately. |
-| `JWT_SECRET` | Replace `REPLACE_WITH_RANDOM_SECRET` with a unique random signing secret. |
+| `JWT_SECRET` | Generated automatically by setup and reused on later runs. |
 | `PORT` | Backend port; defaults to `5000`. |
-| `FRONTEND_URL` | Use `http://localhost:3000` for local email links. |
+| `FRONTEND_URL` | Local default: `http://localhost:3000` for email links. |
 | `SMTP_HOST`, `SMTP_PORT` | Native-local Mailpit: `localhost`, `1025`. |
 | `SMTP_SECURE` | `true` for implicit TLS; port `465` also enables it. |
-| `SMTP_AUTH_REQUIRED` | Defaults to `true`; explicitly set `false` for local/CI Mailpit. |
-| `SMTP_USER`, `SMTP_PASS` | Leave both empty for default Mailpit; supply both for authenticated SMTP. |
+| `SMTP_AUTH_REQUIRED` | Setup uses `false` for local Mailpit. |
+| `SMTP_USER`, `SMTP_PASS` | Empty in the generated local Mailpit configuration. |
 | `SMTP_FROM` | Sender address displayed on email; local example: `peers-test@example.com`. |
 
 Local `.env` and `.env.*` files are ignored; `.env.example` remains tracked.
-Copy the example only if `src/backend/.env` is absent. If it exists,
-merge the settings manually and preserve configured values.
+After dependencies are installed, run `npm run setup:env` to prepare
+configuration again without reinstalling dependencies.
 Do not commit credentials or real student data.
 
 ### Manual local Mailpit setup
@@ -98,7 +99,8 @@ Run these from the repository root:
 
 | Command | Behavior |
 | --- | --- |
-| `npm run setup` | Install frontend and backend dependencies. |
+| `npm run setup` | Install both packages and prepare local backend configuration. |
+| `npm run setup:env` | Prepare local backend configuration without reinstalling dependencies. |
 | `npm run dev` | Start both servers. |
 | `npm run start:frontend` / `npm start` | Start Vite on port 3000. |
 | `npm run start:backend` | Start Express from `src/backend`. |
