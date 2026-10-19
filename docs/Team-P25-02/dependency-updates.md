@@ -4,6 +4,8 @@
 
 Dependency changes for branch `60-migrate-frontend-build-tooling-from-create-react-app-to-vite` replace CRA tooling, remove unnecessary direct Babel dependencies, and upgrade backend email tooling. Configuration changes are documented in [CRA-to-Vite migration.md](CRA-to-Vite%20migration.md). The issue #28 testing additions and subsequent runtime alignment are recorded in the Unit Testing Dependencies section below. Issue #85 subsequently upgrades ESLint to 9.39.5 and moves its configuration into `eslint.config.mjs`; see the [migration record](eslint-migration.md) for compatibility and support limitations.
 
+The Dependabot configuration, reviewed updates, and verification limits for #62 are recorded in [Dependabot and Reviewed Updates](#dependabot-and-reviewed-updates-62).
+
 ## Changed Dependencies
 
 | Dependency | Issue with dependency | New dependency | Why this dependency was chosen |
@@ -131,3 +133,74 @@ Final checks on Node 24.21.0/npm 11.19.0 reported zero lint errors and warnings,
 passing formatting, passing production build, and one passing existing test
 per package. The build's >500 kB chunk warning remains. No new dependency audit
 or multi-runtime result is claimed for #85.
+
+## Dependabot and Reviewed Updates (#62)
+
+Recorded on 2026-10-18 for branch `62-configure-dependabot-and-establish-dependency-maintenance`. The migration and unit-testing sections above are historical records; the results below describe this maintenance work separately.
+
+### Dependabot Configuration
+
+Added [`.github/dependabot.yml`](../../.github/dependabot.yml) with separate npm entries for `/` and `/src/backend`, covering each package's manifest and lockfile.
+
+- Version checks run weekly on Monday at 09:00, `America/New_York`.
+- Each entry allows three open version-update PRs, for six across the two entries.
+- Minor and patch version updates are grouped separately for production and development dependencies in each package. These classifications follow `dependencies` and `devDependencies`; they do not establish runtime exposure.
+- Major upgrades remain eligible for individual PRs and require explicit compatibility review.
+- Groups explicitly apply to version updates. Security-update PRs use GitHub's separate limit and require repository security settings to be enabled.
+
+The file parsed successfully, and both package paths, schedules, limits, and four groups were checked locally. Hosted Dependabot execution, the GitHub alert list, dependency-graph visibility, and alerts/security-update settings were not verified. The configuration must reach the default branch before hosted version-update behavior can be verified. A local npm audit is separate from a hosted Dependabot run.
+
+### Reviewed Package Changes
+
+The root manifest was updated to match the reviewed ranges from the supplied reference manifest. The frontend lockfile was generated through npm and reviewed before applying each batch.
+
+| Package | Manifest range before -> after | Locked version before -> after |
+| --- | --- | --- |
+| `@testing-library/react` | `^16.3.0` -> `^16.3.3` | `16.3.0` -> `16.3.3` |
+| `@testing-library/user-event` | `^14.4.3` -> `^14.6.7` | `14.6.1` -> `14.6.8` |
+| `react` | `^19.1.1` -> `^19.3.0` | `19.1.1` -> `19.3.1` |
+| `react-dom` | `^19.1.1` -> `^19.3.0` | `19.1.1` -> `19.3.1` |
+| `prettier` | `^3.0.0` -> `^3.9.9` | `3.6.2` -> `3.9.10` |
+| `concurrently` | `^7.6.0` -> `^10.0.5` | `7.6.0` -> `10.0.6` |
+
+Caret ranges allowed the newer patch versions recorded in the lockfile. React's transitive `scheduler` changed from `0.26.0` to `0.28.0`. The separately reviewed `concurrently` major upgrade also updated its CLI dependency tree. Its declared Node requirement is `>=22`, which fits the project's existing engine range. The v10 release is ESM-only; this application invokes its CLI through npm scripts.
+
+No backend manifest or lockfile changes were introduced by this maintenance work. Existing packages were not removed or moved between dependency sections. Vitest remains at `^5.0.4`; the reference's `^5.0.3` would lower its minimum. MUI, ESLint, and React Hooks plugin major upgrades were discussed but not applied. No lint configuration or application-source changes were made.
+
+### Verification and Limits
+
+Commands ran with Node `24.21.0` and npm `11.19.0`. Results apply to the stated stage, rather than proving every later dependency tree passed.
+
+| Check | Recorded result and stage |
+| --- | --- |
+| Baseline frontend and backend audits | Both lockfile audits, including development dependencies, reported zero known vulnerabilities before the reviewed updates. |
+| YAML dependency inspection | `npm explain yaml` and `npm ls yaml --all` resolved `yaml@1.10.3` through Emotion -> Babel macros -> cosmiconfig. The baseline audit reported no finding for it. |
+| Clean installation | Root `npm ci` succeeded after the same-major batch and again after the `concurrently` upgrade. |
+| Production build | Passed after the same-major batch using `npm run build -- --outDir /tmp/peers-62-minor-build`. Output went outside the checkout to preserve existing build assets. The bundle-size warning remained. |
+| Frontend unit test | `npm test` passed one test after the same-major batch. |
+| Frontend lint | `./node_modules/.bin/eslint src/frontend src/index.jsx --ext .js,.jsx` returned zero errors and one unused React-import warning in `ProtectedRoute.js` after the same-major batch. This did not lint every repository file. |
+| Frontend audit after the same-major batch | Reported zero known vulnerabilities. This audit preceded the `concurrently` major upgrade; a final audit of that tree remains pending. |
+| Backend unit tests | `npm test --prefix src/backend` failed on the retained `emailUtils.test.js`: it uses `node:test`, while the package command uses Vitest and reports `No test suite found`. The authentication test passed. This mismatch was observed before these dependency updates. |
+| Combined test command | After installing `concurrently` 10, the sandbox run of `npm run test:all` exited nonzero and reported frontend exit 0 and backend exit 1. Child test output was not fully captured, so this is not a complete runner verification. |
+| `concurrently` process checks | Parallel execution, output labels, failure propagation, and interrupt cleanup were attempted with synthetic commands. A direct child-process diagnostic reported sandbox `EPERM`; the smoke assertion did not pass. The outside-sandbox retry was interrupted before a completed result was recorded. These checks remain unverified. |
+| Diff whitespace | `git diff --check` passed after the applied dependency batches. |
+
+Audit commands used from the repository root:
+
+```bash
+npm audit --package-lock-only --include=dev --json
+npm audit --prefix src/backend --package-lock-only --include=dev --json
+npm explain yaml
+npm ls yaml --all
+```
+
+The actual networked audit runs also used temporary cache paths and explicit fetch timeouts. They read the lockfiles without applying fixes. No `npm audit fix --force` or dependency overrides were used. Zero audit findings describe those runs and do not establish complete application security.
+
+### Remaining Work and Related Scope
+
+- Finish the `concurrently` checks outside the sandbox and rerun the final audit before treating the major upgrade as fully validated.
+- Rerun backend and combined tests after removing the unrelated Node-runner email suite. Earlier failures above describe the pre-cleanup tree. Broader browser/API workflows and live SMTP delivery remain unverified.
+- Verify hosted Dependabot behavior and repository security settings after the configuration is available on the default branch; document any permission or platform limits.
+- Complete reviewer ownership, review cadence, severity/exception handling, rollback instructions, and linked verification evidence required by #62. Coordinate policy with #48 and automated dependency/security checks with #50.
+- ESLint configuration simplification belongs with #22; running the agreed lint command in CI belongs with #45. The existing 113-rule inline configuration is unchanged.
+- Removed three unrelated additions inherited from the pre-rebase commit: `docs/current-deployment-procedures-and-gaps.md`, `docs/dependency-risks.md`, and `src/backend/tests/emailUtils.test.js`. None exists on `main` or belongs to the reviewed Dependabot/dependency-update commit. The historical email-test failures above remain recorded; the suite was removed as scope cleanup rather than migrated to Vitest. Current dependency evidence is consolidated in this existing document.
