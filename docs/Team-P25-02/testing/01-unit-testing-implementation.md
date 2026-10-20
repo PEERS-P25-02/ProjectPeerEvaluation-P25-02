@@ -94,6 +94,35 @@ Vitest. These checks do not expand test coverage. See the
 [ESLint implementation record](../eslint-migration.md)
 for the associated lint, formatting, build, and in-memory verification.
 
+## Issue #30 Frontend Unit Test Coverage
+
+Issue #30 added three frontend unit tests in `src/frontend/tests/LoginPage.test.jsx`.
+
+The tests cover:
+
+- entering an email and password in the professor login form;
+- switching from login mode to professor registration mode;
+- submitting a password reset request with a mocked Axios response and confirming the expected success message.
+
+The frontend suite was run with:
+
+```bash
+npm test
+```
+
+Recorded result:
+
+```text
+Test Files  2 passed (2)
+Tests       4 passed (4)
+```
+
+The new test file was also checked with ESLint and Prettier. ESLint completed with no errors, and Prettier reported that the file uses the expected code style.
+
+These tests do not require the real backend, MongoDB, or email service. API behavior needed by the password reset test is mocked so the test is repeatable.
+
+Detailed verification is recorded in [03-frontend-unit-test-validation.md](03-frontend-unit-test-validation.md).
+
 ## Remaining Testing Work
 
 - Verify watch-mode reruns and frontend, backend, and combined failure exit codes after runtime alignment.
