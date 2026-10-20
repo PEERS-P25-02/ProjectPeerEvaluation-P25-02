@@ -112,10 +112,15 @@ Run these from the repository root:
 
 Production builds, including local previews, use the configured deployed backend. Use the development server at `localhost:3000` for local API testing. The shared API service also selects the deployed backend on hosts other than `localhost`.
 
-The one-shot test commands return a nonzero exit code when a test fails. The
-initial unit tests are documented in the
-[Unit Testing Implementation](docs/Team-P25-02/testing/01-unit-testing-implementation.md#initial-unit-test-cases);
-broader integration, regression, and end-to-end coverage remains planned.
+The one-shot test commands return a nonzero exit code when a test fails.
+
+The initial unit tests are documented in the
+[Unit Testing Implementation](docs/Team-P25-02/testing/01-unit-testing-implementation.md#initial-unit-test-cases).
+
+The backend test scope, limitations, and results are documented in the
+[Backend Unit Testing Implementation](docs/Team-P25-02/testing/02-backend-unit-testing-implementation.md).
+
+Broader integration, regression, and end-to-end coverage remains planned.
 
 ### Testing
 
