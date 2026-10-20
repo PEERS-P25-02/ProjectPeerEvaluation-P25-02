@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const path = require('node:path');
+
+// Resolve the shared root .env independently of the working directory.
+require('dotenv').config({
+  path: path.resolve(__dirname, '../../../.env'),
+});
 
 // Import the Professor model
 const Professor = require('../models/Professor');

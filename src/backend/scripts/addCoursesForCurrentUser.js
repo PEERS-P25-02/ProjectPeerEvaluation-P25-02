@@ -1,4 +1,9 @@
-require('dotenv').config();
+const path = require('node:path');
+
+// Resolve the shared root .env independently of the working directory.
+require('dotenv').config({
+  path: path.resolve(__dirname, '../../../.env'),
+});
 const mongoose = require('mongoose');
 const Course = require('../models/Course');
 

@@ -21,9 +21,11 @@ function ResetPassword() {
       return;
     }
     try {
-      const baseURL = import.meta.env.PROD
-        ? 'https://peer-evaluation-backend.onrender.com/api'
-        : 'http://localhost:5000/api';
+      const baseURL =
+        import.meta.env.VITE_API_BASE_URL ||
+        (import.meta.env.PROD
+          ? 'https://peer-evaluation-backend.onrender.com/api'
+          : 'http://localhost:5000/api');
       const res = await axios.post(`${baseURL}/auth/update-password`, {
         token,
         password: newPassword,
