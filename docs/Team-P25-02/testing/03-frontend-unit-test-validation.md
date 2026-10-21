@@ -8,19 +8,26 @@ GitHub Issue #30 - Implement frontend unit tests.
 
 The goal of this work is to test useful frontend behavior in PEERS using Vitest and React Testing Library.
 
-## Test File
+## Test Files and Coverage
 
-The new frontend tests are located in:
+| Test file | Coverage |
+| --- | --- |
+| [`LoginPage.test.jsx`](../../../src/frontend/tests/LoginPage.test.jsx) | Initial login-form rendering, login-field interaction, registration-mode navigation, and password-reset success behavior with a mocked Axios response. |
 
-`src/frontend/tests/LoginPage.test.jsx`
+The original initial-route test from `App.test.jsx` was merged into
+`LoginPage.test.jsx`; the separate `App.test.jsx` file is no longer maintained.
 
-## Tested Behaviors
+## Frontend Unit Test Cases
 
-The following frontend behaviors were tested:
+| Test ID | Area | Purpose and expected result | Source |
+| --- | --- | --- | --- |
+| UNIT-FE-001 | Login form rendering | The initial route renders the professor login heading, email field, password field, and Login button. | [`LoginPage.test.jsx`](../../../src/frontend/tests/LoginPage.test.jsx) |
+| UNIT-FE-002 | Login form interaction | Entering an email address and password updates the corresponding form fields. | [`LoginPage.test.jsx`](../../../src/frontend/tests/LoginPage.test.jsx) |
+| UNIT-FE-003 | Registration navigation | Selecting the registration action displays the professor registration heading, full-name field, department field, and Register button. | [`LoginPage.test.jsx`](../../../src/frontend/tests/LoginPage.test.jsx) |
+| UNIT-FE-004 | Password reset | Submitting a password-reset request with a mocked Axios response displays the expected success message and calls the reset endpoint. | [`LoginPage.test.jsx`](../../../src/frontend/tests/LoginPage.test.jsx) |
 
-1. The user can type an email and password into the professor login form.
-2. The user can switch from login mode to professor registration mode.
-3. The user can submit a password reset request and see the expected success message when the API response is mocked.
+The four frontend unit tests are implemented in one test file and use
+synthetic browser state and mocked network behavior.
 
 ## Test Tools
 

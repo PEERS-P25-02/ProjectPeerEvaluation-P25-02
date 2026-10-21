@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { AuthProvider } from '../contexts/AuthContext';
 
@@ -18,6 +18,26 @@ vi.mock('axios', async (importOriginal) => {
 });
 
 describe('LoginPage', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    window.history.pushState({}, '', '/');
+  });
+
+  it('shows the professor login form on the initial route', () => {
+    render(
+      <AuthProvider>
+        <App />
+      </AuthProvider>,
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Professor Login' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Email:')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password:')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
+  });
+
   it('lets the user type an email and password', async () => {
     const user = userEvent.setup();
 

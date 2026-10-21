@@ -23,13 +23,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Authentication / Authorization</td>
-<td><a href="../../../src/backend/middleware/auth.js">Authentication middleware</a></td>
-<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015</td>
+<td><a href="../../../src/backend/middleware/auth.js">Authentication middleware</a>; <a href="../../../src/backend/tests/auth.test.js">Backend authentication test</a></td>
+<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015; UNIT-FE-001</td>
 <td>Unit Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/01-unit-testing-implementation.md#initial-test-results">Initial recorded results</a>; <a href="../testing/03-frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a></td>
 <td></td>
-<td>Unit coverage verifies middleware and login success/failure; authenticated cross-resource access still requires integration or end-to-end coverage.</td>
+<td>Unit coverage verifies middleware, backend login success/failure, and frontend login behavior; authenticated cross-resource access still requires integration or end-to-end coverage.</td>
 </tr>
 <tr>
 <td>FR-02</td>
@@ -251,8 +251,8 @@
 <td>High</td>
 <td>Client</td>
 <td>Vitest / React Testing Library / jsdom</td>
-<td><a href="../../../package.json">Frontend package</a>; <a href="../../../vite.config.mjs">Vitest configuration</a>; <a href="../../../src/frontend/test/setup.js">DOM assertion setup</a>; <a href="../../../src/frontend/tests/App.test.jsx">Frontend test</a></td>
-<td>UNIT-FE-001; UNIT-CI-001; UNIT-CI-002</td>
+<td><a href="../../../package.json">Frontend package</a>; <a href="../../../vite.config.mjs">Vitest configuration</a>; <a href="../../../src/frontend/test/setup.js">DOM assertion setup</a>; <a href="../../../src/frontend/tests/LoginPage.test.jsx">Frontend test</a></td>
+<td>UNIT-FE-001; UNIT-FE-002; UNIT-FE-003; UNIT-FE-004; UNIT-CI-001; UNIT-CI-002</td>
 <td>Unit Test + Integration Test</td>
 <td>In Progress</td>
 <td><a href="../testing/01-unit-testing-implementation.md#initial-test-results">Initial recorded results</a>; <a href="../testing/01-unit-testing-implementation.md#verification-after-runtime-alignment">Verification after runtime alignment</a></td>
