@@ -23,13 +23,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Authentication / Authorization</td>
+<td><a href="../../../src/backend/middleware/auth.js">Authentication middleware</a></td>
+<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003</td>
+<td>Unit Test + End-to-End Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>End-to-End Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Unit coverage verifies middleware token handling; authenticated professor access still requires end-to-end coverage.</td>
 </tr>
 <tr>
 <td>FR-02</td>
@@ -38,13 +38,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Course Management</td>
+<td><a href="../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../src/backend/models/Course.js">Course model</a></td>
+<td>UNIT-BE-004; UNIT-BE-009; UNIT-BE-010</td>
+<td>Unit Test + Functional Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Functional Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Unit coverage verifies validation and model behavior; complete course-management workflow coverage remains planned.</td>
 </tr>
 <tr>
 <td>FR-03</td>
@@ -53,13 +53,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Roster Management / CSV Processing</td>
+<td><a href="../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../src/backend/utils/csvParser.js">CSV parsing</a></td>
+<td>UNIT-BE-004; UNIT-BE-005; UNIT-BE-007; UNIT-BE-008; UNIT-BE-013</td>
+<td>Unit Test + Integration Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Integration Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Validation and CSV normalization are covered in isolation; upload-to-database integration remains planned.</td>
 </tr>
 <tr>
 <td>FR-04</td>
@@ -68,13 +68,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Team Management</td>
+<td><a href="../../../src/backend/controllers/teamController.js">Team controller</a>; <a href="../../../src/backend/models/Team.js">Team model</a></td>
+<td>UNIT-BE-004; UNIT-BE-006; UNIT-BE-009; UNIT-BE-010</td>
+<td>Unit Test + Functional Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Functional Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Unit coverage verifies validation, defaults, and constraints; complete team-management workflow coverage remains planned.</td>
 </tr>
 <tr>
 <td>FR-05</td>
@@ -83,12 +83,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Evaluation Management / Distribution</td>
+<td><a href="../../../src/backend/models/Evaluation.js">Evaluation model</a></td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013</td>
+<td>Unit Test + End-to-End Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>End-to-End Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
+<td>Model validation is covered; evaluation creation and distribution workflows remain planned.</td>
 <td></td>
 </tr>
 <tr>
@@ -128,12 +129,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Student Evaluation / Submission</td>
+<td><a href="../../../src/backend/models/Evaluation.js">Evaluation model</a></td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012</td>
+<td>Unit Test + End-to-End Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>End-to-End Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
+<td>Evaluation field and rating constraints are covered; student submission workflow remains planned.</td>
 <td></td>
 </tr>
 <tr>
@@ -158,12 +160,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Reporting / Results Management</td>
+<td><a href="../../../src/backend/controllers/reportController.js">Report controller</a></td>
+<td>UNIT-BE-004; UNIT-BE-013</td>
+<td>Unit Test + Functional Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Functional Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
+<td>Report input validation is covered; report generation and export workflows remain planned.</td>
 <td></td>
 </tr>
 <tr>
