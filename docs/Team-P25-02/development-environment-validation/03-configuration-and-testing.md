@@ -10,8 +10,8 @@ Shared staging uses MongoDB Atlas and a separate Mailtrap Email Testing sandbox.
 ### 5.2 Environment Configuration and Secret Management
 
 The native-local backend loads `src/backend/.env` because the root
-backend startup command runs from `src/backend`. Run `npm run setup`
-to install dependencies and prepare local configuration.
+backend startup command runs from `src/backend`. Use `.env.example`
+as the template; preserve existing configuration.
 
 Local `.env` and `.env.*` files are ignored at every directory level.
 Examples remain tracked and must contain no real credentials.
@@ -20,16 +20,16 @@ Examples remain tracked and must contain no real credentials.
 | --- | --- |
 | MONGODB_URI | `mongodb://localhost:27017/peer-eval`; the database must be running. |
 | MONGO_URI | Legacy fallback; prefer MONGODB_URI. |
-| JWT_SECRET | Setup generates a random secret and reuses it on later runs. The inherited code still has a hardcoded fallback. |
+| JWT_SECRET | Required configuration policy: replace the template placeholder with a random secret. The inherited code still has a hardcoded fallback. |
 | PORT | Backend defaults to `5000`. |
 | FRONTEND_URL | `http://localhost:3000`; used for email links. |
 | SMTP_HOST | `localhost` for a native-local backend. |
 | SMTP_PORT | `1025` for Mailpit. |
 | SMTP_SECURE | `false` for default Mailpit; controls immediate TLS, not authentication. Other servers may use STARTTLS with false. |
-| SMTP_AUTH_REQUIRED | Setup uses `false` for local Mailpit. |
-| SMTP_USER / SMTP_PASS | Empty in the generated local Mailpit configuration. |
+| SMTP_AUTH_REQUIRED | Defaults to `true`. Set `false` explicitly for default local/CI Mailpit. |
+| SMTP_USER / SMTP_PASS | Leave both empty for default Mailpit. Supply both when authentication is required. |
 | SMTP_FROM | `peers-test@example.com`; displayed sender, separate from SMTP login. |
-| SMTP_SERVICE | Optional provider preset overriding host/port; unset in generated local configuration. |
+| SMTP_SERVICE | Optional provider preset overriding host/port; leave unset for Mailpit and explicit staging settings. |
 
 The utility omits authentication when credentials are absent and the
 explicit opt-out is enabled. Supplied credential pairs are still used
@@ -38,9 +38,9 @@ pairs, or invalid authentication flags stop startup with an error.
 Authenticated configuration also requires host/port or a service preset.
 
 The template does not create services. Restart the backend after changes.
-Run `npm run setup:env` to prepare configuration without reinstalling dependencies.
-It adds missing settings, generates a missing/placeholder JWT_SECRET,
-and preserves configured values without printing secrets.
+Planned setup automation will create missing local configuration, generate
+a cryptographically random JWT_SECRET, fill a missing/placeholder secret,
+and preserve configured values without printing secrets.
 
 ### 5.3 Compose Configuration Contract
 
@@ -142,8 +142,8 @@ separate Mailtrap Email Testing sandbox.
 - Authenticated local testing did not verify staging TLS or hosted services.
 - Password-reset routing and response-contract defects are tracked in
   [Known Bugs](../known-bugs.md); full password-reset completion is not claimed.
-- The integrated Compose stack, email test suites, and CI jobs remain
-  separate implementation work.
+- Setup automation, the integrated Compose stack, email test suites,
+  and CI jobs remain separate implementation work.
 
 ## Related Documents
 

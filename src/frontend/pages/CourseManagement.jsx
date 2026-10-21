@@ -1429,16 +1429,8 @@ function CourseManagement() {
 
     // First check if backend is reachable
     try {
-      // Test with the root endpoint that we know exists
-      const testUrl = window.location.hostname.includes('onrender.com')
-        ? 'https://peer-evaluation-backend.onrender.com/'
-        : 'http://localhost:5000/';
-
-      const testResponse = await fetch(testUrl);
-      if (!testResponse.ok) {
-        throw new Error(`Backend returned ${testResponse.status}`);
-      }
-      await testResponse.json();
+      // Check the same API destination used for invitation requests.
+      await api.get('/health');
     } catch (connectError) {
       console.error('Backend connectivity test failed:', connectError);
       setSendingEvaluations((prev) => ({ ...prev, [courseId]: false }));
@@ -3741,9 +3733,12 @@ function CourseManagement() {
                               <Button
                                 size="small"
                                 onClick={() => {
-                                  const frontendURL = import.meta.env.PROD
-                                    ? 'https://peer-evaluation-frontend.onrender.com'
-                                    : 'http://localhost:3000';
+                                  const frontendURL = import.meta.env
+                                    .VITE_API_BASE_URL
+                                    ? window.location.origin
+                                    : import.meta.env.PROD
+                                      ? 'https://peer-evaluation-frontend.onrender.com'
+                                      : 'http://localhost:3000';
                                   window.open(
                                     `${frontendURL}/evaluate/${student.evaluation_token}`,
                                     '_blank',

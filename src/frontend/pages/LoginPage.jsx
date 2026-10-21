@@ -32,9 +32,11 @@ function LoginPage() {
     }
     try {
       // Replace with your actual backend endpoint for password reset
-      const baseURL = import.meta.env.PROD
-        ? 'https://peer-evaluation-backend.onrender.com/api'
-        : 'http://localhost:5000/api';
+      const baseURL =
+        import.meta.env.VITE_API_BASE_URL ||
+        (import.meta.env.PROD
+          ? 'https://peer-evaluation-backend.onrender.com/api'
+          : 'http://localhost:5000/api');
       await axios.post(`${baseURL}/auth/reset-password`, { email: resetEmail });
       setResetStatus(
         'If your email is registered, you will receive password reset instructions.',
@@ -53,9 +55,11 @@ function LoginPage() {
     e.preventDefault();
     setError('');
 
-    const baseURL = import.meta.env.PROD
-      ? 'https://peer-evaluation-backend.onrender.com/api'
-      : 'http://localhost:5000/api';
+    const baseURL =
+      import.meta.env.VITE_API_BASE_URL ||
+      (import.meta.env.PROD
+        ? 'https://peer-evaluation-backend.onrender.com/api'
+        : 'http://localhost:5000/api');
 
     const endpoint = isRegistering
       ? `${baseURL}/auth/register`

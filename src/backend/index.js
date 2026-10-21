@@ -1,4 +1,9 @@
-require('dotenv').config();
+const path = require('node:path');
+
+// Resolve the shared root .env independently of the working directory.
+require('dotenv').config({
+  path: path.resolve(__dirname, '../../.env'),
+});
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -51,11 +56,14 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint for API
+// Compose readiness must include the database, not just the HTTP listener.
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Backend API is running',
+  const databaseConnected = mongoose.connection.readyState === 1;
+  res.status(databaseConnected ? 200 : 503).json({
+    status: databaseConnected ? 'OK' : 'UNAVAILABLE',
+    message: databaseConnected
+      ? 'Backend API is running'
+      : 'MongoDB is not connected',
     timestamp: new Date().toISOString(),
   });
 });

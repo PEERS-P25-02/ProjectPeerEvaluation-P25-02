@@ -7,9 +7,12 @@ const isProduction =
   window.location.hostname.includes('onrender.com') ||
   window.location.hostname !== 'localhost';
 
-const API_BASE_URL = isProduction
-  ? 'https://peer-evaluation-backend.onrender.com/api'
-  : 'http://localhost:5000/api';
+// Compose selects /api at build time; other builds keep their existing defaults.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (isProduction
+    ? 'https://peer-evaluation-backend.onrender.com/api'
+    : 'http://localhost:5000/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

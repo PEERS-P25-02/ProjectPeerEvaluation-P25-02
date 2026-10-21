@@ -1,4 +1,4 @@
-// Prepare the backend's local .env file using .env.example as the defaults.
+// Prepare the root .env file using the root .env.example as the defaults.
 // Run with npm run setup:env after installing dependencies.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,8 +15,8 @@ if (appEnv !== 'development' || (nodeEnv && nodeEnv !== 'development')) {
 
 // Resolve paths relative to this script so they work regardless of the
 // directory from which the command was started.
-const envPath = path.resolve(__dirname, '../.env');
-const examplePath = path.resolve(__dirname, '../.env.example');
+const envPath = path.resolve(__dirname, '../../../.env');
+const examplePath = path.resolve(__dirname, '../../../.env.example');
 const template = fs.readFileSync(examplePath, 'utf8');
 
 // Turn the template's KEY=value entries into an object. Parsing does not
