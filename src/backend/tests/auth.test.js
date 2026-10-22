@@ -1,6 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
+
+const testJwtSecret = vi.hoisted(() => {
+  const original = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'unit-test-jwt-secret';
+  return { original, value: process.env.JWT_SECRET };
+});
+
+afterAll(() => {
+  if (testJwtSecret.original === undefined) {
+    delete process.env.JWT_SECRET;
+  } else {
+    process.env.JWT_SECRET = testJwtSecret.original;
+  }
+});
 
 describe('authenticateToken', () => {
   it('rejects requests without an authorization token', () => {
@@ -21,7 +35,7 @@ describe('authenticateToken', () => {
     const user = { id: 'professor-1', email: 'professor@example.com' };
     const req = {
       headers: {
-        authorization: `Bearer ${jwt.sign(user, 'dev_secret_key')}`
+        authorization: `Bearer ${jwt.sign(user, testJwtSecret.value)}`
       }
     };
     const next = vi.fn();
@@ -33,7 +47,7 @@ describe('authenticateToken', () => {
   });
 
   it('rejects an invalid token without exposing JWT details', () => {
-    const req = { headers: { authorization: 'Bearer not-a-real-token' } };
+    const req = { headers: { authorization: 'Bearer invalid-token' } };
     const next = vi.fn();
 
     authenticateToken(req, {}, next);

@@ -19,6 +19,14 @@ describe('backend model invariants', () => {
       course_section: '01',
       semester: 'Fall 2026',
       professor_id: '507f1f77bcf86cd799439011',
+      course_status: 'Active'
+    }).validateSync()).toBeUndefined();
+    expect(new Course({
+      course_name: 'Course',
+      course_number: 'CS 101',
+      course_section: '01',
+      semester: 'Fall 2026',
+      professor_id: '507f1f77bcf86cd799439011',
       course_status: 'Unknown'
     }).validateSync().errors.course_status).toBeDefined();
   });

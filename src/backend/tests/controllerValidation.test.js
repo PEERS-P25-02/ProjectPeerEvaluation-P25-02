@@ -1,7 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+/* eslint-disable import/first */
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 
-vi.hoisted(() => {
+const smtpEnvironment = vi.hoisted(() => {
+  const names = ['SMTP_AUTH_REQUIRED', 'SMTP_USER', 'SMTP_PASS'];
+  const original = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   process.env.SMTP_AUTH_REQUIRED = 'false';
+  delete process.env.SMTP_USER;
+  delete process.env.SMTP_PASS;
+  return original;
 });
 
 import { login, register } from '../controllers/authController.js';
@@ -22,12 +30,52 @@ import {
   resetEvaluationState
 } from '../controllers/studentController.js';
 import { getCourseReport } from '../controllers/reportController.js';
+/* eslint-enable import/first */
+
+const Professor = mongoose.model('Professor');
+
+afterAll(() => {
+  vi.restoreAllMocks();
+  Object.entries(smtpEnvironment).forEach(([name, value]) => {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  });
+});
 
 function response() {
   return { status: vi.fn().mockReturnThis(), json: vi.fn() };
 }
 
 describe('backend controller validation contracts', () => {
+  it('logs in with valid credentials and returns an access token', async () => {
+    const professor = {
+      _id: 'professor-1',
+      email: 'professor@example.com',
+      password: 'hashed-password',
+      name: 'Professor',
+      department: 'Computer Science',
+      mfa_enabled: false,
+      save: vi.fn().mockResolvedValue()
+    };
+    vi.spyOn(Professor, 'findOne').mockResolvedValue(professor);
+    vi.spyOn(bcrypt, 'compare').mockResolvedValue(true);
+    const res = response();
+
+    await login({
+      body: { email: professor.email, password: 'password' }
+    }, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      access_token: expect.any(String),
+      professor: expect.objectContaining({ email: professor.email })
+    }));
+    expect(professor.save).toHaveBeenCalledOnce();
+  });
+
   it('rejects login requests without both credentials', async () => {
     const next = vi.fn();
 

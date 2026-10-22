@@ -1,7 +1,7 @@
 # Milestone 2: Backend Unit Testing Implementation
 
-**Updated:** October 19, 2026
-**Status:** Selected backend unit-test scope implemented; broader service-backed coverage remains planned
+**Updated:** October 21, 2026
+**Status:** Success, failure, boundary, and validation unit-test scope implemented; integration coverage remains separate
 
 ## Purpose and Scope
 
@@ -15,8 +15,10 @@ invalid, and empty-token cases; it is included alongside the new backend test
 files documented here rather than being replaced or duplicated.
 
 The tests are intentionally isolated from MongoDB, SMTP, Mailpit, and live
-Express startup. They use synthetic in-memory requests, model validation,
-CSV streams, and mocked Express `next` callbacks where appropriate.
+Express startup. They use synthetic in-memory requests, model and email mocks,
+CSV files, and mocked Express `next` callbacks where appropriate. Issue #29
+success-path tests and issue #31 failure/boundary tests are kept in separate
+files to avoid duplicating their purposes.
 
 ## Implemented Backend Test Tooling
 
@@ -35,6 +37,8 @@ CSV streams, and mocked Express `next` callbacks where appropriate.
 | --- | --- |
 | [`auth.test.js`](../../../src/backend/tests/auth.test.js) | The issue #28 initial missing-token test, retained and expanded with valid, invalid, and empty bearer-token behavior for `authenticateToken`. |
 | [`controllerValidation.test.js`](../../../src/backend/tests/controllerValidation.test.js) | Validation contracts for authentication, courses, students, teams, reports, roster upload, destructive operations, and the current auto-assignment placeholder. |
+| [`controllerSuccessPaths.test.js`](../../../src/backend/tests/controllerSuccessPaths.test.js) | Successful course, roster/student, team, evaluation, and reporting controller behavior with mocked database and email dependencies. |
+| [`controllerFailureBoundary.test.js`](../../../src/backend/tests/controllerFailureBoundary.test.js) | Invalid credentials, duplicate and missing records, empty bulk operations, team constraints, invalid/reused evaluation tokens, empty submissions, and empty-state reporting. |
 | [`csvParsing.test.js`](../../../src/backend/tests/csvParsing.test.js) | Required roster fields, quoted CSV values, preferred and legacy team columns, blank assignments, and missing values. |
 | [`models.test.js`](../../../src/backend/tests/models.test.js) | Required Mongoose fields, defaults, enum/rating constraints, student/course uniqueness index, and evaluation invariants. |
 | [`rubric.test.js`](../../../src/backend/tests/rubric.test.js) | Required rubric criteria, score descriptions, score ranges, and overall-feedback limits. |
@@ -57,9 +61,24 @@ CSV streams, and mocked Express `next` callbacks where appropriate.
 | UNIT-BE-011 | Model constraints | Evaluation rating limits and the student/course uniqueness index are defined. | [`models.test.js`](../../../src/backend/tests/models.test.js) |
 | UNIT-BE-012 | Rubric configuration | Required criteria, score descriptions, score ranges, and feedback limits remain internally consistent. | [`rubric.test.js`](../../../src/backend/tests/rubric.test.js) |
 | UNIT-BE-013 | Error handling | Custom errors preserve status, code, message, details, and a valid timestamp. Empty errors receive safe defaults. | [`errorHandler.test.js`](../../../src/backend/tests/errorHandler.test.js) |
+| UNIT-BE-014 | Controller success paths | Course, student, team, evaluation, roster, and report controller operations return their successful response contracts while database and email dependencies are mocked. | [`controllerSuccessPaths.test.js`](../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| UNIT-BE-015 | Failure and boundary paths | Invalid credentials, duplicate/missing records, empty bulk operations, team membership constraints, invalid/reused tokens, empty submissions, and empty report/reminder states return detectable outcomes. | [`controllerFailureBoundary.test.js`](../../../src/backend/tests/controllerFailureBoundary.test.js) |
 
-The test IDs group related assertions; the suite contains 33 individual
-passing tests across the six test files.
+The test IDs group related assertions; the suite contains 45 individual
+passing tests across nine test files.
+
+## Coordination with Issue #31
+
+Issue #29 owns successful backend behavior; issue #31 owns invalid-input,
+failure, and boundary behavior. `controllerSuccessPaths.test.js` contains
+successful response contracts, while `controllerFailureBoundary.test.js` and
+`controllerValidation.test.js` contain the coordinated negative and edge
+cases. The cases intentionally use separate test names and files so a
+successful workflow assertion is not mistaken for validation or failure
+coverage. The current issue #31 cases include invalid credentials, duplicate
+and missing records, empty bulk operations, team membership constraints,
+invalid and reused evaluation tokens, empty submissions, and empty report and
+reminder states.
 
 ## Technical Limitations Encountered
 
@@ -95,10 +114,10 @@ to introduce dependency-injection or service boundaries.
 
 ### Scope decision
 
-The suite therefore focuses on deterministic and repeatable unit behavior that
-can be tested without changing production architecture. Database-backed
-success workflows were not represented by fragile mocks or by connecting to a
-developer's local services.
+The suite covers deterministic controller response contracts and important
+business-rule branches with model and email mocks. It does not claim that
+mocked calls prove MongoDB persistence, SMTP delivery, transactionality, or
+cross-request concurrency behavior.
 
 ## Verification Results
 
@@ -111,27 +130,24 @@ npm --prefix src/backend test
 ### Actual result
 
 ```text
-Test Files  6 passed (6)
-Tests       33 passed (33)
+Test Files  9 passed (9)
+Tests       45 passed (45)
 ```
 
 The suite completed without requiring MongoDB, SMTP, Mailpit, or a running
-backend process.
+backend process. Root frontend validation also passed with one test file and
+one test.
 
-## Deferred Backend Coverage
+## Remaining Backend Coverage
 
 The following areas remain outside this isolated unit suite and should be
-covered by later unit refactoring or service-backed integration tests:
+covered by service-backed integration or end-to-end tests:
 
-- Authentication controller success paths, password hashing, and password reset.
-- Course creation, reactivation, retrieval, update, and soft deletion.
-- Student and team persistence and count updates.
-- Full roster upload persistence, duplicate handling, and temporary-file cleanup.
-- Evaluation token lookup, submission persistence, duplicate submission, and status transitions.
-- Report aggregation and download behavior.
 - Cross-professor and cross-course ownership authorization.
 - Email message delivery and Mailpit verification.
 - Database failure, partial-write, concurrency, and retry behavior.
+- Full MongoDB persistence, index behavior, and transaction boundaries.
+- Real file-upload middleware behavior and filesystem cleanup under failures.
 
 These deferred cases require either additional test seams in the backend or the
 isolated MongoDB and Mailpit integration environment described in the
@@ -139,14 +155,15 @@ isolated MongoDB and Mailpit integration environment described in the
 
 ## Completion Assessment
 
-The selected backend unit-test scope for this implementation is complete:
+The selected backend unit-test scope for issues #29 and #31 is complete:
 
 - Backend tests have meaningful assertions.
 - Tests use synthetic, repeatable data.
+- Success paths are covered separately from failure and boundary paths.
+- Database and email dependencies are mocked; no secrets or real student data are used.
 - The one-shot backend command passes.
-- No secrets or real student information are used.
-- Technical limitations and unverified behavior are recorded.
+- Documentation records the actual command, result, evidence, and remaining integration gaps.
 
-This document does not claim complete backend workflow coverage. Integration,
-regression, end-to-end, and staging health coverage remain separate testing
-responsibilities.
+This document does not claim complete production workflow verification.
+Integration, regression, end-to-end, and staging health coverage remain
+separate testing responsibilities.
