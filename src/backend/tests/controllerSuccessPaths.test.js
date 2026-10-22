@@ -160,9 +160,21 @@ describe('evaluation controller success paths', () => {
     vi.spyOn(Student, 'findOne').mockReturnValue(populated); vi.spyOn(Evaluation, 'findOne').mockResolvedValue(null); vi.spyOn(Student, 'find').mockReturnValue({ select: vi.fn().mockResolvedValue([]) }); vi.spyOn(Evaluation, 'exists').mockResolvedValue(null);
     let res = response(); await evaluationController.getEvaluationForm({ params: { token: 'token' } }, res, vi.fn()); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'token', evaluator: expect.objectContaining({ name: 'One' }), course: expect.objectContaining({ name: 'SE' }) }));
     res = response(); await evaluationController.evaluationTokenStatus({ params: { token: 'token' } }, res, vi.fn()); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ valid: true, completed: false }));
-    vi.spyOn(Evaluation.prototype, 'save').mockResolvedValue(); vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
+    const saveSpy = vi.spyOn(Evaluation.prototype, 'save').mockResolvedValue();
+    const recipientId = id();
+    vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
     const ratings = { professionalism: 4, communication: 4, work_ethic: 4, content_knowledge_skills: 4, overall_contribution: 4, participation: 4 };
-    res = response(); await evaluationController.submitEvaluation({ params: { token: 'token' }, body: { evaluations: [{ student_id: id(), ratings, overall_feedback: 'Excellent contribution' }] } }, res, vi.fn()); expect(res.status).toHaveBeenCalledWith(201); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ evaluations_count: 1 })); expect(Student.findByIdAndUpdate).toHaveBeenCalledWith(student._id, { evaluation_completed: true });
+    res = response(); await evaluationController.submitEvaluation({ params: { token: 'token' }, body: { evaluations: [{ student_id: recipientId, ratings, overall_feedback: 'Excellent contribution' }] } }, res, vi.fn()); expect(res.status).toHaveBeenCalledWith(201); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ evaluations_count: 1 })); expect(Student.findByIdAndUpdate).toHaveBeenCalledWith(student._id, { evaluation_completed: true });
+    expect(saveSpy).toHaveBeenCalledOnce();
+    // Check the document being saved while keeping MongoDB mocked.
+    expect(saveSpy.mock.instances[0].toObject()).toMatchObject({
+      course_id: courseId,
+      student_id: recipientId,
+      evaluator_id: student._id,
+      ratings,
+      overall_feedback: 'Excellent contribution',
+      evaluation_token: 'token'
+    });
     vi.spyOn(Student, 'find').mockResolvedValue([{ ...student }]); vi.spyOn(Evaluation, 'find').mockReturnValue({ distinct: vi.fn().mockResolvedValue([student._id]), findOne: undefined }); vi.spyOn(Evaluation, 'findOne').mockReturnValue({ sort: vi.fn().mockResolvedValue({ submitted_at: new Date() }) });
     res = response(); await evaluationController.evaluationStatus({ params: { course_id: courseId.toString() } }, res, vi.fn()); expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ total_count: 1, completed_count: 1, evaluations_sent: true }));
   });
