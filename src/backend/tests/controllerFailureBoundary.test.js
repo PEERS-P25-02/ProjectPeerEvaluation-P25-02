@@ -3,7 +3,9 @@ import { createRequire } from 'node:module';
 
 const smtpEnvironment = vi.hoisted(() => {
   const names = ['SMTP_AUTH_REQUIRED', 'SMTP_USER', 'SMTP_PASS'];
-  const original = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const original = Object.fromEntries(
+    names.map((name) => [name, process.env[name]]),
+  );
   process.env.SMTP_AUTH_REQUIRED = 'false';
   delete process.env.SMTP_USER;
   delete process.env.SMTP_PASS;
@@ -12,7 +14,7 @@ const smtpEnvironment = vi.hoisted(() => {
 
 vi.mock('../utils/emailUtils.js', () => ({
   sendEvaluationInvitation: vi.fn(),
-  sendEvaluationReminder: vi.fn()
+  sendEvaluationReminder: vi.fn(),
 }));
 
 const require = createRequire(import.meta.url);
@@ -35,11 +37,8 @@ const response = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn(),
   setHeader: vi.fn(),
-  send: vi.fn()
+  send: vi.fn(),
 });
-const errorFor = (next, code, status) => {
-  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code, status }));
-};
 
 afterEach(() => vi.restoreAllMocks());
 afterAll(() => {
@@ -56,27 +55,45 @@ describe('authentication failure and boundary cases', () => {
   it('rejects unknown users, incorrect passwords, and duplicate registrations', async () => {
     const unknownNext = vi.fn();
     vi.spyOn(Professor, 'findOne').mockResolvedValueOnce(null);
-    await authController.login({ body: { email: 'missing@example.com', password: 'password' } }, response(), unknownNext);
-    errorFor(unknownNext, 'AUTH_ERROR', 401);
+    await authController.login(
+      { body: { email: 'missing@example.com', password: 'password' } },
+      response(),
+      unknownNext,
+    );
+    expect(unknownNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'AUTH_ERROR', status: 401 }),
+    );
 
     const professor = { password: 'hashed-password' };
     vi.spyOn(Professor, 'findOne').mockResolvedValueOnce(professor);
     vi.spyOn(bcrypt, 'compare').mockResolvedValue(false);
     const passwordNext = vi.fn();
-    await authController.login({ body: { email: 'professor@example.com', password: 'wrong' } }, response(), passwordNext);
-    errorFor(passwordNext, 'AUTH_ERROR', 401);
+    await authController.login(
+      { body: { email: 'professor@example.com', password: 'wrong' } },
+      response(),
+      passwordNext,
+    );
+    expect(passwordNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'AUTH_ERROR', status: 401 }),
+    );
 
     vi.spyOn(Professor, 'findOne').mockResolvedValueOnce({ _id: id() });
     const registerNext = vi.fn();
-    await authController.register({
-      body: {
-        email: 'existing@example.com',
-        password: 'password',
-        name: 'Professor',
-        department: 'Computer Science'
-      }
-    }, response(), registerNext);
-    errorFor(registerNext, 'DUPLICATE', 409);
+    await authController.register(
+      {
+        body: {
+          email: 'existing@example.com',
+          password: 'password',
+          name: 'Professor',
+          department: 'Computer Science',
+        },
+      },
+      response(),
+      registerNext,
+    );
+    expect(registerNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'DUPLICATE', status: 409 }),
+    );
   });
 });
 
@@ -85,34 +102,62 @@ describe('course and student boundary cases', () => {
     const courseId = id();
     vi.spyOn(Course, 'findById').mockResolvedValue(null);
     const courseNext = vi.fn();
-    await courseController.getCourse({ params: { course_id: courseId.toString() } }, response(), courseNext);
-    errorFor(courseNext, 'NOT_FOUND', 404);
+    await courseController.getCourse(
+      { params: { course_id: courseId.toString() } },
+      response(),
+      courseNext,
+    );
+    expect(courseNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'NOT_FOUND', status: 404 }),
+    );
 
     vi.spyOn(Student, 'findOne')
       .mockResolvedValueOnce({ _id: id() })
       .mockResolvedValueOnce(null);
     const studentNext = vi.fn();
-    await studentController.addStudent({
-      params: { course_id: courseId.toString() },
-      body: { student_id: 'S1', name: 'Student', email: 'student@example.com' }
-    }, response(), studentNext);
-    errorFor(studentNext, 'DUPLICATE', 409);
+    await studentController.addStudent(
+      {
+        params: { course_id: courseId.toString() },
+        body: {
+          student_id: 'S1',
+          name: 'Student',
+          email: 'student@example.com',
+        },
+      },
+      response(),
+      studentNext,
+    );
+    expect(studentNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'DUPLICATE', status: 409 }),
+    );
 
     const deleteNext = vi.fn();
     vi.spyOn(Student, 'findOneAndDelete').mockResolvedValue(null);
-    await studentController.deleteStudent({
-      params: { course_id: courseId.toString(), student_id: id().toString() }
-    }, response(), deleteNext);
-    errorFor(deleteNext, 'NOT_FOUND', 404);
+    await studentController.deleteStudent(
+      {
+        params: { course_id: courseId.toString(), student_id: id().toString() },
+      },
+      response(),
+      deleteNext,
+    );
+    expect(deleteNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'NOT_FOUND', status: 404 }),
+    );
   });
 
   it('rejects an empty bulk-delete request', async () => {
     const next = vi.fn();
-    await studentController.bulkDeleteStudents({
-      params: { course_id: id().toString() },
-      body: { student_ids: [] }
-    }, response(), next);
-    errorFor(next, 'VALIDATION_ERROR', 400);
+    await studentController.bulkDeleteStudents(
+      {
+        params: { course_id: id().toString() },
+        body: { student_ids: [] },
+      },
+      response(),
+      next,
+    );
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'VALIDATION_ERROR', status: 400 }),
+    );
   });
 });
 
@@ -124,27 +169,39 @@ describe('team boundary cases', () => {
     const team = {
       _id: teamId,
       students: [studentId],
-      team_name: 'Team A'
+      team_name: 'Team A',
     };
     team.students.includes = vi.fn().mockReturnValue(true);
     vi.spyOn(Team, 'findOne').mockResolvedValue(team);
     vi.spyOn(Student, 'findOne').mockResolvedValue({ _id: studentId });
 
     const addNext = vi.fn();
-    await teamController.addStudentToTeam({
-      params: {
-        course_id: courseId.toString(),
-        team_id: teamId.toString(),
-        student_id: studentId.toString()
-      }
-    }, response(), addNext);
-    errorFor(addNext, 'DUPLICATE', 409);
+    await teamController.addStudentToTeam(
+      {
+        params: {
+          course_id: courseId.toString(),
+          team_id: teamId.toString(),
+          student_id: studentId.toString(),
+        },
+      },
+      response(),
+      addNext,
+    );
+    expect(addNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'DUPLICATE', status: 409 }),
+    );
 
     const deleteNext = vi.fn();
-    await teamController.deleteTeam({
-      params: { course_id: courseId.toString(), team_id: teamId.toString() }
-    }, response(), deleteNext);
-    errorFor(deleteNext, 'CONSTRAINT_ERROR', 409);
+    await teamController.deleteTeam(
+      {
+        params: { course_id: courseId.toString(), team_id: teamId.toString() },
+      },
+      response(),
+      deleteNext,
+    );
+    expect(deleteNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'CONSTRAINT_ERROR', status: 409 }),
+    );
   });
 });
 
@@ -152,63 +209,99 @@ describe('evaluation and reporting boundary cases', () => {
   it('rejects invalid tokens, repeat submissions, and empty submissions', async () => {
     const invalidNext = vi.fn();
     vi.spyOn(Student, 'findOne').mockReturnValue({
-      populate: vi.fn().mockResolvedValue(null)
+      populate: vi.fn().mockResolvedValue(null),
     });
-    await evaluationController.evaluationTokenStatus({ params: { token: 'invalid' } }, response(), invalidNext);
-    errorFor(invalidNext, 'INVALID_TOKEN', 404);
+    await evaluationController.evaluationTokenStatus(
+      { params: { token: 'invalid' } },
+      response(),
+      invalidNext,
+    );
+    expect(invalidNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'INVALID_TOKEN', status: 404 }),
+    );
 
     const course = { _id: id(), course_name: 'Course' };
     const student = { _id: id(), course_id: course };
     vi.spyOn(Student, 'findOne').mockReturnValue({
-      populate: vi.fn().mockResolvedValue(student)
+      populate: vi.fn().mockResolvedValue(student),
     });
-    vi.spyOn(Evaluation, 'findOne').mockResolvedValueOnce({ submitted_at: new Date() });
+    vi.spyOn(Evaluation, 'findOne').mockResolvedValueOnce({
+      submitted_at: new Date(),
+    });
     const completedNext = vi.fn();
-    await evaluationController.submitEvaluation({
-      params: { token: 'token' },
-      body: { evaluations: [] }
-    }, response(), completedNext);
-    errorFor(completedNext, 'ALREADY_COMPLETED', 409);
+    await evaluationController.submitEvaluation(
+      {
+        params: { token: 'token' },
+        body: { evaluations: [] },
+      },
+      response(),
+      completedNext,
+    );
+    expect(completedNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'ALREADY_COMPLETED', status: 409 }),
+    );
 
     vi.spyOn(Evaluation, 'findOne').mockResolvedValueOnce(null);
     const emptyNext = vi.fn();
-    await evaluationController.submitEvaluation({
-      params: { token: 'token' },
-      body: { evaluations: [] }
-    }, response(), emptyNext);
-    errorFor(emptyNext, 'VALIDATION_ERROR', 400);
+    await evaluationController.submitEvaluation(
+      {
+        params: { token: 'token' },
+        body: { evaluations: [] },
+      },
+      response(),
+      emptyNext,
+    );
+    expect(emptyNext).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'VALIDATION_ERROR', status: 400 }),
+    );
   });
 
   it('returns empty states for courses without students or evaluations needing reminders', async () => {
     const courseId = id();
     vi.spyOn(Student, 'find').mockResolvedValue([]);
     const statusRes = response();
-    await evaluationController.evaluationStatus({ params: { course_id: courseId.toString() } }, statusRes, vi.fn());
-    expect(statusRes.json).toHaveBeenCalledWith(expect.objectContaining({
-      total_count: 0,
-      evaluations_sent: false
-    }));
+    await evaluationController.evaluationStatus(
+      { params: { course_id: courseId.toString() } },
+      statusRes,
+      vi.fn(),
+    );
+    expect(statusRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total_count: 0,
+        evaluations_sent: false,
+      }),
+    );
 
     vi.spyOn(Course, 'findById').mockResolvedValue({ _id: courseId });
     vi.spyOn(Evaluation, 'find').mockReturnValue({
-      distinct: vi.fn().mockResolvedValue([])
+      distinct: vi.fn().mockResolvedValue([]),
     });
     const reminderRes = response();
-    await evaluationController.remindEvaluations({ params: { course_id: courseId.toString() }, body: {} }, reminderRes, vi.fn());
+    await evaluationController.remindEvaluations(
+      { params: { course_id: courseId.toString() }, body: {} },
+      reminderRes,
+      vi.fn(),
+    );
     expect(reminderRes.json).toHaveBeenCalledWith({
       message: 'No students need reminders - all evaluations completed.',
-      reminders_sent: 0
+      reminders_sent: 0,
     });
 
     vi.spyOn(Course, 'findById').mockResolvedValue({ _id: courseId });
     vi.spyOn(Student, 'find').mockReturnValue({
-      populate: vi.fn().mockResolvedValue([])
+      populate: vi.fn().mockResolvedValue([]),
     });
     const reportRes = response();
-    await reportController.getCourseReport({ params: { course_id: courseId.toString() }, query: {} }, reportRes, vi.fn());
-    expect(reportRes.json).toHaveBeenCalledWith(expect.objectContaining({
-      students: [],
-      message: 'No students found in this course'
-    }));
+    await reportController.getCourseReport(
+      { params: { course_id: courseId.toString() }, query: {} },
+      reportRes,
+      vi.fn(),
+    );
+    expect(reportRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        students: [],
+        message: 'No students found in this course',
+      }),
+    );
   });
 });

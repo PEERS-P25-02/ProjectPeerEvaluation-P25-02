@@ -10,15 +10,20 @@ describe('errorHandler', () => {
       },
       json: (body) => {
         res.body = body;
-      }
+      },
     };
 
-    errorHandler({
-      message: 'Invalid request',
-      code: 'VALIDATION_ERROR',
-      status: 400,
-      details: { field: 'email' }
-    }, {}, res, () => {});
+    errorHandler(
+      {
+        message: 'Invalid request',
+        code: 'VALIDATION_ERROR',
+        status: 400,
+        details: { field: 'email' },
+      },
+      {},
+      res,
+      () => {},
+    );
 
     expect(res.statusCode).toBe(400);
     expect(res.body).toEqual({
@@ -26,8 +31,8 @@ describe('errorHandler', () => {
         code: 'VALIDATION_ERROR',
         message: 'Invalid request',
         details: { field: 'email' },
-        timestamp: expect.any(String)
-      }
+        timestamp: expect.any(String),
+      },
     });
     expect(Number.isNaN(Date.parse(res.body.error.timestamp))).toBe(false);
   });
@@ -40,7 +45,7 @@ describe('errorHandler', () => {
       },
       json: (body) => {
         res.body = body;
-      }
+      },
     };
 
     errorHandler({}, {}, res, () => {});

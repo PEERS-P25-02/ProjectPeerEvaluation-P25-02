@@ -35,8 +35,8 @@ describe('authenticateToken', () => {
     const user = { id: 'professor-1', email: 'professor@example.com' };
     const req = {
       headers: {
-        authorization: `Bearer ${jwt.sign(user, testJwtSecret.value)}`
-      }
+        authorization: `Bearer ${jwt.sign(user, testJwtSecret.value)}`,
+      },
     };
     const next = vi.fn();
 
@@ -52,11 +52,13 @@ describe('authenticateToken', () => {
 
     authenticateToken(req, {}, next);
 
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({
-      message: 'Invalid or expired token.',
-      code: 'UNAUTHORIZED',
-      status: 401
-    }));
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Invalid or expired token.',
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
   });
 
   it('rejects an empty bearer token', () => {
@@ -65,9 +67,11 @@ describe('authenticateToken', () => {
 
     authenticateToken(req, {}, next);
 
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({
-      code: 'UNAUTHORIZED',
-      status: 401
-    }));
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
   });
 });

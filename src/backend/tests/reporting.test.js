@@ -22,7 +22,7 @@ function student(id, name) {
     _id: id,
     name,
     team_id: null,
-    toObject: () => ({ _id: id, name })
+    toObject: () => ({ _id: id, name }),
   };
 }
 
@@ -32,7 +32,7 @@ describe('report preparation', () => {
     const second = student(new mongoose.Types.ObjectId(), 'Student Two');
     vi.spyOn(Course, 'findById').mockResolvedValue({ course_name: 'Course' });
     vi.spyOn(Student, 'find').mockReturnValue({
-      populate: vi.fn().mockResolvedValue([first, second])
+      populate: vi.fn().mockResolvedValue([first, second]),
     });
     vi.spyOn(Evaluation, 'find').mockResolvedValue([
       {
@@ -44,34 +44,40 @@ describe('report preparation', () => {
           work_ethic: 4,
           content_knowledge_skills: 4,
           overall_contribution: 4,
-          participation: 4
-        }
-      }
+          participation: 4,
+        },
+      },
     ]);
     vi.spyOn(Team, 'find').mockResolvedValue([]);
 
     const res = response();
-    await getCourseReport({
-      params: { course_id: courseId.toString() },
-      query: { gradingMethod: 'mean' }
-    }, res, vi.fn());
+    await getCourseReport(
+      {
+        params: { course_id: courseId.toString() },
+        query: { gradingMethod: 'mean' },
+      },
+      res,
+      vi.fn(),
+    );
 
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      students: expect.arrayContaining([
-        expect.objectContaining({
-          name: 'Student One',
-          originalScore: 83.33,
-          finalScore: 83.33,
-          letterGrade: 'B',
-          evaluationsReceived: 1
-        }),
-        expect.objectContaining({
-          name: 'Student Two',
-          originalScore: 0,
-          finalScore: 0,
-          letterGrade: 'No evaluations'
-        })
-      ])
-    }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        students: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Student One',
+            originalScore: 83.33,
+            finalScore: 83.33,
+            letterGrade: 'B',
+            evaluationsReceived: 1,
+          }),
+          expect.objectContaining({
+            name: 'Student Two',
+            originalScore: 0,
+            finalScore: 0,
+            letterGrade: 'No evaluations',
+          }),
+        ]),
+      }),
+    );
   });
 });

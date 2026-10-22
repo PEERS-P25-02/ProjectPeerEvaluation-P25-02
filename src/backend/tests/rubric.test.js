@@ -9,7 +9,7 @@ describe('evaluation rubric', () => {
       'work_ethic',
       'content_knowledge_skills',
       'overall_contribution',
-      'participation'
+      'participation',
     ]);
     expect(rubric.criteria.every((criterion) => criterion.required)).toBe(true);
   });
@@ -22,8 +22,11 @@ describe('evaluation rubric', () => {
       expect(scores).toHaveLength(maximum - minimum + 1);
       expect(scores).toEqual(
         expect.arrayContaining(
-          Array.from({ length: maximum - minimum + 1 }, (_, index) => minimum + index)
-        )
+          Array.from(
+            { length: maximum - minimum + 1 },
+            (_, index) => minimum + index,
+          ),
+        ),
       );
     }
   });
@@ -34,7 +37,7 @@ describe('evaluation rubric', () => {
       type: 'text',
       required: true,
       minLength: 10,
-      maxLength: 1000
+      maxLength: 1000,
     });
   });
 });

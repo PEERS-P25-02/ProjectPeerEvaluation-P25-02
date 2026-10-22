@@ -13,22 +13,26 @@ describe('backend model invariants', () => {
     expect(error.errors.course_section).toBeDefined();
     expect(error.errors.semester).toBeDefined();
     expect(error.errors.professor_id).toBeDefined();
-    expect(new Course({
-      course_name: 'Course',
-      course_number: 'CS 101',
-      course_section: '01',
-      semester: 'Fall 2026',
-      professor_id: '507f1f77bcf86cd799439011',
-      course_status: 'Active'
-    }).validateSync()).toBeUndefined();
-    expect(new Course({
-      course_name: 'Course',
-      course_number: 'CS 101',
-      course_section: '01',
-      semester: 'Fall 2026',
-      professor_id: '507f1f77bcf86cd799439011',
-      course_status: 'Unknown'
-    }).validateSync().errors.course_status).toBeDefined();
+    expect(
+      new Course({
+        course_name: 'Course',
+        course_number: 'CS 101',
+        course_section: '01',
+        semester: 'Fall 2026',
+        professor_id: '507f1f77bcf86cd799439011',
+        course_status: 'Active',
+      }).validateSync(),
+    ).toBeUndefined();
+    expect(
+      new Course({
+        course_name: 'Course',
+        course_number: 'CS 101',
+        course_section: '01',
+        semester: 'Fall 2026',
+        professor_id: '507f1f77bcf86cd799439011',
+        course_status: 'Unknown',
+      }).validateSync().errors.course_status,
+    ).toBeDefined();
   });
 
   it('requires student identity and course association', () => {
@@ -45,7 +49,7 @@ describe('backend model invariants', () => {
       student_id: 'S001',
       name: 'Student One',
       email: 'STUDENT@EXAMPLE.TEST',
-      course_id: '507f1f77bcf86cd799439011'
+      course_id: '507f1f77bcf86cd799439011',
     });
 
     expect(student.email).toBe('student@example.test');
@@ -84,19 +88,21 @@ describe('backend model invariants', () => {
         work_ethic: 5,
         content_knowledge_skills: 5,
         overall_contribution: 5,
-        participation: 5
+        participation: 5,
       },
       overall_feedback: 'Sufficient feedback',
-      evaluation_token: 'token'
+      evaluation_token: 'token',
     });
 
-    expect(evaluation.validateSync().errors['ratings.participation']).toBeDefined();
+    expect(
+      evaluation.validateSync().errors['ratings.participation'],
+    ).toBeDefined();
   });
 
   it('defines the compound student uniqueness index for a course', () => {
     expect(Student.schema.indexes()).toContainEqual([
       { student_id: 1, course_id: 1 },
-      expect.objectContaining({ unique: true })
+      expect.objectContaining({ unique: true }),
     ]);
   });
 

@@ -39,7 +39,7 @@ describe('roster CSV parsing', () => {
     temporaryFiles.add(filePath);
     fs.writeFileSync(
       filePath,
-      'student_id,name,email,team_name\nS001,"Student, One",student@example.test,Team A\n'
+      'student_id,name,email,team_name\nS001,"Student, One",student@example.test,Team A\n',
     );
 
     const studentId = new mongoose.Types.ObjectId();
@@ -48,7 +48,7 @@ describe('roster CSV parsing', () => {
       _id: studentId,
       student_id: 'S001',
       name: 'Student, One',
-      email: 'student@example.test'
+      email: 'student@example.test',
     };
 
     vi.spyOn(Student, 'updateMany').mockResolvedValue({});
@@ -66,24 +66,35 @@ describe('roster CSV parsing', () => {
     vi.spyOn(Evaluation, 'deleteMany').mockResolvedValue({ deletedCount: 0 });
 
     const res = response();
-    await uploadRoster({
-      params: { course_id: courseId },
-      file: { path: filePath }
-    }, res, vi.fn());
+    await uploadRoster(
+      {
+        params: { course_id: courseId },
+        file: { path: filePath },
+      },
+      res,
+      vi.fn(),
+    );
 
     await vi.waitFor(() => expect(res.json).toHaveBeenCalledOnce());
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      students: ['S001'],
-      team_names: ['Team A'],
-      teams_created: 1
-    }));
-    expect(Student.insertMany).toHaveBeenCalledWith([expect.objectContaining({
-      student_id: 'S001',
-      name: 'Student, One',
-      email: 'student@example.test',
-      group_assignment: 'Team A',
-      course_id: courseId
-    })], { ordered: false });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        students: ['S001'],
+        team_names: ['Team A'],
+        teams_created: 1,
+      }),
+    );
+    expect(Student.insertMany).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          student_id: 'S001',
+          name: 'Student, One',
+          email: 'student@example.test',
+          group_assignment: 'Team A',
+          course_id: courseId,
+        }),
+      ],
+      { ordered: false },
+    );
   });
 
   it('accepts legacy team column names and rejects rows missing required values', async () => {
@@ -91,7 +102,7 @@ describe('roster CSV parsing', () => {
     temporaryFiles.add(filePath);
     fs.writeFileSync(
       filePath,
-      'student_id,name,email,group_assignment\nS001,Student One,one@example.test,Team A\nS002,,two@example.test,Team B\n'
+      'student_id,name,email,group_assignment\nS001,Student One,one@example.test,Team A\nS002,,two@example.test,Team B\n',
     );
 
     vi.spyOn(Student, 'updateMany').mockResolvedValue({});
@@ -101,28 +112,41 @@ describe('roster CSV parsing', () => {
     vi.spyOn(Student, 'insertMany').mockResolvedValue([]);
     vi.spyOn(Student, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Team, 'findOne').mockResolvedValue(null);
-    vi.spyOn(Team.prototype, 'save').mockResolvedValue({ _id: new mongoose.Types.ObjectId() });
+    vi.spyOn(Team.prototype, 'save').mockResolvedValue({
+      _id: new mongoose.Types.ObjectId(),
+    });
     vi.spyOn(Team, 'findByIdAndUpdate').mockResolvedValue({});
     vi.spyOn(Team, 'countDocuments').mockResolvedValue(1);
     vi.spyOn(Course, 'findByIdAndUpdate').mockResolvedValue({});
     vi.spyOn(Evaluation, 'deleteMany').mockResolvedValue({ deletedCount: 0 });
 
     const res = response();
-    await uploadRoster({
-      params: { course_id: courseId },
-      file: { path: filePath }
-    }, res, vi.fn());
+    await uploadRoster(
+      {
+        params: { course_id: courseId },
+        file: { path: filePath },
+      },
+      res,
+      vi.fn(),
+    );
 
     await vi.waitFor(() => expect(res.json).toHaveBeenCalledOnce());
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      errors: [expect.stringContaining('S002')]
-    }));
-    expect(Student.insertMany).toHaveBeenCalledWith([expect.objectContaining({
-      student_id: 'S001',
-      name: 'Student One',
-      email: 'one@example.test',
-      group_assignment: 'Team A',
-      course_id: courseId
-    })], { ordered: false });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errors: [expect.stringContaining('S002')],
+      }),
+    );
+    expect(Student.insertMany).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          student_id: 'S001',
+          name: 'Student One',
+          email: 'one@example.test',
+          group_assignment: 'Team A',
+          course_id: courseId,
+        }),
+      ],
+      { ordered: false },
+    );
   });
 });
