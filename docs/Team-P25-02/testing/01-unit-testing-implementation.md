@@ -1,7 +1,7 @@
 # Milestone 2: Unit Testing Implementation
 
-**Updated:** October 14, 2026
-**Status:** Initial unit-test tooling implemented; broader coverage remains planned
+**Updated:** October 21, 2026
+**Status:** Initial tooling plus backend success, failure, and boundary coverage implemented; integration and end-to-end coverage remain separate
 
 ## Purpose and Scope
 
@@ -44,7 +44,7 @@ Watch mode keeps the runner open and reruns affected tests when relevant files c
 
 Vitest was selected for the backend to share a runner and command pattern with the Vite-based frontend. Its assertions and mocking utilities support isolated unit tests without MongoDB, SMTP, or a running Express server. The initial backend test uses a mocked Express `next` callback; it does not exercise JWT verification or protected API routes.
 
-Frontend tests belong in `src/frontend/tests/` and backend tests in `src/backend/tests/`. The frontend uses jsdom and React Testing Library; backend tests use Vitest's default Node environment. Broader authentication, business-logic, integration, regression, and end-to-end coverage remains planned.
+Frontend tests belong in `src/frontend/tests/` and backend tests in `src/backend/tests/`. The frontend uses jsdom and React Testing Library; backend tests use Vitest's default Node environment. Backend success, failure, and boundary controller coverage is documented in the [backend unit testing implementation](02-backend-unit-testing-implementation.md); integration, regression, and end-to-end coverage remain separate.
 
 ## Initial Unit Test Cases
 

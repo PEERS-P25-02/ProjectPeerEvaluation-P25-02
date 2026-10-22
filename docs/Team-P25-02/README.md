@@ -17,6 +17,8 @@ historical findings do not describe the current lint configuration.
 - [Containerization Assessment](containerization-assessment/README.md)
 - [Automated Testing Strategy](automated-testing-strategy/README.md)
 - [Unit Testing Implementation (Milestone 2)](testing/01-unit-testing-implementation.md)
+
+- [Backend Unit Testing Implementation (Milestone 2)](testing/02-backend-unit-testing-implementation.md)
 - [ESLint Upgrade and Flat Configuration (#85)](eslint-migration.md)
 - [CI/CD Architecture Design](ci-cd-architecture-design/README.md)
 - [Known Bugs](known-bugs.md)

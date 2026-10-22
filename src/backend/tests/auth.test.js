@@ -1,8 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
 
+const testJwtSecret = vi.hoisted(() => {
+  const original = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'unit-test-jwt-secret';
+  return { original, value: process.env.JWT_SECRET };
+});
+
+afterAll(() => {
+  if (testJwtSecret.original === undefined) {
+    delete process.env.JWT_SECRET;
+  } else {
+    process.env.JWT_SECRET = testJwtSecret.original;
+  }
+});
+
 describe('authenticateToken', () => {
-  // Initial test for issue #28
   it('rejects requests without an authorization token', () => {
     const req = { headers: {} };
     const next = vi.fn();
@@ -15,5 +29,49 @@ describe('authenticateToken', () => {
     expect(error.message).toBe('No token provided.');
     expect(error.code).toBe('UNAUTHORIZED');
     expect(error.status).toBe(401);
+  });
+
+  it('accepts a valid bearer token and attaches its user payload', () => {
+    const user = { id: 'professor-1', email: 'professor@example.com' };
+    const req = {
+      headers: {
+        authorization: `Bearer ${jwt.sign(user, testJwtSecret.value)}`,
+      },
+    };
+    const next = vi.fn();
+
+    authenticateToken(req, {}, next);
+
+    expect(req.user).toEqual(expect.objectContaining(user));
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('rejects an invalid token without exposing JWT details', () => {
+    const req = { headers: { authorization: 'Bearer invalid-token' } };
+    const next = vi.fn();
+
+    authenticateToken(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Invalid or expired token.',
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
+  });
+
+  it('rejects an empty bearer token', () => {
+    const req = { headers: { authorization: 'Bearer ' } };
+    const next = vi.fn();
+
+    authenticateToken(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
   });
 });

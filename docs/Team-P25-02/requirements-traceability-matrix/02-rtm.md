@@ -23,13 +23,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Authentication / Authorization</td>
+<td><a href="../../../src/backend/middleware/auth.js">Authentication middleware</a></td>
+<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + End-to-End Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>End-to-End Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Unit coverage verifies middleware and login success/failure; authenticated cross-resource access still requires integration or end-to-end coverage.</td>
 </tr>
 <tr>
 <td>FR-02</td>
@@ -38,13 +38,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Course Management</td>
+<td><a href="../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../src/backend/models/Course.js">Course model</a></td>
+<td>UNIT-BE-004; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + Functional Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Functional Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Unit tests cover successful course CRUD plus missing-course and validation behavior; persistence and authorization integration remain separate.</td>
 </tr>
 <tr>
 <td>FR-03</td>
@@ -53,13 +53,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Roster Management / CSV Processing</td>
+<td><a href="../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../src/backend/controllers/studentController.js">CSV roster parsing</a></td>
+<td>UNIT-BE-004; UNIT-BE-005; UNIT-BE-007; UNIT-BE-008; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + Integration Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Integration Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Controller upload success, legacy columns, missing fields, and validation are covered; real multipart and MongoDB persistence remain integration concerns.</td>
 </tr>
 <tr>
 <td>FR-04</td>
@@ -68,13 +68,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Team Management</td>
+<td><a href="../../../src/backend/controllers/teamController.js">Team controller</a>; <a href="../../../src/backend/models/Team.js">Team model</a></td>
+<td>UNIT-BE-004; UNIT-BE-006; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + Functional Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Functional Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
-<td></td>
+<td>Unit tests cover team CRUD, membership changes, duplicate membership, deletion constraints, validation, defaults, and model constraints.</td>
 </tr>
 <tr>
 <td>FR-05</td>
@@ -83,12 +83,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Evaluation Management / Distribution</td>
+<td><a href="../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + End-to-End Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>End-to-End Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
+<td>Unit tests cover invitation/reminder success, form/token access, submission, status, empty submissions, invalid tokens, and duplicate submissions; delivery and persistence require integration tests.</td>
 <td></td>
 </tr>
 <tr>
@@ -98,13 +99,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Evaluation Management / Token Generation</td>
-<td></td>
-<td></td>
+<td><a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
+<td>UNIT-BE-014; UNIT-BE-015</td>
 <td>Unit Test + End-to-End Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Token access and status success/invalid-token behavior are covered; real persistence and end-to-end link use remain separate.</td>
 </tr>
 <tr>
 <td>FR-07</td>
@@ -113,13 +114,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Evaluation Management / Email Service</td>
-<td></td>
-<td></td>
+<td><a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a>; <a href="../../../src/backend/utils/emailUtils.js">Email utilities</a></td>
+<td>UNIT-BE-014</td>
 <td>Integration Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Invitation and reminder response behavior is covered with mocked email helpers; provider delivery remains an integration concern.</td>
 </tr>
 <tr>
 <td>FR-08</td>
@@ -128,12 +129,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Student Evaluation / Submission</td>
+<td><a href="../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + End-to-End Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>End-to-End Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
+<td>Evaluation field/rating constraints and successful, duplicate, invalid-token, and empty-submission controller paths are covered; persistence integration remains separate.</td>
 <td></td>
 </tr>
 <tr>
@@ -158,12 +160,13 @@
 <td>High</td>
 <td>Client</td>
 <td>Reporting / Results Management</td>
+<td><a href="../../../src/backend/controllers/reportController.js">Report controller</a></td>
+<td>UNIT-BE-004; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015</td>
+<td>Unit Test + Functional Test</td>
+<td>In Progress</td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
 <td></td>
-<td></td>
-<td>Functional Test</td>
-<td>Not Started</td>
-<td></td>
-<td></td>
+<td>Report preparation, curved grading, empty-course handling, and CSV export are covered; real persistence and authorization remain integration concerns.</td>
 <td></td>
 </tr>
 <tr>
