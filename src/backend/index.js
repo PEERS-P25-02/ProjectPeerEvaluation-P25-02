@@ -1,4 +1,9 @@
-require('dotenv').config();
+const path = require('node:path');
+
+// Resolve the shared root .env independently of the working directory.
+require('dotenv').config({
+  path: path.resolve(__dirname, '../../.env'),
+});
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,17 +11,19 @@ const cors = require('cors');
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://127.0.0.1:3000',
-    'https://peer-evaluation-frontend.onrender.com',
-    /\.onrender\.com$/  // Allow any Render.com subdomain
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://peer-evaluation-frontend.onrender.com',
+      /\.onrender\.com$/, // Allow any Render.com subdomain
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 // Request logger middleware
@@ -26,30 +33,38 @@ app.use((req, res, next) => {
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/peer-evaluation')
+mongoose
+  .connect(
+    process.env.MONGODB_URI ||
+      process.env.MONGO_URI ||
+      'mongodb://localhost:27017/peer-evaluation',
+  )
   .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
-    message: '🎓 Peer Evaluation System API', 
+  res.json({
+    message: '🎓 Peer Evaluation System API',
     status: 'Running',
     endpoints: [
       'POST /api/auth/login - User login',
       'GET /api/courses - List courses',
       'POST /api/evaluate - Submit evaluation',
-      'GET /api/ai - AI features'
-    ]
+      'GET /api/ai - AI features',
+    ],
   });
 });
 
-// Health check endpoint for API
+// Compose readiness must include the database, not just the HTTP listener.
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK',
-    message: 'Backend API is running',
-    timestamp: new Date().toISOString()
+  const databaseConnected = mongoose.connection.readyState === 1;
+  res.status(databaseConnected ? 200 : 503).json({
+    status: databaseConnected ? 'OK' : 'UNAVAILABLE',
+    message: databaseConnected
+      ? 'Backend API is running'
+      : 'MongoDB is not connected',
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -60,7 +75,6 @@ app.use('/api/evaluate', require('./routes/evaluate'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/professor', require('./routes/professor'));
 app.use('/api/professor', require('./routes/professor'));
-
 
 // Global error handler (must be last)
 const errorHandler = require('./middleware/errorHandler');

@@ -1,52 +1,94 @@
-
-
 const mongoose = require('mongoose');
 
-const ProfessorSchema = new mongoose.Schema({
-	name: {
-		type: String,
-		required: true,
-		trim: true
-	},
-	email: {
-		type: String,
-		required: true,
-		unique: true,
-		lowercase: true,
-		trim: true
-	},
-	password: {
-		type: String,
-		required: true
-	},
-	department: {
-		type: String,
-		required: true,
-		trim: true
-	},
-	mfa_enabled: {
-		type: Boolean,
-		default: false
-	},
-	last_login: {
-		type: Date
-	},
-	securityToken: {
-		type: String
-	},
-	securityTokenExpires: {
-		type: Date
-	},
-	aiConcerningWords: {
-		type: [String],
-		default: [
-			'cheat', 'abuse', 'bully', 'inappropriate', 'unfair', 'disrespect', 'threat', 'harass', 'plagiar',
-			'violence', 'unsafe', 'hostile', 'ignore', 'exclude', 'rude', 'lazy', 'fail', 'problem', 'issue',
-			'concern', 'complain', 'uncooperative', 'unresponsive', 'unacceptable', 'dishonest', 'lie', 'steal',
-			'aggressive', 'argument', 'conflict', 'discriminate', 'bias', 'racist', 'sexist', 'toxic', 'unprofessional',
-			'professor', 'teacher', 'instructor', 'faculty', 'grade', 'grading', 'unfair grade', 'unfair grading', 'retaliate', 'retaliation'
-		]
-	}
-}, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+const ProfessorSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    department: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    mfa_enabled: {
+      type: Boolean,
+      default: false,
+    },
+    last_login: {
+      type: Date,
+    },
+    securityToken: {
+      type: String,
+    },
+    securityTokenExpires: {
+      type: Date,
+    },
+    aiConcerningWords: {
+      type: [String],
+      default: [
+        'cheat',
+        'abuse',
+        'bully',
+        'inappropriate',
+        'unfair',
+        'disrespect',
+        'threat',
+        'harass',
+        'plagiar',
+        'violence',
+        'unsafe',
+        'hostile',
+        'ignore',
+        'exclude',
+        'rude',
+        'lazy',
+        'fail',
+        'problem',
+        'issue',
+        'concern',
+        'complain',
+        'uncooperative',
+        'unresponsive',
+        'unacceptable',
+        'dishonest',
+        'lie',
+        'steal',
+        'aggressive',
+        'argument',
+        'conflict',
+        'discriminate',
+        'bias',
+        'racist',
+        'sexist',
+        'toxic',
+        'unprofessional',
+        'professor',
+        'teacher',
+        'instructor',
+        'faculty',
+        'grade',
+        'grading',
+        'unfair grade',
+        'unfair grading',
+        'retaliate',
+        'retaliation',
+      ],
+    },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
+);
 
 module.exports = mongoose.model('Professor', ProfessorSchema);

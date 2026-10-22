@@ -2,6 +2,12 @@
 
 Team P25-02 reports for the PEERS Peer Evaluation System. Each report folder contains its overview, sections, and any supporting assets.
 
+For current commands, start with the [repository README](../../README.md).
+The [ESLint and formatting implementation](eslint-migration.md) records issue
+#85's shared frontend/backend tooling, cleanup, and verification. Earlier
+assessment and migration reports preserve their original baseline; their
+historical findings do not describe the current lint configuration.
+
 - [Requirements Validation](requirements-validation/README.md)
 - [Requirements Traceability Matrix](requirements-traceability-matrix/README.md)
 - [Critical Workflow Identification](critical-workflow-identification/README.md)
@@ -13,5 +19,6 @@ Team P25-02 reports for the PEERS Peer Evaluation System. Each report folder con
 - [Unit Testing Implementation (Milestone 2)](testing/01-unit-testing-implementation.md)
 
 - [Backend Unit Testing Implementation (Milestone 2)](testing/02-backend-unit-testing-implementation.md)
+- [ESLint Upgrade and Flat Configuration (#85)](eslint-migration.md)
 - [CI/CD Architecture Design](ci-cd-architecture-design/README.md)
 - [Known Bugs](known-bugs.md)

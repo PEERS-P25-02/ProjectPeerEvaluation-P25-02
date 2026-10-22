@@ -6,7 +6,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# Vite embeds this public API address in browser assets at build time.
+ARG VITE_API_BASE_URL=""
+RUN VITE_API_BASE_URL="$VITE_API_BASE_URL" npm run build
 
 FROM nginx:1.28.0-alpine
 

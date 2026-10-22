@@ -8,7 +8,7 @@ This README describes the current repository setup. The [historical README](READ
 
 - Node.js satisfying `^22.22.2 || ^24.15.0 || >=26.0.0` and npm 9 or newer. Node 24 LTS is recommended for development. Both packages enforce these requirements with `engine-strict=true`.
 - Git to clone the repository, or download its ZIP.
-- Docker for local MongoDB and Mailpit containers.
+- Docker with Compose v2.24 or newer for the local four-service stack.
 - No Atlas or Mailtrap account is required for local development.
 
 Use a Node version manager such as nvm. In WSL, install and run Linux Node/npm inside WSL; for native Windows, use nvm-windows. Verify your installation:
@@ -28,32 +28,64 @@ cd ProjectPeerEvaluation-P25-02
 npm run setup
 ```
 
-The setup command currently installs frontend and backend dependencies.
-Automatic .env creation and random JWT_SECRET generation are planned separately
-and are not implemented yet.
+The setup command installs frontend and backend dependencies, then prepares
+the root `.env` for local development. It preserves configured values,
+adds missing settings, and generates a JWT secret when missing or set to
+a recognized placeholder.
 
-Configure `src/backend/.env` using `src/backend/.env.example` as a reference. Preserve any existing configuration. Set these values for your development environment:
+Run `npm run setup:env` to prepare local environment configuration without reinstalling dependencies. The settings below are a reference.
 
 | Variable | Purpose |
 | --- | --- |
 | `MONGODB_URI` | Native-local default: `mongodb://localhost:27017/peer-eval`. MongoDB must be running separately. |
-| `JWT_SECRET` | Replace `REPLACE_WITH_RANDOM_SECRET` with a unique random signing secret. |
+| `JWT_SECRET` | Generated automatically by setup and reused on later runs. |
 | `PORT` | Backend port; defaults to `5000`. |
-| `FRONTEND_URL` | Use `http://localhost:3000` for local email links. |
+| `FRONTEND_URL` | Local default: `http://localhost:3000` for email links. |
 | `SMTP_HOST`, `SMTP_PORT` | Native-local Mailpit: `localhost`, `1025`. |
 | `SMTP_SECURE` | `true` for implicit TLS; port `465` also enables it. |
-| `SMTP_AUTH_REQUIRED` | Defaults to `true`; explicitly set `false` for local/CI Mailpit. |
-| `SMTP_USER`, `SMTP_PASS` | Leave both empty for default Mailpit; supply both for authenticated SMTP. |
+| `SMTP_AUTH_REQUIRED` | Setup uses `false` for local Mailpit. |
+| `SMTP_USER`, `SMTP_PASS` | Empty in the generated local Mailpit configuration. |
 | `SMTP_FROM` | Sender address displayed on email; local example: `peers-test@example.com`. |
 
 Local `.env` and `.env.*` files are ignored; `.env.example` remains tracked.
-Copy the example only if `src/backend/.env` is absent. If it exists,
-merge the settings manually and preserve configured values.
+After dependencies are installed, run `npm run setup:env` to prepare
+configuration again without reinstalling dependencies.
 Do not commit credentials or real student data.
+
+### Docker Compose
+
+After `npm run setup`, start the local stack:
+
+```bash
+npm run docker:up
+npm run docker:ps
+npm run docker:logs
+npm run docker:down
+```
+
+`docker:up` prepares the root `.env`, builds the images, and waits for healthy
+services. Open the frontend at http://localhost:3000 and Mailpit at
+http://localhost:8025. The backend API is available through the frontend's
+`/api` proxy and directly at http://localhost:5000/api.
+
+The backend runs in production mode. Compose overrides native-local database
+and SMTP addresses with service names, and rejects a missing or empty
+`JWT_SECRET` before starting containers. Email is captured in Mailpit.
+Render staging uses separately configured Mailtrap settings.
+
+`docker:down` retains the named MongoDB volume. Stop native servers or separate
+MongoDB/Mailpit containers before startup if they occupy the published ports.
+Source edits require rebuilding; rerun `npm run docker:up`.
+
+For CI, supply an ephemeral `JWT_SECRET` through the job environment and run
+`docker compose -p peers-ci up --build --wait --wait-timeout 120` directly.
+The root `.env` is optional for this invocation. Use an isolated runner because
+host ports are fixed, and always clean up that job's resources with
+`docker compose -p peers-ci down --volumes`, including after failure.
 
 ### Manual local Mailpit setup
 
-Until the Compose stack is implemented, start Mailpit separately:
+For native npm execution without Compose, start Mailpit separately:
 
 ```bash
 docker run -d --name peers-mailpit-test \
@@ -77,9 +109,9 @@ docker run --rm --name peers-frontend -p 127.0.0.1:3000:80 peers-frontend
 ```
 
 Open **http://localhost:3000**. The image serves the compiled frontend through
-Nginx and supports client-side routes. It currently uses the existing deployed
-backend URL; connecting it to a local Docker backend is part of the planned
-four-service Compose work. See the [frontend container guide](docs/Team-P25-02/containerization-assessment/03-frontend-dockerfile-validation.md)
+Nginx and supports client-side routes. Standalone builds default to the deployed
+backend URL. Compose supplies `VITE_API_BASE_URL=/api` at build time and mounts
+`nginx/compose.conf` to proxy API requests to the backend service. See the [frontend container guide](docs/Team-P25-02/containerization-assessment/03-frontend-dockerfile-validation.md)
 for the verification checklist and limitations.
 
 Start both servers:
@@ -88,7 +120,7 @@ Start both servers:
 npm run dev
 ```
 
-Open the frontend at **http://localhost:3000**. The backend defaults to **http://localhost:5000**, with API routes under `/api`. Check **http://localhost:5000/api/health** for a running API process; this endpoint does not verify MongoDB or SMTP connectivity.
+Open the frontend at **http://localhost:3000**. The backend defaults to **http://localhost:5000**, with API routes under `/api`. Check **http://localhost:5000/api/health** for backend readiness: it returns HTTP 200 when MongoDB is connected and 503 otherwise. It does not verify SMTP connectivity.
 
 MongoDB must already be reachable; the startup command does not start it. Restart the backend after changing backend code or environment settings. The Windows `start.bat` and `start.ps1` scripts run setup before starting both servers.
 
@@ -98,19 +130,27 @@ Run these from the repository root:
 
 | Command | Behavior |
 | --- | --- |
-| `npm run setup` | Install frontend and backend dependencies. |
+| `npm run setup` | Install both packages and prepare local backend configuration. |
+| `npm run setup:env` | Prepare local backend configuration without reinstalling dependencies. |
+| `npm run docker:up` | Prepare configuration, build, and start the Compose stack; wait for healthy services. |
+| `npm run docker:down` | Stop and remove the stack containers/network; retain MongoDB data. |
+| `npm run docker:logs` | Follow Compose service logs. |
+| `npm run docker:ps` | Show Compose service status and health. |
 | `npm run dev` | Start both servers. |
 | `npm run start:frontend` / `npm start` | Start Vite on port 3000. |
 | `npm run start:backend` | Start Express from `src/backend`. |
 | `npm run build` | Build the frontend into `build/`. |
 | `npm run preview` | Preview the frontend production build locally. |
+| `npm run lint` | Check JavaScript and JSX with ESLint. |
+| `npm run format:check` | Check Prettier formatting without changing files. |
+| `npm run format` | Apply Prettier formatting. |
 | `npm test` | Run the frontend Vitest suite once and exit. |
 | `npm run test:watch` | Run the frontend Vitest suite in watch mode for local development. |
 | `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
 | `npm --prefix src/backend run test:watch` | Run the backend Vitest suite in watch mode for local development. |
 | `npm run test:all` | Run the frontend and backend Vitest suites together once and exit; convenient for local validation. |
 
-Production builds, including local previews, use the configured deployed backend. Use the development server at `localhost:3000` for local API testing. The shared API service also selects the deployed backend on hosts other than `localhost`.
+Production builds, including local previews, default to the deployed backend unless `VITE_API_BASE_URL` is supplied at build time. Compose sets it to `/api` for local API access through Nginx. Native development can continue using the Vite server at `localhost:3000`.
 
 The one-shot test commands return a nonzero exit code when a test fails.
 
@@ -150,6 +190,20 @@ automatically from `src/frontend/test/setup.js`.
 Backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js`
 filenames. Keep unit tests isolated from MongoDB, SMTP, and live application
 startup unless the test is specifically an integration test.
+
+### Linting and formatting
+
+Run from the repository root. These commands cover frontend, backend, tests,
+and tooling JavaScript/JSX:
+
+```bash
+npm run lint          # Check code with ESLint
+npm run format:check  # Check Prettier formatting
+npm run format        # Apply Prettier formatting
+```
+
+See the [ESLint migration notes](docs/Team-P25-02/eslint-migration.md) for
+configuration details and limitations.
 
 ## Project structure
 
@@ -233,6 +287,18 @@ If an installation fails:
 - Reproduce the issue locally with npm ci.
 - Confirm that the Node.js/npm versions meet project requirements.
 
-This initial CI workflow validates dependency installation only.
-Build, lint, unit, integration, regression, and end-to-end
-testing are tracked in separate issues.
+Issue #45 extends the CI workflow with independent frontend build, repository-wide ESLint (frontend, backend, tests and tooling), Prettier formatting, frontend Vitest, and backend Vitest jobs. Each job uses Node.js 24, locked dependencies, and fails when its command exits nonzero. To reproduce:
+
+```bash
+npm ci
+npm run build
+npm run lint
+npm run format:check
+npm test
+npm --prefix src/backend ci
+npm --prefix src/backend test
+```
+
+The lint and formatting commands use Issue #85's ESLint 9 flat configuration and Prettier setup. These checks do not replace integration, regression or E2E tests. Repository administrators must configure desired PR job names as required status checks.
+
+See [Issue #45 CI verification](docs/Team-P25-02/testing/02-ci-build-lint-unit-verification.md) for planned cases and recorded evidence.

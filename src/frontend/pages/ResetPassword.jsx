@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -21,12 +21,14 @@ function ResetPassword() {
       return;
     }
     try {
-      const baseURL = import.meta.env.PROD
-        ? 'https://peer-evaluation-backend.onrender.com/api'
-        : 'http://localhost:5000/api';
+      const baseURL =
+        import.meta.env.VITE_API_BASE_URL ||
+        (import.meta.env.PROD
+          ? 'https://peer-evaluation-backend.onrender.com/api'
+          : 'http://localhost:5000/api');
       const res = await axios.post(`${baseURL}/auth/update-password`, {
         token,
-        password: newPassword
+        password: newPassword,
       });
       if (res.data.success) {
         setStatus('Password updated successfully! You can now log in.');
@@ -47,7 +49,7 @@ function ResetPassword() {
           type="password"
           placeholder="New Password"
           value={newPassword}
-          onChange={e => setNewPassword(e.target.value)}
+          onChange={(e) => setNewPassword(e.target.value)}
           required
           style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
         />
@@ -55,7 +57,7 @@ function ResetPassword() {
           type="password"
           placeholder="Confirm New Password"
           value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           required
           style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
         />
@@ -63,7 +65,16 @@ function ResetPassword() {
           Update Password
         </button>
       </form>
-      {status && <p style={{ color: status.includes('successfully') ? 'green' : 'red', marginTop: '10px' }}>{status}</p>}
+      {status && (
+        <p
+          style={{
+            color: status.includes('successfully') ? 'green' : 'red',
+            marginTop: '10px',
+          }}
+        >
+          {status}
+        </p>
+      )}
     </div>
   );
 }

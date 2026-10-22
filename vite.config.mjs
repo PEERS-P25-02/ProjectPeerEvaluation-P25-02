@@ -18,6 +18,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/frontend/test/setup.js',
-    globals: true
+    globals: true,
   },
 });

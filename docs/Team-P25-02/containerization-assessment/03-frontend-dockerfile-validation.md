@@ -30,9 +30,9 @@ For a clean image build, first ensure no host `node_modules` or `build/` directo
 
 ## API behavior and limitation
 
-The production frontend currently selects `https://peer-evaluation-backend.onrender.com/api` in the shared API client and authentication pages. Therefore, this standalone frontend image serves the browser application but does **not** automatically target a locally running backend. The Vite development-server proxy is also not present in the production Nginx image.
+Standalone production builds default to `https://peer-evaluation-backend.onrender.com/api` in the shared API client and authentication pages. Set the public `VITE_API_BASE_URL` build argument to select another API destination; runtime frontend environment variables do not change compiled assets.
 
-This is intentional for this issue because the existing production-build behavior targets the deployed backend. The integrated local frontend-to-backend routing change belongs with Docker Compose issue [#26](https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02/issues/26), where the team should choose and implement a browser-reachable local API address without embedding Compose-only hostnames into browser code.
+Docker Compose sets `VITE_API_BASE_URL=/api` and mounts `nginx/compose.conf`. The browser calls its frontend origin, and Nginx forwards `/api/` requests to `backend:5000` without changing the API path. Evaluation test links use the current frontend origin in this configuration. The standalone Nginx configuration and Vite development proxy remain available for their respective startup modes.
 
 ## Verification checklist
 

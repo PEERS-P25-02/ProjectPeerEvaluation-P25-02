@@ -1,4 +1,9 @@
-require('dotenv').config();
+const path = require('node:path');
+
+// Resolve the shared root .env independently of the working directory.
+require('dotenv').config({
+  path: path.resolve(__dirname, '../../../.env'),
+});
 const mongoose = require('mongoose');
 const Course = require('../models/Course');
 
@@ -23,17 +28,30 @@ const courseNames = [
   'Digital Signal Processing',
   'Embedded Systems',
   'Cloud Computing',
-  'DevOps Engineering'
+  'DevOps Engineering',
 ];
 
 const courseCodes = [
-  'CS', 'CIS', 'IT', 'SE', 'EE', 'CE', 'IS', 'CSE', 'COMP', 'CSCE'
+  'CS',
+  'CIS',
+  'IT',
+  'SE',
+  'EE',
+  'CE',
+  'IS',
+  'CSE',
+  'COMP',
+  'CSCE',
 ];
 
 const sections = ['01', '02', '03', 'A', 'B', 'C', 'MWF', 'TTH', 'MW', 'TR'];
 
 const semesters = [
-  'Fall 2024', 'Spring 2025', 'Summer 2025', 'Fall 2025', 'Spring 2026'
+  'Fall 2024',
+  'Spring 2025',
+  'Summer 2025',
+  'Fall 2025',
+  'Spring 2026',
 ];
 
 // You'll need to replace this with an actual professor ID from your database
@@ -50,7 +68,7 @@ function generateRandomCourse() {
   const courseNumber = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
   const section = getRandomElement(sections);
   const semester = getRandomElement(semesters);
-  
+
   return {
     course_name: courseName,
     course_number: `${courseCode} ${courseNumber}`,
@@ -63,8 +81,8 @@ function generateRandomCourse() {
     evaluation_status: {
       total: 0,
       completed: 0,
-      pending: 0
-    }
+      pending: 0,
+    },
   };
 }
 
@@ -76,19 +94,20 @@ async function addRandomCourses() {
 
     console.log('📚 Generating 10 random courses...');
     const courses = [];
-    
+
     for (let i = 0; i < 10; i++) {
       courses.push(generateRandomCourse());
     }
 
     console.log('💾 Inserting courses into database...');
     const insertedCourses = await Course.insertMany(courses);
-    
+
     console.log(`✅ Successfully added ${insertedCourses.length} courses:`);
     insertedCourses.forEach((course, index) => {
-      console.log(`${index + 1}. ${course.course_name} (${course.course_number} - ${course.course_section}) - ${course.semester}`);
+      console.log(
+        `${index + 1}. ${course.course_name} (${course.course_number} - ${course.course_section}) - ${course.semester}`,
+      );
     });
-
   } catch (error) {
     console.error('❌ Error adding courses:', error);
   } finally {

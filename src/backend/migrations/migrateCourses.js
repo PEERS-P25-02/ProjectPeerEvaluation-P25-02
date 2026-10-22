@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const Course = require('../models/Course');
 
 /**
@@ -8,22 +7,22 @@ const Course = require('../models/Course');
 async function migrateCourses() {
   try {
     console.log('Starting course migration...');
-    
+
     // Find courses that have the old course_code field but missing new fields
     const coursesToMigrate = await Course.find({
       $or: [
         { course_code: { $exists: true } },
         { course_number: { $exists: false } },
         { course_section: { $exists: false } },
-        { course_status: { $exists: false } }
-      ]
+        { course_status: { $exists: false } },
+      ],
     });
 
     console.log(`Found ${coursesToMigrate.length} courses to migrate`);
 
     for (const course of coursesToMigrate) {
       const updates = {};
-      
+
       // Migrate course_code to course_number and course_section
       if (course.course_code && !course.course_number) {
         // Split course_code like "CS 4850" into course_number "CS" and course_section "4850"
@@ -52,7 +51,9 @@ async function migrateCourses() {
       // Update the course
       if (Object.keys(updates).length > 0) {
         await Course.findByIdAndUpdate(course._id, updates);
-        console.log(`Migrated course: ${course.course_name} (${course.course_code || course.course_number})`);
+        console.log(
+          `Migrated course: ${course.course_name} (${course.course_code || course.course_number})`,
+        );
       }
     }
 
@@ -69,7 +70,7 @@ module.exports = { migrateCourses };
 // If running this file directly
 if (require.main === module) {
   const connectDB = require('../config/db');
-  
+
   async function runMigration() {
     try {
       await connectDB();
@@ -80,6 +81,6 @@ if (require.main === module) {
       process.exit(1);
     }
   }
-  
+
   runMigration();
 }

@@ -6,7 +6,7 @@ module.exports = (err, req, res, next) => {
       code: err.code || 'SERVER_ERROR',
       message: err.message || 'Internal server error',
       details: err.details || {},
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   });
 };
