@@ -5,6 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { AuthProvider } from '../contexts/AuthContext';
 
+// Keep successful routing observable without mounting a page that makes API requests.
+vi.mock('../pages/CourseManagement', () => ({
+  default: () => <h1>Course Management Dashboard</h1>,
+}));
+
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal();
 
@@ -21,12 +26,14 @@ describe('LoginPage', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.stubEnv('VITE_API_BASE_URL', '');
     window.history.pushState({}, '', '/');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it('shows the professor login form on the initial route', () => {
@@ -98,6 +105,12 @@ describe('LoginPage', () => {
         },
       );
     });
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Course Management Dashboard',
+      }),
+    ).toBeInTheDocument();
 
     expect(localStorage.getItem('peer_eval_token')).toBe('test-access-token');
 
@@ -326,5 +339,32 @@ describe('LoginPage', () => {
     ).not.toBeInTheDocument();
 
     expect(axios.post).not.toHaveBeenCalled();
+  });
+  it.each([
+    [
+      { response: { data: { message: 'Invalid credentials' } } },
+      'Invalid credentials',
+    ],
+    [new Error('Network unavailable'), 'Something went wrong'],
+  ])('keeps failed logins on the login page: %s', async (error, message) => {
+    const user = userEvent.setup();
+    axios.post.mockRejectedValueOnce(error);
+    render(
+      <AuthProvider>
+        <App />
+      </AuthProvider>,
+    );
+    await user.type(screen.getByLabelText('Email:'), 'professor@example.com');
+    await user.type(screen.getByLabelText('Password:'), 'WrongPassword123!');
+    await user.click(screen.getByRole('button', { name: 'Login' }));
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Professor Login' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Course Management Dashboard' }),
+    ).not.toBeInTheDocument();
+    expect(localStorage.getItem('peer_eval_token')).toBeNull();
+    expect(localStorage.getItem('user')).toBeNull();
   });
 });

@@ -89,6 +89,8 @@ See the [ESLint implementation record](../eslint-migration.md) for the related l
 
 ## Issue #30 Frontend Unit Test Coverage
 
+The original 29-test result is preserved below. The [October 22 coverage follow-up](03-frontend-unit-test-validation.md#october-22-follow-up-frontend-coverage-expansion) records the expanded 57-test suite, measured coverage, and regression checks on the feature branch. The [priority-workflow baseline follow-up](03-frontend-unit-test-validation.md#october-22-follow-up-priority-workflow-baseline) records five further tests and maps the 62-test frontend suite to the documented priority workflows.
+
 Issue #30 expanded the frontend unit-test coverage for PEERS using Vitest and React Testing Library.
 
 The frontend tests are located in `src/frontend/tests/` and now cover several important parts of the PEERS frontend.
