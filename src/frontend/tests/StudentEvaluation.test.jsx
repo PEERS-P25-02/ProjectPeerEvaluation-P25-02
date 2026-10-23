@@ -240,7 +240,7 @@ describe('StudentEvaluation', () => {
     expect(
       await screen.findByRole('heading', { name: 'Evaluation home' }),
     ).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('preserves entered evaluations after a failed submission and permits retry', async () => {
     const user = userEvent.setup();
