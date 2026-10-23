@@ -74,6 +74,23 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  frontend-coverage:
+    name: Frontend Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:coverage
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage
+
   backend-unit-tests:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
@@ -88,6 +105,26 @@ jobs:
         working-directory: ./src/backend
       - run: npm test
         working-directory: ./src/backend
+
+  backend-coverage:
+    name: Backend Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+      - run: npm ci
+        working-directory: ./src/backend
+      - run: npm run test:coverage
+        working-directory: ./src/backend
+      - name: Upload backend coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: src/backend/coverage
 
   formatting-check:
     name: Prettier Formatting Check

@@ -35,7 +35,7 @@ files to avoid duplicating their purposes.
 
 | Test file | Coverage |
 | --- | --- |
-| [`auth.test.js`](../../../src/backend/tests/auth.test.js) | The issue #28 initial missing-token test, retained and expanded with valid, invalid, and empty bearer-token behavior for `authenticateToken`. |
+| [`auth.test.js`](../../../src/backend/tests/auth.test.js) | The issue #28 initial missing-token test, retained and expanded with valid, invalid, expired, empty, non-Bearer, and whitespace-only authorization-header behavior for `authenticateToken`. |
 | [`controllerValidation.test.js`](../../../src/backend/tests/controllerValidation.test.js) | Validation contracts for authentication, courses, students, teams, reports, roster upload, destructive operations, and the current auto-assignment placeholder. |
 | [`controllerSuccessPaths.test.js`](../../../src/backend/tests/controllerSuccessPaths.test.js) | Successful course, roster/student, team, evaluation, and reporting controller behavior with mocked database and email dependencies. |
 | [`controllerFailureBoundary.test.js`](../../../src/backend/tests/controllerFailureBoundary.test.js) | Invalid credentials, duplicate and missing records, empty bulk operations, team constraints, invalid/reused evaluation tokens, empty submissions, and empty-state reporting. |
@@ -50,7 +50,7 @@ files to avoid duplicating their purposes.
 | --- | --- | --- | --- |
 | UNIT-BE-001 | Authentication middleware | A request without an authorization token calls `next` with a 401 unauthorized error. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
 | UNIT-BE-002 | Authentication middleware | A valid bearer token attaches the decoded user payload and calls `next` without an error. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
-| UNIT-BE-003 | Authentication middleware | Invalid and empty bearer tokens produce a standardized unauthorized error without exposing JWT details. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
+| UNIT-BE-003 | Authentication middleware | Invalid, expired, and empty bearer tokens produce a standardized unauthorized error without exposing JWT details. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
 | UNIT-BE-004 | Controller validation | Missing authentication, course, student, team, report, and destructive-operation inputs are rejected with validation errors. | [`controllerValidation.test.js`](../../../src/backend/tests/controllerValidation.test.js) |
 | UNIT-BE-005 | Controller validation | A roster upload without a file is rejected with a validation error. | [`controllerValidation.test.js`](../../../src/backend/tests/controllerValidation.test.js) |
 | UNIT-BE-006 | Controller contract | The unimplemented automatic team-assignment endpoint reports its explicit 501 contract. | [`controllerValidation.test.js`](../../../src/backend/tests/controllerValidation.test.js) |
@@ -63,8 +63,9 @@ files to avoid duplicating their purposes.
 | UNIT-BE-013 | Error handling | Custom errors preserve status, code, message, details, and a valid timestamp. Empty errors receive safe defaults. | [`errorHandler.test.js`](../../../src/backend/tests/errorHandler.test.js) |
 | UNIT-BE-014 | Controller success paths | Course, student, team, evaluation, roster, and report controller operations return their successful response contracts while database and email dependencies are mocked. | [`controllerSuccessPaths.test.js`](../../../src/backend/tests/controllerSuccessPaths.test.js) |
 | UNIT-BE-015 | Failure and boundary paths | Invalid credentials, duplicate/missing records, empty bulk operations, team membership constraints, invalid/reused tokens, empty submissions, and empty report/reminder states return detectable outcomes. | [`controllerFailureBoundary.test.js`](../../../src/backend/tests/controllerFailureBoundary.test.js) |
+| UNIT-BE-016 | Authentication boundary | Non-Bearer and whitespace-only authorization headers produce the standardized 401 unauthorized contract, even when a valid JWT is supplied with the wrong scheme. | [`auth.test.js`](../../../src/backend/tests/auth.test.js) |
 
-The test IDs group related assertions; the suite contains 45 individual
+The test IDs group related assertions; the suite contains 49 individual
 passing tests across nine test files.
 
 ## Coordination with Issue #31
@@ -75,10 +76,16 @@ successful response contracts, while `controllerFailureBoundary.test.js` and
 `controllerValidation.test.js` contain the coordinated negative and edge
 cases. The cases intentionally use separate test names and files so a
 successful workflow assertion is not mistaken for validation or failure
-coverage. The current issue #31 cases include invalid credentials, duplicate
-and missing records, empty bulk operations, team membership constraints,
+coverage. The current issue #31 cases include invalid credentials, malformed
+authorization headers, expired tokens, duplicate and missing records, empty bulk operations,
+team membership constraints,
 invalid and reused evaluation tokens, empty submissions, and empty report and
 reminder states.
+
+The authentication tests reset the test JWT secret before and after each case,
+use synthetic tokens only, and assert that rejected requests do not receive a
+`req.user` value. This keeps repeated runs isolated and prevents tests from
+masking token disclosure or authorization-scheme defects.
 
 ## Technical Limitations Encountered
 

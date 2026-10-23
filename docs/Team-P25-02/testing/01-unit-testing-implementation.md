@@ -89,7 +89,7 @@ See the [ESLint implementation record](../eslint-migration.md) for the related l
 
 ## Issue #30 Frontend Unit Test Coverage
 
-The original 29-test result is preserved below. The [October 22 coverage follow-up](03-frontend-unit-test-validation.md#october-22-follow-up-frontend-coverage-expansion) records the expanded 57-test suite, measured coverage, and regression checks on the feature branch. The [priority-workflow baseline follow-up](03-frontend-unit-test-validation.md#october-22-follow-up-priority-workflow-baseline) records five further tests and maps the 62-test frontend suite to the documented priority workflows.
+The original 29-test result is preserved below. The [October 22 coverage follow-up](03-frontend-unit-test-validation.md#october-22-follow-up-frontend-coverage-expansion) records the expanded 57-test suite, measured coverage, and regression checks on the feature branch. The [priority-workflow baseline follow-up](03-frontend-unit-test-validation.md#october-22-follow-up-priority-workflow-baseline) records five further tests and maps the 62-test frontend suite to the documented priority workflows. The [Issue #31 failure and boundary follow-up](03-frontend-unit-test-validation.md#issue-31-failure-and-boundary-follow-up) records the additional malformed-authentication-state case and links the coordinated backend boundary case.
 
 Issue #30 expanded the frontend unit-test coverage for PEERS using Vitest and React Testing Library.
 

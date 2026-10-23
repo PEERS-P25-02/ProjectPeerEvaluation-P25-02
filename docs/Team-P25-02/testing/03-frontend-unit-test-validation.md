@@ -15,7 +15,7 @@ The goal of this work is to test useful frontend behavior in PEERS using Vitest 
 | Test File | Coverage |
 | --- | --- |
 | `LoginPage.test.jsx` | Login form display, typing email and password, successful login, registration mode, form clearing, registration submission, password reset success, password reset failure, and canceling password reset. |
-| `AuthContext.test.jsx` | Saving a logged-in user, loading a saved user, and logging out. |
+| `AuthContext.test.jsx` | Saving a logged-in user, loading a saved user, clearing malformed saved user data, and logging out. |
 | `ApiService.test.js` | Fetching course data and adding authentication tokens to API requests. |
 | `Settings.test.jsx` | Loading flagged words, adding a new flagged word, and handling a loading error. |
 | `StudentEvaluation.test.jsx` | Loading evaluation information, handling an invalid evaluation link, and showing an already-completed evaluation. |
@@ -43,6 +43,7 @@ The original initial-route test from `App.test.jsx` was merged into `LoginPage.t
 
 - Login stores the current user.
 - A saved user can be loaded from local storage.
+- Malformed saved user data is removed without breaking provider rendering.
 - Logout removes the saved user.
 
 ### API Service
@@ -147,6 +148,29 @@ The final local validation result is:
 - Prettier passed
 
 The frontend unit-test work is ready to be documented, committed, pushed, and reviewed through the existing Issue #30 pull request.
+
+## Issue #31 Failure and Boundary Follow-up
+
+The frontend failure/boundary review added coverage for corrupted persisted
+authentication state. When `localStorage.user` contains invalid JSON, the
+provider removes the invalid value and renders the logged-out state instead of
+throwing during application startup. This case is implemented in
+[`AuthContext.test.jsx`](../../../src/frontend/tests/AuthContext.test.jsx).
+
+The backend companion case is documented in
+[`02-backend-unit-testing-implementation.md`](02-backend-unit-testing-implementation.md).
+
+### Recorded Validation
+
+The focused frontend and backend suites passed after this follow-up:
+
+```text
+Frontend: 8 test files, 63 tests passed
+Backend: 9 test files, 49 tests passed
+```
+
+These cases supplement the existing Issue #31 coverage; they do not replace
+integration or end-to-end validation.
 
 ## October 22 Follow-up: Frontend Coverage Expansion
 

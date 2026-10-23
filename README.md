@@ -149,6 +149,9 @@ Run these from the repository root:
 | `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
 | `npm --prefix src/backend run test:watch` | Run the backend Vitest suite in watch mode for local development. |
 | `npm run test:all` | Run the frontend and backend Vitest suites together once and exit; convenient for local validation. |
+| `npm run test:coverage` | Run frontend tests and generate V8 coverage reports under `coverage/`. |
+| `npm --prefix src/backend run test:coverage` | Run backend tests and generate V8 coverage reports under `src/backend/coverage/`. |
+| `npm run test:all:coverage` | Run frontend and backend coverage commands sequentially; no minimum threshold is enforced. |
 
 Production builds, including local previews, default to the deployed backend unless `VITE_API_BASE_URL` is supplied at build time. Compose sets it to `/api` for local API access through Nginx. Native development can continue using the Vite server at `localhost:3000`.
 
@@ -181,6 +184,16 @@ frontend and backend failures are reported independently:
 ```powershell
 npm run test:all
 ```
+
+To inspect code coverage locally, run:
+
+```powershell
+npm run test:all:coverage
+```
+
+Vitest prints a text summary and writes HTML reports to `coverage/` and
+`src/backend/coverage/`. CI uploads these reports as workflow artifacts.
+Coverage is currently informational; no minimum threshold is enforced.
 
 Frontend tests belong in `src/frontend/tests/` and use `.test.jsx` or `.spec.jsx`
 filenames. Use React Testing Library for rendered component behavior and import

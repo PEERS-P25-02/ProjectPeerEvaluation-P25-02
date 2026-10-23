@@ -7,8 +7,16 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Replace with real auth logic (e.g., check localStorage or API)
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) setCurrentUser(user);
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return;
+
+    try {
+      const user = JSON.parse(storedUser);
+      if (user) setCurrentUser(user);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      localStorage.removeItem('user');
+    }
   }, []);
 
   const login = (userData) => {

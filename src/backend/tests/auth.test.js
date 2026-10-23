@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -8,7 +8,11 @@ const testJwtSecret = vi.hoisted(() => {
   return { original, value: process.env.JWT_SECRET };
 });
 
-afterAll(() => {
+beforeEach(() => {
+  process.env.JWT_SECRET = testJwtSecret.value;
+});
+
+afterEach(() => {
   if (testJwtSecret.original === undefined) {
     delete process.env.JWT_SECRET;
   } else {
@@ -59,6 +63,26 @@ describe('authenticateToken', () => {
         status: 401,
       }),
     );
+    expect(req.user).toBeUndefined();
+  });
+
+  it('rejects an expired token without exposing token details', () => {
+    const token = jwt.sign({ id: 'expired-professor' }, testJwtSecret.value, {
+      expiresIn: -1,
+    });
+    const req = { headers: { authorization: `Bearer ${token}` } };
+    const next = vi.fn();
+
+    authenticateToken(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Invalid or expired token.',
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
+    expect(req.user).toBeUndefined();
   });
 
   it('rejects an empty bearer token', () => {
@@ -73,5 +97,40 @@ describe('authenticateToken', () => {
         status: 401,
       }),
     );
+  });
+
+  it.each([
+    ['a non-Bearer authorization scheme', 'Basic credentials'],
+    ['a whitespace-only authorization header', '   '],
+  ])('rejects %s as unauthorized', (_description, authorization) => {
+    const req = { headers: { authorization } };
+    const next = vi.fn();
+
+    authenticateToken(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
+  });
+
+  it('rejects a valid JWT sent with a non-Bearer scheme', () => {
+    const token = jwt.sign({ id: 'professor-1' }, testJwtSecret.value, {
+      expiresIn: '1h',
+    });
+    const req = { headers: { authorization: `Basic ${token}` } };
+    const next = vi.fn();
+
+    authenticateToken(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'UNAUTHORIZED',
+        status: 401,
+      }),
+    );
+    expect(req.user).toBeUndefined();
   });
 });

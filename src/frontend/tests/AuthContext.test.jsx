@@ -77,6 +77,19 @@ describe('AuthContext', () => {
     ).toBeInTheDocument();
   });
 
+  it('clears malformed stored user data without breaking the provider', async () => {
+    localStorage.setItem('user', '{malformed-json');
+
+    render(
+      <AuthProvider>
+        <TestAuthComponent />
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByText('No user logged in')).toBeInTheDocument();
+    expect(localStorage.getItem('user')).toBeNull();
+  });
+
   it('removes the user when logout is called', async () => {
     const user = userEvent.setup();
 
