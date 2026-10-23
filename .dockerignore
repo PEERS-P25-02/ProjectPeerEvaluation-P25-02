@@ -2,6 +2,7 @@
 .gitignore
 node_modules
 build
+test-results
 .env
 .env.*
 !.env.example
@@ -19,3 +20,4 @@ render-env-variables.txt
 start.bat
 start.ps1
 docker-compose.yml
+compose.test.yml
