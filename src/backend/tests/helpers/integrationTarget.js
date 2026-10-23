@@ -1,3 +1,16 @@
+/*
+ * This file helps prevent test preparation and cleanup from using the wrong
+ * place. It checks that the settings belong to a temporary test run and that
+ * the connected database carries the same run's identifying information.
+ *
+ * It checks settings and ownership only. Other files create the environment,
+ * add invented records, and remove them. These checks support the separate
+ * resources provided for each run; they do not create that separation themselves.
+ *
+ * TLDR: validates TEST_RUN_ID and exact test-only URLs, verifies the connected
+ * MongoDB host/database, and requires matching __test_run ownership metadata
+ * before fixture reset helpers proceed.
+ */
 export function validateTestTarget(environment) {
   const runId = environment.TEST_RUN_ID;
   if (!/^[a-f0-9]{16}$/.test(runId ?? '')) {

@@ -1,3 +1,20 @@
+/*
+ * This file gives the environment checks a small, repeatable starting point:
+ * one invented professor, one course, one team, and two students. Before adding
+ * them, it clears the current run's test records and captured email.
+ *
+ * It checks that the database belongs to this run before clearing records and
+ * keeps the database's lookup and duplicate-prevention rules in place. It also
+ * refuses to take over an unmarked database that already contains information.
+ *
+ * The supporting parts must already be running. This file does not start or
+ * stop them, and its small example dataset does not cover every application
+ * feature or provide data for everyday development.
+ *
+ * TLDR: Mongoose fixture helpers initialize models/indexes, enforce per-run
+ * ownership, seed synthetic professor/course/team/student records, and reset
+ * known collections plus the isolated inbox through Mailpit's API.
+ */
 import { createRequire } from 'node:module';
 import {
   assertOwnedDatabase,

@@ -1,3 +1,22 @@
+/*
+ * This script manages a complete temporary test run. It gives the run its own
+ * data and email inbox, starts the required parts, waits until they are ready,
+ * runs the checks, and saves the results. It keeps this work separate from
+ * everyday development settings and data.
+ *
+ * After a run passes, fails, or is interrupted normally, it removes the items
+ * created for that run and checks that cleanup worked. Saved results remain
+ * available for troubleshooting. If Docker stops working or the computer shuts
+ * down unexpectedly, some items may need to be removed manually.
+ *
+ * This script manages the environment; the test files decide what behavior is
+ * checked. It does not start the website or provide complete feature coverage.
+ *
+ * TLDR: orchestrates compose.test.yml with a unique project/database and an
+ * ephemeral JWT secret, runs Vitest, retains logs and result.json, and verifies
+ * project-scoped cleanup. Handles SIGINT/SIGTERM and returns a nonzero exit code
+ * for failed setup, tests, cleanup, or interruption. Run: npm run test:integration.
+ */
 const { spawn } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
 const fs = require('node:fs');

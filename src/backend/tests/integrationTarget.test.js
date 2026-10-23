@@ -1,3 +1,17 @@
+/*
+ * This file checks the safeguards that help keep test cleanup away from the
+ * wrong data. It tries incorrect settings, a different database, and missing
+ * or another run's identifying information, then checks that they are refused.
+ * It also checks that the expected settings and matching information are accepted.
+ *
+ * These checks use pretend database responses and can run without starting the
+ * application, database, or email inbox. They verify the safeguard decisions;
+ * the separate environment checks verify communication with the running parts.
+ *
+ * TLDR: Vitest unit cases cover validateTestTarget and assertOwnedDatabase using
+ * spies and stubbed MongoDB ownership metadata to verify target rejection before
+ * database access and acceptance of the matching run identity.
+ */
 import { describe, expect, it, vi } from 'vitest';
 import {
   assertOwnedDatabase,

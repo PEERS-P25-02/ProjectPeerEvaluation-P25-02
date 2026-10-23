@@ -1,3 +1,20 @@
+/*
+ * This file checks that the temporary PEERS test environment works as a whole.
+ * Its four checks cover readiness, saving a record through the application,
+ * capturing an email, and repeatedly restoring the same starting data.
+ *
+ * The environment must already be running. These checks use invented accounts
+ * and real connections between the parts, but do not open the website or verify
+ * every feature. Capturing a password-reset email does not prove that a person
+ * can finish resetting a password through the website.
+ *
+ * Cleanup here clears test records and email and closes the database connection.
+ * Removing the temporary environment itself is the run command's responsibility.
+ *
+ * TLDR: four Vitest integration checks exercise Express HTTP endpoints, MongoDB
+ * persistence, Mailpit SMTP capture, and fixture/index preservation, with guarded
+ * setup and teardown around the test cases.
+ */
 import { setTimeout } from 'node:timers/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
