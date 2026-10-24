@@ -1,7 +1,7 @@
-/* eslint-disable import/first */
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+import { createRequire } from 'node:module';
 
 const smtpEnvironment = vi.hoisted(() => {
   const names = ['SMTP_AUTH_REQUIRED', 'SMTP_USER', 'SMTP_PASS'];
@@ -14,22 +14,27 @@ const smtpEnvironment = vi.hoisted(() => {
   return original;
 });
 
-import { login, register } from '../controllers/authController.js';
-import { createCourse, getCourse } from '../controllers/courseController.js';
-import {
+// Use Node's native loader for these CommonJS modules; ESM transforms can
+// mis-map their V8 function hits.
+const require = createRequire(import.meta.url);
+const { login, register } = require('../controllers/authController.js');
+const {
+  createCourse,
+  getCourse,
+} = require('../controllers/courseController.js');
+const {
   addStudentToTeam,
   autoAssignTeams,
-} from '../controllers/teamController.js';
-import {
+} = require('../controllers/teamController.js');
+const {
   addStudent,
   listStudents,
   updateStudent,
   uploadRoster,
   deleteAllStudents,
   resetEvaluationState,
-} from '../controllers/studentController.js';
-import { getCourseReport } from '../controllers/reportController.js';
-/* eslint-enable import/first */
+} = require('../controllers/studentController.js');
+const { getCourseReport } = require('../controllers/reportController.js');
 
 const Professor = mongoose.model('Professor');
 

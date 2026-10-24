@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --config vitest.coverage.config.mjs --coverage && node scripts/assertCoverage.cjs",
     "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:watch": "vitest"
   },
