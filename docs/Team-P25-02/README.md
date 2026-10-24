@@ -19,7 +19,6 @@ historical findings do not describe the current lint configuration.
 - [Unit Testing Implementation (Milestone 2)](testing/01-unit-testing-implementation.md)
 
 - [Backend Unit Testing Implementation (Milestone 2)](testing/02-backend-unit-testing-implementation.md)
-- [Backend Coverage Tooling Fix](testing/04-backend-coverage-tooling-fix.md)
 - [ESLint Upgrade and Flat Configuration (#85)](eslint-migration.md)
 - [CI/CD Architecture Design](ci-cd-architecture-design/README.md)
 - [Known Bugs](known-bugs.md)

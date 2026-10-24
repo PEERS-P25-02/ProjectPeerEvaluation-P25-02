@@ -26,7 +26,6 @@ files to avoid duplicating their purposes.
 | --- | --- |
 | Test runner | Vitest `^5.0.4` using the backend package's default Node environment. |
 | Test command | `npm --prefix src/backend test` runs the backend suite once and exits with a failure status when an assertion fails. |
-| Coverage command | `npm --prefix src/backend run test:coverage` uses a dedicated V8 coverage config and artifact guard; integration tests are excluded from this unit measurement. |
 | Test location | Backend tests are stored in `src/backend/tests/` and use `.test.js` filenames. |
 | Test data | Synthetic request data, tokens, IDs, student records, rubric values, and CSV content. |
 | External services | MongoDB, SMTP, Mailpit, and live server startup are not required for this unit suite. |
@@ -119,10 +118,6 @@ queries, state mutation, response formatting, and email delivery in one
 function. This makes isolated success-path tests difficult without either
 recreating a large portion of the Mongoose API or refactoring production code
 to introduce dependency-injection or service boundaries.
-
-### Coverage tooling update (October 24, 2026)
-
-The V8 coverage command uses a separate configuration and report-artifact guard. The instrumentation finding, source denominator, and verified result are recorded in the [backend coverage tooling fix](04-backend-coverage-tooling-fix.md). The whole-backend report is diagnostic and does not establish the priority-workflow denominator or floors.
 
 ### Scope decision
 

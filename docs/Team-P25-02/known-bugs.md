@@ -59,17 +59,3 @@ marking a finding resolved. Use synthetic data; omit credentials and tokens.
   generated values matching the version-4 UUID format. Full-repository lint
   passes with zero errors and warnings. The database-mutating script was not run.
 - Evidence: [ESLint implementation and verification](eslint-migration.md).
-
-## BUG-009: Backend V8 coverage miscounts CommonJS controller functions
-
-- Status: Resolved locally on October 24, 2026; issue #48 tooling follow-up.
-- Previous behavior: The backend coverage command passed while reporting zero
-  function hits for course controller methods called by the success and
-  validation suites. Some tests loaded CommonJS controllers through dynamic or
-  static ESM imports, producing mismatched source-map function entries.
-- Fix: Load CommonJS controller modules with Node's `createRequire` in the two
-  affected test files. Use a dedicated coverage config with an explicit backend
-  application-source denominator and a report-artifact guard.
-- Verification: See the [backend coverage tooling fix record](testing/04-backend-coverage-tooling-fix.md)
-  for the source-mapped counters, denominator, commands, and guard evidence.
-- Tracking: Issue #48 tooling follow-up; branch `fix-backend-coverage-tooling`.
