@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { createRequire } from 'node:module';
 
+// emailUtils validates these settings when controllers load; use credential-free
+// test values before require(), then restore the original values after the suite.
 const smtpEnvironment = vi.hoisted(() => {
   const names = ['SMTP_AUTH_REQUIRED', 'SMTP_USER', 'SMTP_PASS'];
   const original = Object.fromEntries(

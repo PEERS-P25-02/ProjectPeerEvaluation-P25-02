@@ -318,6 +318,8 @@ exports.remindEvaluations = async (req, res, next) => {
     let studentsToRemind;
     if (student_ids && student_ids.length > 0) {
       // Remind specific students
+      // Keep selection and pending-only constraints together; duplicate _id keys
+      // would silently discard one predicate.
       studentsToRemind = await Student.find({
         course_id,
         _id: { $in: student_ids, $nin: completedEvaluations },
