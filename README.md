@@ -227,6 +227,10 @@ See the [environment verification guide](docs/Team-P25-02/testing/04-integration
 for prerequisites, safeguards, verification cases, and limitations. Ordinary
 unit-test commands remain independent of Docker.
 
+See the [36-operation inventory](docs/Team-P25-02/testing/06-api-database-operation-inventory.md)
+and [API/database integration guide](docs/Team-P25-02/testing/05-api-database-integration.md)
+for the application cases and verification results.
+
 ### Linting and formatting
 
 Run from the repository root. These commands cover frontend, backend, tests,

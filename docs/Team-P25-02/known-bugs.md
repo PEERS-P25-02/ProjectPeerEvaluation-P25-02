@@ -59,3 +59,70 @@ marking a finding resolved. Use synthetic data; omit credentials and tokens.
   generated values matching the version-4 UUID format. Full-repository lint
   passes with zero errors and warnings. The database-mutating script was not run.
 - Evidence: [ESLint implementation and verification](eslint-migration.md).
+
+
+## BUG-005: Editing student details removes existing team membership
+
+- Status: Fixed locally on the unmerged #33 branch; final combined verification
+  is recorded in the [#33 guide](testing/05-api-database-integration.md).
+- Reproduce: PUT only name/email for a student already assigned to a team.
+- Observed failure: Student.team_id remained assigned but Team.students lost
+  that student and its count decreased.
+- Fix: In studentController.updateStudent, remove old membership only when
+  group_assignment was explicitly supplied and membership changes.
+- Regression: OP-33-10 details-only case in roster.test.js compares the entire
+  stored team before/after and verifies the retained assignment.
+- Evidence: Historical run `def2859724e0125c` failed this assertion; filtered run
+  `1baa3368a04b6e8a` passed after the repair. Both verified cleanup.
+- Fix issue / PR: #33 working tree; no separate fix PR created.
+
+## BUG-006: Individual student deletion leaves dependent evaluations
+
+- Status: Fixed locally on the unmerged #33 branch; see current #33 verification.
+- Reproduce: Delete a student who has both received and authored evaluations.
+- Observed failure: The student disappeared while dependent feedback remained.
+- Fix: Delete selected-course Evaluation records where student_id OR
+  evaluator_id matches the removed student.
+- Regression: OP-33-11 checks both directions, memberships/counts and an
+  unchanged unrelated course.
+- Evidence: `def2859724e0125c` failed; `1baa3368a04b6e8a` passed after repair;
+  both cleanup checks passed. Final restored-suite results are in the #33 guide.
+- Fix issue / PR: #33 working tree; no separate fix PR created.
+
+## BUG-007: Bulk student deletion misses evaluations they authored
+
+- Status: Fixed locally on the unmerged #33 branch; see current #33 verification.
+- Reproduce: Bulk-delete a student who authored feedback about a retained student.
+- Observed failure: Feedback authored by the deleted student remained because
+  cleanup matched only the feedback recipient.
+- Fix: Match both student_id and evaluator_id within the selected course.
+- Regression: OP-33-12 preserves unrelated/retained feedback while removing
+  incoming and outgoing records, including with a foreign-course ID in input.
+- Evidence: `def2859724e0125c` failed; `1baa3368a04b6e8a` passed after repair;
+  both cleanup checks passed. Final restored-suite results are in the #33 guide.
+- Fix issue / PR: #33 working tree; no separate fix PR created.
+
+## BUG-008: Course reports lose populated team members and averages
+
+- Status: Fixed locally on the unmerged #33 branch; see current #33 verification.
+- Reproduce: Request a course mean/curved report or its generate alias for a
+  populated team with received evaluations.
+- Observed failure: Individual scores were available but team membership and
+  team averages were empty/zero.
+- Fix: Compare the populated reference’s _id (or unpopulated ID), rather than
+  stringifying a plain populated object after toObject().
+- Regression: OP-33-29/33 mean, curved and alias cases require exact team members
+  and independently calculated averages of 87.5 and 90.63.
+- Evidence: Three report assertions failed in `def2859724e0125c`; the filtered
+  `1baa3368a04b6e8a` run passed after repair. Both verified cleanup. Current
+  restored-suite results remain separately recorded in the #33 guide.
+- Fix issue / PR: #33 working tree; no separate fix PR created.
+
+
+### Final #33 Regression Verification — October 24, 2026
+
+BUG-005–008 are fixed locally and covered by the current roster/report suites.
+Complete runs `45f54785c1864e05` and `4d5532e6f33dec89` each passed all 73
+integration tests in fresh stacks, exited 0 and verified cleanup. Backend unit
+regression tests (62) also passed. These fixes remain unmerged;
+no separate GitHub fix issues/PRs were created. See the #33 guide for scope/limits.
