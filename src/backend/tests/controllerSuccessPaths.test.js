@@ -35,9 +35,11 @@ const Team = require('../models/Team.js');
 const Evaluation = require('../models/Evaluation.js');
 const invitationSpy = vi.spyOn(emailUtils, 'sendEvaluationInvitation');
 const reminderSpy = vi.spyOn(emailUtils, 'sendEvaluationReminder');
-const courseController = await import('../controllers/courseController.js');
-const studentController = await import('../controllers/studentController.js');
-const teamController = await import('../controllers/teamController.js');
+// Use Node's native loader for these CommonJS modules; ESM transforms can
+// mis-map their V8 function hits.
+const courseController = require('../controllers/courseController.js');
+const studentController = require('../controllers/studentController.js');
+const teamController = require('../controllers/teamController.js');
 const evaluationController = require('../controllers/evaluationController.js');
 const reportController = require('../controllers/reportController.js');
 
