@@ -163,7 +163,8 @@ The initial unit tests are documented in the
 The backend test scope, limitations, and results are documented in the
 [Backend Unit Testing Implementation](docs/Team-P25-02/testing/02-backend-unit-testing-implementation.md).
 
-Broader integration, regression, and end-to-end coverage remains planned.
+API/database integration tests are available through the isolated command below.
+Broader browser end-to-end coverage remains planned.
 
 ### Testing
 
@@ -342,3 +343,4 @@ npm --prefix src/backend test
 The lint and formatting commands use Issue #85's ESLint 9 flat configuration and Prettier setup. These checks do not replace integration, regression or E2E tests. Repository administrators must configure desired PR job names as required status checks.
 
 See [Issue #45 CI verification](docs/Team-P25-02/testing/02-ci-build-lint-unit-verification.md) for planned cases and recorded evidence.
+See the [Issue #48 quality gate policy](docs/Team-P25-02/testing/07-quality-gate-policy.md) for the agreed CW-01–CW-09 scope, pass/fail rules, and pending enforcement evidence.
