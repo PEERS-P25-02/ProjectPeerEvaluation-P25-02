@@ -204,6 +204,29 @@ Backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js`
 filenames. Keep unit tests isolated from MongoDB, SMTP, and live application
 startup unless the test is specifically an integration test.
 
+### Isolated integration test environment
+
+With Docker running, run this from the repository root:
+
+```bash
+npm run test:integration
+```
+
+The standalone `compose.test.yml` starts the backend, disposable MongoDB,
+Mailpit, and a Vitest runner. It generates a separate project, database, and
+temporary JWT secret for each invocation; it does not load your development
+`.env` or publish host ports. No Atlas or Mailtrap account is required.
+
+The initial checks verify readiness, API/database communication, SMTP capture,
+and repeatable fixture reset. The command removes its containers, storage,
+network, and generated image tags after success, failure, or a handled interrupt.
+Logs and an exit/cleanup summary remain in the ignored
+`test-results/integration/<run-id>/` directory.
+
+See the [environment verification guide](docs/Team-P25-02/testing/04-integration-test-environment.md)
+for prerequisites, safeguards, verification cases, and limitations. Ordinary
+unit-test commands remain independent of Docker.
+
 ### Linting and formatting
 
 Run from the repository root. These commands cover frontend, backend, tests,

@@ -1,0 +1,104 @@
+# This file provides a temporary, separate place to check that PEERS can store
+# information and send email. It uses invented accounts and captures messages
+# without delivering them to real inboxes. Each run gets its own data and inbox,
+# keeping tests separate from everyday development and shared environments.
+#
+# The normal test command starts the required parts, waits until they are ready,
+# runs the checks, saves the results, and removes the temporary environment.
+# Test data is disposable; this setup should stay separate from the development
+# setup used to keep data between working sessions.
+#
+# These checks confirm that the test environment works. They do not open the
+# website or check every action a professor or student could take. Preparing
+# the environment may need internet access; once running, its parts communicate
+# only with each other. An unexpected computer or Docker shutdown may leave
+# items that need to be cleaned up manually.
+#
+# Technical summary: a standalone Docker Compose stack running Express, MongoDB,
+# Mailpit, and Vitest, with per-run isolation, tmpfs storage, health checks, and
+# no published host ports. Run: npm run test:integration from the repository root.
+name: peers-test-${TEST_RUN_ID:?TEST_RUN_ID must identify this test run}
+
+x-test-environment: &test-environment
+  NODE_ENV: test
+  TEST_RUN_ID: ${TEST_RUN_ID:?TEST_RUN_ID must identify this test run}
+  MONGODB_URI: mongodb://mongodb:27017/peers_test_${TEST_RUN_ID}
+  API_BASE_URL: http://backend:5000
+  MAILPIT_API_URL: http://mailpit:8025
+
+services:
+  mongodb:
+    image: mongo:8.0
+    # Data disappears on shutdown; no development volume or host directory is used.
+    tmpfs:
+      - /data/db
+      - /data/configdb
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - 'quit(db.adminCommand({ ping: 1 }).ok === 1 ? 0 : 1)'
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    # Mailpit's default inbox is disposable; forwarding and relay stay disabled.
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./src/backend
+    environment:
+      <<: *test-environment
+      PORT: '5000'
+      JWT_SECRET: ${TEST_JWT_SECRET:?Supply an ephemeral test JWT secret}
+      FRONTEND_URL: http://localhost:3000
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      SMTP_SECURE: 'false'
+      SMTP_AUTH_REQUIRED: 'false'
+      SMTP_SERVICE: ''
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      SMTP_FROM: peers-test@example.com
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:5000/api/health')
+          .then(response => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  tests:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile.test
+    environment: *test-environment
+    depends_on:
+      backend:
+        condition: service_healthy
+    # All communication stays on this project's network; no host ports are published.
+
+networks:
+  default:
+    # Runtime containers can reach one another but cannot contact external services.
+    internal: true

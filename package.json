@@ -31,6 +31,7 @@
     "test": "vitest run src/frontend",
     "test:coverage": "vitest run src/frontend --coverage",
     "test:watch": "vitest src/frontend",
+    "test:integration": "node src/backend/scripts/runIntegrationTests.js",
     "test:all": "concurrently --names frontend,backend --prefix-colors blue,green \"npm test\" \"npm --prefix src/backend test\"",
     "test:all:coverage": "npm run test:coverage && npm --prefix src/backend run test:coverage",
     "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",

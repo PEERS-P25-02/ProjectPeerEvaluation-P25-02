@@ -1,0 +1,24 @@
+# This file prepares the part of the temporary test environment that runs the
+# checks. It includes the testing tools needed to confirm that PEERS can work
+# with its database and captured email.
+#
+# It does not start the website, database, or email inbox itself. Those parts
+# must be available before the checks run. Preparing this workspace may need
+# internet access to download the required tools.
+#
+# TLDR: builds a Node.js test-runner image with npm ci --include=dev, sets
+# NODE_ENV=test, and defaults to npm run test:integration. The separate backend
+# Dockerfile builds the application image.
+FROM node:24.22.0-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+# The application image omits dev dependencies; this runner needs Vitest.
+RUN npm ci --include=dev
+
+COPY . .
+
+ENV NODE_ENV=test
+
+CMD ["npm", "run", "test:integration"]
