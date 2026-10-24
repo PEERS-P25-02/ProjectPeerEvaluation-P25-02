@@ -372,22 +372,32 @@ describe('CourseManagement', () => {
       ),
     ).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
-    await user.type(
-      within(dialog).getByRole('textbox', { name: 'Student ID' }),
-      'S001',
-    );
-    await user.type(
-      within(dialog).getByRole('textbox', { name: 'Name' }),
-      'Synthetic Student',
-    );
-    await user.type(
-      within(dialog).getByRole('textbox', { name: 'Email' }),
-      'student@example.com',
-    );
+    // These fields do not test per-keystroke behavior; paste avoids rerendering
+    // the large course page for every character while exercising input changes.
+    for (const [label, value] of [
+      ['Student ID', 'S001'],
+      ['Name', 'Synthetic Student'],
+      ['Email', 'student@example.com'],
+    ]) {
+      const input = within(dialog).getByRole('textbox', { name: label });
+      await user.click(input);
+      await user.paste(value);
+    }
     await user.click(within(dialog).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    const refreshedStudents = await screen.findByRole('dialog', {
+      name: /Manage Students for/,
+    });
     expect(
-      await screen.findByRole('cell', { name: 'student@example.com' }),
+      await within(refreshedStudents).findByRole('cell', {
+        name: 'student@example.com',
+      }),
     ).toBeInTheDocument();
+    expect(
+      api.get.mock.calls.filter(
+        ([url]) => url === '/courses/course-1/students',
+      ),
+    ).toHaveLength(2);
     expect(api.post).toHaveBeenCalledExactlyOnceWith(
       '/courses/course-1/students',
       {
