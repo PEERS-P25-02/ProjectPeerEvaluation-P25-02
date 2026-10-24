@@ -381,10 +381,11 @@ exports.getCourseReport = async (req, res, next) => {
     // Get team statistics
     const teams = await Team.find({ course_id: courseObjectId });
     const teamStats = teams.map((team) => {
-      const teamStudents = studentsWithGrades.filter(
-        (student) =>
-          student.team_id && student.team_id.toString() === team._id.toString(),
-      );
+      const teamStudents = studentsWithGrades.filter((student) => {
+        // Populated team references become objects after toObject(); compare IDs.
+        const teamId = student.team_id?._id ?? student.team_id;
+        return teamId?.toString() === team._id.toString();
+      });
 
       const teamScores = teamStudents
         .map((s) => s.finalScore)

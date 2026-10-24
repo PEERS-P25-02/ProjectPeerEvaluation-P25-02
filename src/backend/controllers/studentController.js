@@ -219,8 +219,9 @@ exports.updateStudent = async (req, res, next) => {
     // Handle team membership changes
     const Team = require('../models/Team');
 
-    // Remove from old team if changed
+    // A details-only edit must preserve the student's existing team membership.
     if (
+      updates.group_assignment !== undefined &&
       oldTeamId &&
       (!newTeamId || oldTeamId.toString() !== newTeamId.toString())
     ) {
@@ -286,6 +287,13 @@ exports.deleteStudent = async (req, res, next) => {
       err.status = 404;
       return next(err);
     }
+
+    // Remove dependent feedback in both directions before returning deletion success.
+    const Evaluation = require('../models/Evaluation');
+    await Evaluation.deleteMany({
+      course_id,
+      $or: [{ student_id }, { evaluator_id: student_id }],
+    });
 
     // If student was part of a team, update that team
     if (student.team_id) {
@@ -368,8 +376,12 @@ exports.bulkDeleteStudents = async (req, res, next) => {
     // Clean up related evaluations for deleted students
     const Evaluation = require('../models/Evaluation');
     const evaluationCleanup = await Evaluation.deleteMany({
-      student_id: { $in: student_ids },
       course_id: course_id,
+      // Remove both evaluations received and evaluations authored by deleted students.
+      $or: [
+        { student_id: { $in: student_ids } },
+        { evaluator_id: { $in: student_ids } },
+      ],
     });
     console.log(
       `Deleted ${evaluationCleanup.deletedCount} evaluations for deleted students`,

@@ -20,6 +20,8 @@ historical findings do not describe the current lint configuration.
 
 - [Backend Unit Testing Implementation (Milestone 2)](testing/02-backend-unit-testing-implementation.md)
 - [Isolated Integration Test Environment (#32)](testing/04-integration-test-environment.md)
+- [Backend API and Database Integration Tests (#33)](testing/05-api-database-integration.md)
+- [36 API/Database Operations (#33)](testing/06-api-database-operation-inventory.md)
 - [ESLint Upgrade and Flat Configuration (#85)](eslint-migration.md)
 - [CI/CD Architecture Design](ci-cd-architecture-design/README.md)
 - [Known Bugs](known-bugs.md)

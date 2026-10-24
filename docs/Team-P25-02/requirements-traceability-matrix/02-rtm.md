@@ -24,12 +24,12 @@
 <td>Client</td>
 <td>Authentication / Authorization</td>
 <td><a href="../../../src/backend/middleware/auth.js">Authentication middleware</a>; <a href="../../../src/backend/tests/auth.test.js">Backend authentication test</a></td>
-<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015; UNIT-FE-001</td>
-<td>Unit Test + End-to-End Test</td>
+<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015; UNIT-FE-001; OP-33-01; OP-33-34 through OP-33-36</td>
+<td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/01-unit-testing-implementation.md#initial-test-results">Initial recorded results</a>; <a href="../testing/03-frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/01-unit-testing-implementation.md#initial-test-results">Initial recorded results</a>; <a href="../testing/03-frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Unit coverage verifies middleware, backend login success/failure, and frontend login behavior; authenticated cross-resource access still requires integration or end-to-end coverage.</td>
+<td>The unmerged #33 branch adds four real login cases and eight account-support cases with independent MongoDB and captured SMTP checks. All selected cases passed in two fresh full integration runs; authenticated cross-resource ownership remains #34.</td>
 </tr>
 <tr>
 <td>FR-02</td>
@@ -39,12 +39,12 @@
 <td>Client</td>
 <td>Course Management</td>
 <td><a href="../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../src/backend/models/Course.js">Course model</a></td>
-<td>UNIT-BE-004; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015</td>
-<td>Unit Test + Functional Test</td>
+<td>UNIT-BE-004; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015; API-33-01 through API-33-07; OP-33-02 through OP-33-06</td>
+<td>Unit Test + Integration Test + Functional Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md">API/database cases and results</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Unit tests cover successful course CRUD plus missing-course and validation behavior; persistence and authorization integration remain separate.</td>
+<td>Seven course cases cover create/read/filter/update/deactivate/reactivate and rejected writes. All seven passed in two fresh expanded-suite runs with verified cleanup. Authorization remains #34.</td>
 </tr>
 <tr>
 <td>FR-03</td>
@@ -54,12 +54,12 @@
 <td>Client</td>
 <td>Roster Management / CSV Processing</td>
 <td><a href="../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../src/backend/controllers/studentController.js">CSV roster parsing</a></td>
-<td>UNIT-BE-004; UNIT-BE-005; UNIT-BE-007; UNIT-BE-008; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015</td>
+<td>UNIT-BE-004; UNIT-BE-005; UNIT-BE-007; UNIT-BE-008; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-07 through OP-33-13</td>
 <td>Unit Test + Integration Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Controller upload success, legacy columns, missing fields, and validation are covered; real multipart and MongoDB persistence remain integration concerns.</td>
+<td>The unmerged #33 roster suite adds 12 cases including actual multipart CSV, normalized persistence, team relationships, scoped evaluation cleanup and rejected writes. All selected cases passed in two fresh full integration runs; malformed streams and failure atomicity remain gaps.</td>
 </tr>
 <tr>
 <td>FR-04</td>
@@ -69,12 +69,12 @@
 <td>Client</td>
 <td>Team Management</td>
 <td><a href="../../../src/backend/controllers/teamController.js">Team controller</a>; <a href="../../../src/backend/models/Team.js">Team model</a></td>
-<td>UNIT-BE-004; UNIT-BE-006; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015</td>
-<td>Unit Test + Functional Test</td>
+<td>UNIT-BE-004; UNIT-BE-006; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015; OP-33-14 through OP-33-20</td>
+<td>Unit Test + Integration Test + Functional Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Unit tests cover team CRUD, membership changes, duplicate membership, deletion constraints, validation, defaults, and model constraints.</td>
+<td>The unmerged #33 team suite adds 13 real HTTP/MongoDB cases for CRUD, membership moves/removal, counts, constraints and course isolation. All selected cases passed in two fresh full integration runs; ownership and concurrency remain gaps.</td>
 </tr>
 <tr>
 <td>FR-05</td>
@@ -84,12 +84,12 @@
 <td>Client</td>
 <td>Evaluation Management / Distribution</td>
 <td><a href="../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015</td>
-<td>Unit Test + End-to-End Test</td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-21 through OP-33-25</td>
+<td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Unit tests cover invitation/reminder success, form/token access, submission, status, empty submissions, invalid tokens, and duplicate submissions; delivery and persistence require integration tests.</td>
+<td>The unmerged #33 suite adds course/team invitations, completion status, selected/default reminders and reset with independent persistence and captured SMTP checks. All selected cases passed in two fresh full integration runs; full browser delivery and atomicity remain gaps.</td>
 <td></td>
 </tr>
 <tr>
@@ -100,12 +100,12 @@
 <td>Client</td>
 <td>Evaluation Management / Token Generation</td>
 <td><a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-014; UNIT-BE-015</td>
-<td>Unit Test + End-to-End Test</td>
+<td>UNIT-BE-014; UNIT-BE-015; OP-33-21; OP-33-22; OP-33-26 through OP-33-28</td>
+<td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Token access and status success/invalid-token behavior are covered; real persistence and end-to-end link use remain separate.</td>
+<td>The unmerged #33 tests check token creation/reuse, recipient association, public form access and stored completion. All selected cases passed in two fresh full integration runs; token security and browser-reachable links remain unverified.</td>
 </tr>
 <tr>
 <td>FR-07</td>
@@ -115,12 +115,12 @@
 <td>Client</td>
 <td>Evaluation Management / Email Service</td>
 <td><a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a>; <a href="../../../src/backend/utils/emailUtils.js">Email utilities</a></td>
-<td>UNIT-BE-014</td>
+<td>UNIT-BE-014; OP-33-21; OP-33-22; OP-33-24</td>
 <td>Integration Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Invitation and reminder response behavior is covered with mocked email helpers; provider delivery remains an integration concern.</td>
+<td>The unmerged #33 tests check actual Mailpit SMTP recipients and stored-token association for invitations/reminders. All selected cases passed in two fresh full integration runs; external delivery, browser links and controlled transport failures remain #35 work.</td>
 </tr>
 <tr>
 <td>FR-08</td>
@@ -130,12 +130,12 @@
 <td>Client</td>
 <td>Student Evaluation / Submission</td>
 <td><a href="../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-014; UNIT-BE-015</td>
-<td>Unit Test + End-to-End Test</td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-014; UNIT-BE-015; OP-33-26 through OP-33-28</td>
+<td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Evaluation field/rating constraints and successful, duplicate, invalid-token, and empty-submission controller paths are covered; persistence integration remains separate.</td>
+<td>The unmerged #33 suite adds 10 public API/MongoDB cases including exact two-peer persistence, completion, repeats and invalid first-entry rejection. All selected cases passed in two fresh full integration runs; recipient authorization, later partial writes and concurrency remain gaps.</td>
 <td></td>
 </tr>
 <tr>
@@ -145,13 +145,13 @@
 <td>High</td>
 <td>Client</td>
 <td>MongoDB / Data Persistence</td>
-<td></td>
-<td></td>
+<td><a href="../../../src/backend/tests/integration/">API/database integration suites</a></td>
+<td>OP-33-01 through OP-33-36</td>
 <td>Integration Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../testing/05-api-database-integration.md">API/database cases and results</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>The unmerged #33 branch contains 69 application cases covering all 36 inventoried operations, plus four environment checks. Historical filtered runs reproduced four defects and verified their repairs; the current full suite passed all 73 tests twice in fresh isolated runs with verified cleanup.</td>
 </tr>
 <tr>
 <td>FR-10</td>
@@ -161,12 +161,12 @@
 <td>Client</td>
 <td>Reporting / Results Management</td>
 <td><a href="../../../src/backend/controllers/reportController.js">Report controller</a></td>
-<td>UNIT-BE-004; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015</td>
-<td>Unit Test + Functional Test</td>
+<td>UNIT-BE-004; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-29 through OP-33-33</td>
+<td>Unit Test + Integration Test + Functional Test</td>
 <td>In Progress</td>
-<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a></td>
+<td><a href="../testing/02-backend-unit-testing-implementation.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../testing/05-api-database-integration.md#4-expanded-verification-and-review">Expanded #33 cases and results</a></td>
 <td></td>
-<td>Report preparation, curved grading, empty-course handling, and CSV export are covered; real persistence and authorization remain integration concerns.</td>
+<td>The unmerged #33 reporting suite adds seven real HTTP/MongoDB cases for mean/curved reports, exact CSV, individual/team selection, generate alias and no-write behavior. All selected cases passed in two fresh full integration runs; ownership, CSV edge cases and grading boundary sweeps remain gaps.</td>
 <td></td>
 </tr>
 <tr>
@@ -257,7 +257,7 @@
 <td>In Progress</td>
 <td><a href="../testing/01-unit-testing-implementation.md#initial-test-results">Initial recorded results</a>; <a href="../testing/01-unit-testing-implementation.md#verification-after-runtime-alignment">Verification after runtime alignment</a></td>
 <td></td>
-<td>Initial unit coverage is implemented; integration coverage remains planned. The implementation uses Vitest in place of the specified Jest runner; requirement reconciliation remains open. UNIT-CI identifiers refer to local command checks, not CI workflow execution.</td>
+<td>Initial unit coverage is implemented; the unmerged #33 branch adds 36-operation integration suites, verified in two local 73-test runs with cleanup; hosted integration CI remains separate #46 work. The implementation uses Vitest in place of the specified Jest runner; requirement reconciliation remains open. UNIT-CI identifiers refer to local command checks, not CI workflow execution.</td>
 </tr>
 <tr>
 <td>FR-17</td>
