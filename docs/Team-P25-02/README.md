@@ -18,7 +18,6 @@ historical findings do not describe the current lint configuration.
 - [Automated Testing Strategy](automated-testing-strategy/README.md)
 - [Unit Testing Implementation (Milestone 2)](testing/01-unit-testing-implementation.md)
 - [Quality Gate Policy (Issue #48)](testing/07-quality-gate-policy.md)
-- [Priority Workflow Coverage Scope and Baseline Assessment](testing/08-priority-workflow-coverage-baseline.md)
 
 - [Backend Unit Testing Implementation (Milestone 2)](testing/02-backend-unit-testing-implementation.md)
 - [Isolated Integration Test Environment (#32)](testing/04-integration-test-environment.md)
