@@ -248,15 +248,15 @@ jobs:
           scan_info = report.get("scanInfo") if isinstance(report, dict) else None
           project_info = report.get("projectInfo") if isinstance(report, dict) else None
           dependencies = report.get("dependencies") if isinstance(report, dict) else None
+          # Clean lockfile-only scans can have no dependency entries; require the list, not a finding.
           if (
               not isinstance(scan_info, dict)
               or scan_info.get("engineVersion") != "13.0.0"
               or not isinstance(project_info, dict)
               or project_info.get("name") != "peers-npm-dependencies"
               or not isinstance(dependencies, list)
-              or not dependencies
           ):
-              raise SystemExit("Dependency-Check JSON is missing expected scanner, project, or dependency data")
+              raise SystemExit("Dependency-Check JSON is missing the expected scanner, project, or dependencies list")
           PY
 
       # Retain whichever reports were produced, including when scan validation fails.
