@@ -186,7 +186,7 @@ jobs:
             --volume "$GITHUB_WORKSPACE:/src:ro" \
             --volume "${{ steps.dependency-check-paths.outputs.data }}:/usr/share/dependency-check/data" \
             --volume "${{ steps.dependency-check-paths.outputs.reports }}:/report" \
-            --env NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+            --env NVD_API_KEY \
             owasp/dependency-check:13.0.0 \
             --project peers-npm-dependencies \
             --scan /src/package-lock.json \
@@ -212,7 +212,7 @@ jobs:
         with:
           name: owasp-dependency-check-report
           path: ${{ steps.dependency-check-paths.outputs.reports }}
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Fail on scan errors or High/Critical findings
         if: steps.dependency-check.outcome != 'success'
