@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       # Use the exact runner-local data path and cache namespace consumed by CI scans.
       - name: Prepare Dependency-Check data path
@@ -36,7 +36,7 @@ jobs:
 
       # Restore the latest completed cache by prefix to preserve the incremental NVD update state.
       - name: Restore previous Dependency-Check database
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6.1.0
         with:
           path: ${{ steps.dependency-check-paths.outputs.data }}
           key: dependency-check-v13.0.0-shared-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -82,7 +82,7 @@ jobs:
 
       - name: Save completed Dependency-Check database
         if: steps.dependency-check-database.outcome == 'success'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6.1.0
         with:
           path: ${{ steps.dependency-check-paths.outputs.data }}
           key: ${{ steps.dependency-check-paths.outputs.cache-key }}

@@ -18,8 +18,8 @@ jobs:
     name: Frontend Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -30,8 +30,8 @@ jobs:
     name: Lint and Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -57,8 +57,8 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -85,8 +85,8 @@ jobs:
     name: Unit Test Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -107,7 +107,7 @@ jobs:
         run: npm run test:coverage
       - name: Upload frontend coverage report
         if: ${{ !cancelled() && steps.frontend-tests.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: frontend-coverage
           path: coverage
@@ -120,7 +120,7 @@ jobs:
         working-directory: ./src/backend
       - name: Upload backend coverage report
         if: ${{ !cancelled() && steps.backend-tests.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: backend-coverage
           path: src/backend/coverage
@@ -133,7 +133,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       # The updater writes this shared cache namespace after a complete successful refresh.
       - name: Prepare scanner data and report directories
@@ -146,7 +146,7 @@ jobs:
       # PR/push jobs only restore a completed updater cache; they never call NVD or save data.
       - name: Restore Dependency-Check vulnerability data
         id: dependency-check-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6.1.0
         with:
           path: ${{ steps.dependency-check-paths.outputs.data }}
           key: dependency-check-v13.0.0-shared-v1-${{ runner.os }}-reader-${{ github.run_id }}-${{ github.run_attempt }}
@@ -240,7 +240,7 @@ jobs:
       - name: Upload Dependency-Check reports
         id: dependency-check-upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: owasp-dependency-check-report
           path: |
@@ -366,7 +366,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
