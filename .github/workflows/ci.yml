@@ -179,6 +179,8 @@ jobs:
       - name: Scan both npm lockfiles
         id: dependency-check
         continue-on-error: true
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
