@@ -196,7 +196,7 @@ Resolved lint warnings:
 | `src/backend/migrations/migrateCourses.js` | Unused `mongoose`. | Removed unused import. |
 | `src/frontend/pages/CourseManagement.jsx` | Three field autofocus warnings. | Removed field-level autofocus; retained MUI dialog focus management. |
 
-The support exception remains unresolved. The current [CI workflow](../../../../../.github/workflows/ci.yml) defines eight jobs: dependency installation, frontend build, repository lint, frontend and backend unit tests, frontend and backend coverage reports, and formatting. It does not run the local integration suite or security scans. Repository branch-protection settings are not established by the workflow file. The production build's bundle-size warning remains separate from the clean ESLint report.
+The support exception remains unresolved. The current [CI workflow](../../../../../.github/workflows/ci.yml) defines five jobs: frontend build, combined lint and formatting, combined frontend/backend unit tests and coverage, OWASP Dependency-Check, and Gitleaks. It does not run the local integration suite; required-check settings are configured separately from the workflow. The production build's bundle-size warning remains separate from the clean ESLint report.
 
 Static accessibility checks and the in-memory focus check do not replace rendered
 MUI/browser keyboard checks. Other Node versions, editor integrations,

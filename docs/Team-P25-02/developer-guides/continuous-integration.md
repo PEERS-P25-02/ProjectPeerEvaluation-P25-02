@@ -2,7 +2,7 @@
 
 The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs on pushes and on pull requests targeting `main`. Jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
 
-The workflow independently checks frontend and backend dependency installation, frontend production build, repository lint, frontend unit tests, backend unit tests, frontend and backend coverage, and Prettier formatting. Coverage reports are uploaded as workflow artifacts. A failed command fails its job. The configured workflow does not run the Docker integration suite.
+The workflow has five jobs: Frontend Build; Lint and Formatting; Unit Tests and Coverage; OWASP Dependency-Check; and Gitleaks Secret Scan. The build installs root dependencies, while the quality and test jobs each install both packages, for five `npm ci` commands per workflow run, down from ten. Coverage commands run the unit tests themselves, so each package suite runs once. Frontend and backend coverage reports are uploaded as separate artifacts without percentage thresholds. Formatting still runs after lint failure, backend coverage still runs after frontend test failure, and artifact uploads are attempted after test failures unless the workflow is cancelled. The workflow does not run the Docker integration suite.
 
 ## Reproduce CI checks locally
 
@@ -14,13 +14,11 @@ npm ci --prefix src/backend
 npm run build
 npm run lint
 npm run format:check
-npm test
-npm --prefix src/backend test
 npm run test:coverage
 npm --prefix src/backend run test:coverage
 ```
 
-Inspect the GitHub Actions tab for job logs and uploaded coverage artifacts. Pull requests also display check results. Repository administrators decide which status checks are required for merging.
+Inspect the GitHub Actions tab for job logs and uploaded coverage artifacts. Pull requests also display check results. The active main-branch ruleset currently requires eight old check names; administrators must migrate it to **Frontend Build**, **Lint and Formatting**, and **Unit Tests and Coverage** before this workflow is merged. Security checks remain planned for later activation as required checks.
 
 ## Optional Compose stack check in CI
 
