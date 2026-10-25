@@ -24,7 +24,7 @@ The root command `npm run test:integration` provisions an isolated test environm
 | Backend unit tests | **Backend Unit Tests** / `npm test` in `src/backend` / Vitest | All required tests pass; no required suite is missing or empty, and no focused or unapproved skipped tests remain. | Current |
 | Frontend coverage | **Frontend Test Coverage** / `npm run test:coverage` / Vitest V8 coverage | Retain report and apply only an approved, mapped floor. | Current informational job; floor inactive |
 | Backend coverage | **Backend Test Coverage** / `npm run test:coverage` in `src/backend` / `vitest.coverage.config.mjs`, V8 coverage, `assertCoverage` guard | Tests and report-integrity guard pass; retain report and apply only an approved, mapped floor. | Current report-integrity check; numerical floor inactive |
-| Dependency vulnerabilities | **OWASP Dependency-Check** / `owasp/dependency-check:13.0.0`; scans root and backend `package-lock.json` files, including development dependencies | Scanner completes and retains HTML/JSON reports; findings with CVSS 7.0 or higher fail. Scanner or report failures fail the job. | Added on this branch; hosted result pending |
+| Dependency vulnerabilities | **OWASP Dependency-Check** / `owasp/dependency-check:13.0.0`; scans root and backend `package-lock.json` files, including development dependencies | Scanner completes and retains HTML/JSON reports; findings with CVSS 7.0 or higher fail. Scanner or report failures fail the job. | Added on this branch; hosted run requires the repository `NVD_API_KEY` Actions secret |
 | Secret scan | **Gitleaks Secret Scan** / Gitleaks Action v3.0.0 pinned to commit `e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e`, scanner v8.30.1 | Detected secrets fail the job. Findings are redacted in output; comments and finding artifacts are disabled. | Added on this branch; hosted result pending |
 | Integration | Local `npm run test:integration` / Vitest, Docker Compose, MongoDB, Mailpit | Required cases pass against isolated services; readiness, setup, and run-scoped cleanup succeed. | Local command and suites implemented; CI job planned |
 | E2E | Planned Playwright suite and CI job | Every required approved journey passes with retained evidence. | Planned; no CI job |
@@ -79,7 +79,7 @@ These cases specify expected behavior only. Their safe fixtures, gate implementa
 
 ## 5. Security findings and exceptions
 
-OWASP Dependency-Check is the required dependency scanner. The new job scans both npm lockfiles; its Node Audit analyzer sends lockfile data to the npm Audit API and includes development dependencies by default. It fails on CVSS 7.0 or above and retains HTML/JSON reports as a workflow artifact. A scanner exit code or uploaded report alone is insufficient: the gate must evaluate findings and retain its report. The scan also needs internet access to update vulnerability data and query npm advisories; without an NVD API key, updates may be slower or rate limited.
+OWASP Dependency-Check is the required dependency scanner. The new job scans both npm lockfiles; its Node Audit analyzer sends lockfile data to the npm Audit API and includes development dependencies by default. It fails on CVSS 7.0 or above and retains HTML/JSON reports as a workflow artifact. A scanner exit code or uploaded report alone is insufficient: the gate must evaluate findings and retain its report. The scan needs internet access to update vulnerability data and query npm advisories. The workflow passes the repository's `NVD_API_KEY` Actions secret to Dependency-Check. Create a free key through NVD, activate it using the email link, then add it under the repository's **Settings → Secrets and variables → Actions → New repository secret** with the name `NVD_API_KEY`. Keep the value out of the repository and logs. Without an activated key, Dependency-Check 13.0.0 cannot initialize its NVD database and the scan fails.
 
 Gitleaks is the blocking secret-scan job. It scans repository changes in pull requests and pushes, with full Git history available to the action. It redacts findings in output and does not post comments or upload finding artifacts. GitHub's repository-level secret-scanning alert configuration is a separate setting; its state has not been verified. A CI pass does not prove that no historical secret was ever exposed.
 
@@ -93,6 +93,7 @@ docker run --rm \
   --volume "$PWD:/src:ro" \
   --volume "${TMPDIR:-/tmp}/peers-dependency-check/data:/usr/share/dependency-check/data" \
   --volume "${TMPDIR:-/tmp}/peers-dependency-check/reports:/report" \
+  --env NVD_API_KEY \
   owasp/dependency-check:13.0.0 \
   --project peers-npm-dependencies \
   --scan /src/package-lock.json \
@@ -101,6 +102,7 @@ docker run --rm \
   --format JSON \
   --out /report \
   --data /usr/share/dependency-check/data \
+  --nvdApiKey "$NVD_API_KEY" \
   --failOnCVSS 7
 ```
 

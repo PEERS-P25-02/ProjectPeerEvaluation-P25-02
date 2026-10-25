@@ -186,6 +186,7 @@ jobs:
             --volume "$GITHUB_WORKSPACE:/src:ro" \
             --volume "${{ steps.dependency-check-paths.outputs.data }}:/usr/share/dependency-check/data" \
             --volume "${{ steps.dependency-check-paths.outputs.reports }}:/report" \
+            --env NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
             owasp/dependency-check:13.0.0 \
             --project peers-npm-dependencies \
             --scan /src/package-lock.json \
@@ -194,6 +195,7 @@ jobs:
             --format JSON \
             --out /report \
             --data /usr/share/dependency-check/data \
+            --nvdApiKey "$NVD_API_KEY" \
             --failOnCVSS 7
 
       # Save refreshed scanner data and the report even when findings fail the gate.
