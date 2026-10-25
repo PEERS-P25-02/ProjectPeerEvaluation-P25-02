@@ -98,7 +98,7 @@ Automated email integration suites and CI jobs that exercise the stack remain se
 
 - Add automated email integration suites and CI jobs that exercise the Compose stack.
 - Complete clean-install and minimum-supported-runtime verification, plus hosting validation; local Node 24 build evidence is recorded above.
-- The current [CI workflow](../../../../.github/workflows/ci.yml) defines five jobs: frontend build, combined lint and formatting, combined frontend/backend unit tests and coverage, OWASP Dependency-Check, and Gitleaks. It does not run the local integration suite; repository required-check settings are separate from workflow configuration.
+- The current [CI workflow](../../../../.github/workflows/ci.yml) defines six jobs: frontend build, combined lint and formatting, unit tests, unit coverage, OWASP Dependency-Check, and Gitleaks. It does not run the local integration suite; repository required-check settings are separate from workflow configuration.
 - Revisit supported ESLint releases once React, import, and accessibility plugins declare ESLint 10 compatibility.
 
 ## Related Documents

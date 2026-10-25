@@ -1,11 +1,12 @@
 ﻿# This workflow checks that changes build and meet repository quality rules.
-# Pull requests to any branch and pushes each run the full CI workflow.
+# Pull requests to main and pushes run the applicable jobs independently.
 #
 # TLDR: builds the frontend, runs combined quality and test jobs, and scans dependencies and secrets.
 name: CI - Build Lint and Unit Tests
 
 on:
   pull_request:
+    branches: [main]
   push:
 
 permissions:
@@ -53,7 +54,7 @@ jobs:
         run: npm run format:check
 
   unit-tests:
-    name: Unit Tests and Coverage
+    name: Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +72,35 @@ jobs:
         id: install-backend
         run: npm ci
         working-directory: ./src/backend
-      # Coverage commands execute each package's tests, so separate unit-test jobs would rerun them.
+      - name: Run frontend unit tests
+        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
+        run: npm test
+      # Preserve the backend result when frontend tests fail, unless the run is cancelled.
+      - name: Run backend unit tests
+        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
+        run: npm test
+        working-directory: ./src/backend
+
+  unit-coverage:
+    name: Unit Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            src/backend/package-lock.json
+      - name: Install frontend dependencies
+        id: install-frontend
+        run: npm ci
+      - name: Install backend dependencies
+        id: install-backend
+        run: npm ci
+        working-directory: ./src/backend
+      # Coverage commands execute their package tests and keep each report separate.
       - name: Run frontend tests with coverage
         id: frontend-tests
         if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}

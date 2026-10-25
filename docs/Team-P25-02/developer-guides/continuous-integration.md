@@ -1,8 +1,8 @@
 # Continuous integration
 
-The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs separately on pushes and on pull requests targeting any branch, including stacked pull requests. An update to a branch with an open pull request triggers both runs. The build, quality, and test jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
+The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs on pushes to all branches and on pull requests targeting `main`. The build, quality, unit-test, and coverage jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
 
-The workflow has five jobs: Frontend Build; Lint and Formatting; Unit Tests and Coverage; OWASP Dependency-Check; and Gitleaks Secret Scan. The build installs root dependencies, while the quality and test jobs each install both packages, for five `npm ci` commands per workflow run, down from ten. Coverage commands run the unit tests themselves, so each package suite runs once. Frontend and backend coverage reports are uploaded as separate artifacts without percentage thresholds. Formatting still runs after lint failure, backend coverage still runs after frontend test failure, and artifact uploads are attempted after test failures unless the workflow is cancelled. The workflow does not run the Docker integration suite.
+The workflow has six jobs: Frontend Build; Lint and Formatting; Unit Tests; Unit Test Coverage; OWASP Dependency-Check; and Gitleaks Secret Scan. The build installs root dependencies, while quality, unit-test, and coverage jobs each install both packages, for seven `npm ci` commands per workflow run, down from ten. The unit-test job runs `npm test` for frontend and backend. The coverage job runs both coverage commands, executing those suites a second time to collect metrics. Frontend and backend coverage reports are separate artifacts without percentage thresholds. Formatting and backend unit tests run after earlier step failures; backend coverage runs after frontend coverage failure. Artifact uploads are attempted after test failures unless cancelled. The workflow does not run the Docker integration suite.
 
 ## Reproduce CI checks locally
 
@@ -14,11 +14,13 @@ npm ci --prefix src/backend
 npm run build
 npm run lint
 npm run format:check
+npm test
+npm --prefix src/backend test
 npm run test:coverage
 npm --prefix src/backend run test:coverage
 ```
 
-Inspect the GitHub Actions tab for job logs and uploaded coverage artifacts. Pull requests also display check results. The active main-branch ruleset currently requires eight old check names; administrators must migrate it to **Frontend Build**, **Lint and Formatting**, and **Unit Tests and Coverage** before this workflow is merged. Security checks remain planned for later activation as required checks.
+Inspect the GitHub Actions tab for job logs and uploaded coverage artifacts. Pull requests also display check results. The active main-branch ruleset currently requires eight old check names; administrators must migrate it to **Frontend Build**, **Lint and Formatting**, **Unit Tests**, and **Unit Test Coverage** before this workflow is merged. Security checks remain planned for later activation as required checks.
 
 ## Optional Compose stack check in CI
 
