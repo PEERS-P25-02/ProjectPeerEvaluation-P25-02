@@ -158,53 +158,49 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Dependency-Check analyzes both lockfiles, including development dependencies.
+      # The updater writes this shared cache namespace after a complete successful refresh.
       - name: Prepare scanner data and report directories
         id: dependency-check-paths
         run: |
           echo "data=$RUNNER_TEMP/dependency-check-data" >> "$GITHUB_OUTPUT"
           echo "reports=$RUNNER_TEMP/dependency-check-reports" >> "$GITHUB_OUTPUT"
-          echo "cache-day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
           mkdir -p "$RUNNER_TEMP/dependency-check-data" "$RUNNER_TEMP/dependency-check-reports"
 
+      # PR/push jobs only restore a completed updater cache; they never call NVD or save data.
       - name: Restore Dependency-Check vulnerability data
         id: dependency-check-cache
         uses: actions/cache/restore@v4
         with:
           path: ${{ steps.dependency-check-paths.outputs.data }}
-          key: dependency-check-v13-validated-v1-${{ runner.os }}-${{ steps.dependency-check-paths.outputs.cache-day }}
+          key: dependency-check-v13.0.0-shared-v1-${{ runner.os }}-reader-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            dependency-check-v13-validated-v1-${{ runner.os }}-
+            dependency-check-v13.0.0-shared-v1-${{ runner.os }}-
 
-      # Refresh first so the cache is saved only after a complete successful update.
-      - name: Update Dependency-Check vulnerability data
-        id: dependency-check-update
+      - name: Validate cached Dependency-Check database freshness
+        id: dependency-check-database
         env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          DATA_DIR: ${{ steps.dependency-check-paths.outputs.data }}
         run: |
-          nvd_args=()
-          if [[ -n "$NVD_API_KEY" ]]; then
-            nvd_args=(--nvdApiKey "$NVD_API_KEY")
-          else
-            nvd_args=(--nvdDatafeed 'https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz')
-          fi
+          python3 - "$DATA_DIR" <<'PY'
+          from pathlib import Path
+          import sys
+          import time
 
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            --env HOME=/tmp \
-            --volume "${{ steps.dependency-check-paths.outputs.data }}:/usr/share/dependency-check/data" \
-            --env NVD_API_KEY \
-            owasp/dependency-check:13.0.0 \
-            --data /usr/share/dependency-check/data \
-            "${nvd_args[@]}" \
-            --updateonly
-
-      - name: Save refreshed Dependency-Check vulnerability data
-        if: steps.dependency-check-update.outcome == 'success' && steps.dependency-check-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ steps.dependency-check-paths.outputs.data }}
-          key: dependency-check-v13-validated-v1-${{ runner.os }}-${{ steps.dependency-check-paths.outputs.cache-day }}
+          data_dir = Path(sys.argv[1])
+          database = data_dir / "odc.mv.db"
+          timestamp = data_dir / ".dependency-check-last-successful-update"
+          if not database.is_file() or database.stat().st_size == 0:
+              raise SystemExit("No completed Dependency-Check database cache was restored, or its database is empty. Run Update Dependency-Check Database on the default branch, then rerun this check.")
+          try:
+              updated_at = int(timestamp.read_text(encoding="ascii").strip())
+          except (OSError, UnicodeError, ValueError):
+              raise SystemExit("Cached Dependency-Check update timestamp is missing or malformed; run Update Dependency-Check Database on the default branch.")
+          age_seconds = int(time.time()) - updated_at
+          if age_seconds < 0:
+              raise SystemExit("Cached Dependency-Check update timestamp is in the future; run Update Dependency-Check Database on the default branch.")
+          if age_seconds > 48 * 60 * 60:
+              raise SystemExit("Cached Dependency-Check database is older than 48 hours; run Update Dependency-Check Database on the default branch.")
+          PY
 
       # Dependency-Check analyzes both lockfiles, including development dependencies.
       - name: Scan both npm lockfiles
@@ -271,8 +267,8 @@ jobs:
             ${{ steps.dependency-check-paths.outputs.reports }}/dependency-check-report.json
           if-no-files-found: error
 
-      - name: Fail if update, scan, or report validation failed
-        if: always() && (steps.dependency-check-update.outcome != 'success' || steps.dependency-check-scan.outcome != 'success' || steps.dependency-check-reports.outcome != 'success')
+      - name: Fail if database validation, scan, or report validation failed
+        if: always() && (steps.dependency-check-database.outcome != 'success' || steps.dependency-check-scan.outcome != 'success' || steps.dependency-check-reports.outcome != 'success')
         run: exit 1
 
   secret-scan:
