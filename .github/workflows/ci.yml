@@ -1,12 +1,11 @@
 ﻿# This workflow checks that changes build and meet repository quality rules.
-# Pull requests to main and pushes run the applicable jobs independently.
+# Pull requests to any branch and pushes each run the full CI workflow.
 #
 # TLDR: builds the frontend, runs combined quality and test jobs, and scans dependencies and secrets.
 name: CI - Build Lint and Unit Tests
 
 on:
   pull_request:
-    branches: [main]
   push:
 
 permissions:

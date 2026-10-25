@@ -1,6 +1,6 @@
 # Continuous integration
 
-The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs on pushes and on pull requests targeting `main`. Jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
+The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs separately on pushes and on pull requests targeting any branch, including stacked pull requests. An update to a branch with an open pull request triggers both runs. The build, quality, and test jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
 
 The workflow has five jobs: Frontend Build; Lint and Formatting; Unit Tests and Coverage; OWASP Dependency-Check; and Gitleaks Secret Scan. The build installs root dependencies, while the quality and test jobs each install both packages, for five `npm ci` commands per workflow run, down from ten. Coverage commands run the unit tests themselves, so each package suite runs once. Frontend and backend coverage reports are uploaded as separate artifacts without percentage thresholds. Formatting still runs after lint failure, backend coverage still runs after frontend test failure, and artifact uploads are attempted after test failures unless the workflow is cancelled. The workflow does not run the Docker integration suite.
 
