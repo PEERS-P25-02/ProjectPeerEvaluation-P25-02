@@ -1,8 +1,8 @@
 # Continuous integration
 
-The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs on pushes and on pull requests targeting `main`. Jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
+The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs on pushes to all branches and on pull requests targeting `main`. The build, quality, unit-test, and coverage jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
 
-The workflow independently checks frontend and backend dependency installation, frontend production build, repository lint, frontend unit tests, backend unit tests, frontend and backend coverage, and Prettier formatting. Coverage reports are uploaded as workflow artifacts. A failed command fails its job. The configured workflow does not run the Docker integration suite.
+The workflow has six jobs: Frontend Build; Lint and Formatting; Unit Tests; Unit Test Coverage; OWASP Dependency-Check; and Gitleaks Secret Scan. The build installs root dependencies, while quality, unit-test, and coverage jobs each install both packages, for seven `npm ci` commands per workflow run, down from ten. The unit-test job runs `npm test` for frontend and backend. The coverage job runs both coverage commands, executing those suites a second time to collect metrics. Frontend and backend coverage reports are separate artifacts without percentage thresholds. Formatting and backend unit tests run after earlier step failures; backend coverage runs after frontend coverage failure. Artifact uploads are attempted after test failures unless cancelled. The workflow does not run the Docker integration suite.
 
 ## Reproduce CI checks locally
 
@@ -20,7 +20,7 @@ npm run test:coverage
 npm --prefix src/backend run test:coverage
 ```
 
-Inspect the GitHub Actions tab for job logs and uploaded coverage artifacts. Pull requests also display check results. Repository administrators decide which status checks are required for merging.
+Inspect the GitHub Actions tab for job logs and uploaded coverage artifacts. Pull requests also display check results. The active main-branch ruleset currently requires eight old check names; administrators must migrate it to **Frontend Build**, **Lint and Formatting**, **Unit Tests**, and **Unit Test Coverage** before this workflow is merged. Security checks remain planned for later activation as required checks.
 
 ## Optional Compose stack check in CI
 

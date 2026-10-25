@@ -1,8 +1,7 @@
 ﻿# This workflow checks that changes build and meet repository quality rules.
 # Pull requests to main and pushes run the applicable jobs independently.
 #
-# TLDR: installs Node 24 dependencies, builds the frontend, and runs lint, unit,
-# coverage, and formatting jobs for frontend and backend code.
+# TLDR: builds the frontend, runs combined quality and test jobs, and scans dependencies and secrets.
 name: CI - Build Lint and Unit Tests
 
 on:
@@ -14,140 +13,118 @@ permissions:
   contents: read
 
 jobs:
-  # Shared install job verifies both package lockfiles can be installed.
-  install-dependencies:
-    name: Install Frontend and Backend
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            src/backend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Install backend dependencies
-        working-directory: ./src/backend
-        run: npm ci
-
-  # Frontend build, lint, unit, and coverage jobs report separately.
+  # Keep the build independent so it reports separately from quality and tests.
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
       - run: npm run build
 
-  repository-lint:
-    name: Repository Lint (Frontend and Backend)
+  code-quality:
+    name: Lint and Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
             src/backend/package-lock.json
-      - run: npm ci
-      - run: npm ci
+      - name: Install frontend dependencies
+        id: install-frontend
+        run: npm ci
+      - name: Install backend dependencies
+        id: install-backend
+        run: npm ci
         working-directory: ./src/backend
-      - run: npm run lint
+      - name: Lint frontend and backend
+        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
+        run: npm run lint
+      # Run independent checks after a prior failure while still respecting cancellation.
+      - name: Check formatting
+        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
+        run: npm run format:check
 
-  frontend-unit-tests:
-    name: Frontend Unit Tests
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
-      - run: npm ci
-      - run: npm test
+          cache-dependency-path: |
+            package-lock.json
+            src/backend/package-lock.json
+      - name: Install frontend dependencies
+        id: install-frontend
+        run: npm ci
+      - name: Install backend dependencies
+        id: install-backend
+        run: npm ci
+        working-directory: ./src/backend
+      - name: Run frontend unit tests
+        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
+        run: npm test
+      # Preserve the backend result when frontend tests fail, unless the run is cancelled.
+      - name: Run backend unit tests
+        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
+        run: npm test
+        working-directory: ./src/backend
 
-  frontend-coverage:
-    name: Frontend Test Coverage
+  unit-coverage:
+    name: Unit Test Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
-      - run: npm ci
-      - run: npm run test:coverage
-      # Keep the generated report available after the runner exits.
+          cache-dependency-path: |
+            package-lock.json
+            src/backend/package-lock.json
+      - name: Install frontend dependencies
+        id: install-frontend
+        run: npm ci
+      - name: Install backend dependencies
+        id: install-backend
+        run: npm ci
+        working-directory: ./src/backend
+      # Coverage commands execute their package tests and keep each report separate.
+      - name: Run frontend tests with coverage
+        id: frontend-tests
+        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
+        run: npm run test:coverage
       - name: Upload frontend coverage report
-        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.frontend-tests.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: frontend-coverage
           path: coverage
-
-  # Backend jobs install and run from the backend package directory.
-  backend-unit-tests:
-    name: Backend Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: src/backend/package-lock.json
-      - run: npm ci
+          if-no-files-found: error
+      # Backend coverage remains independently reportable after frontend test failure.
+      - name: Run backend tests with coverage
+        id: backend-tests
+        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
+        run: npm run test:coverage
         working-directory: ./src/backend
-      - run: npm test
-        working-directory: ./src/backend
-
-  backend-coverage:
-    name: Backend Test Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: src/backend/package-lock.json
-      - run: npm ci
-        working-directory: ./src/backend
-      - run: npm run test:coverage
-        working-directory: ./src/backend
-      # Keep the generated report available after the runner exits.
       - name: Upload backend coverage report
-        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.backend-tests.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: backend-coverage
           path: src/backend/coverage
-
-  # Report formatting failures separately from build, lint, and test failures.
-  formatting-check:
-    name: Prettier Formatting Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run format:check
+          if-no-files-found: error
 
   dependency-vulnerability-scan:
     name: OWASP Dependency-Check
@@ -156,7 +133,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       # The updater writes this shared cache namespace after a complete successful refresh.
       - name: Prepare scanner data and report directories
@@ -169,7 +146,7 @@ jobs:
       # PR/push jobs only restore a completed updater cache; they never call NVD or save data.
       - name: Restore Dependency-Check vulnerability data
         id: dependency-check-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6.1.0
         with:
           path: ${{ steps.dependency-check-paths.outputs.data }}
           key: dependency-check-v13.0.0-shared-v1-${{ runner.os }}-reader-${{ github.run_id }}-${{ github.run_attempt }}
@@ -263,7 +240,7 @@ jobs:
       - name: Upload Dependency-Check reports
         id: dependency-check-upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: owasp-dependency-check-report
           path: |
@@ -389,7 +366,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
