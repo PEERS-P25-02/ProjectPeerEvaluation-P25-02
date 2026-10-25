@@ -1,3 +1,10 @@
+/*
+ * These tests check that course reports show the expected scores and grades
+ * when students have submitted evaluations or have none.
+ *
+ * TLDR: exercises report preparation with mocked course, student, evaluation,
+ * and team queries.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 

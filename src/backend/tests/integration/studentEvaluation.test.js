@@ -1,7 +1,11 @@
 /*
+ * These checks cover students opening an evaluation link and submitting their work.
  * Public evaluation routes use the actual API and a separate MongoDB connection.
  * Each case restores synthetic fixtures. Recipient authorization, later-entry
  * partial writes and concurrent submissions remain separate integrity concerns.
+ *
+ * TLDR: real requests and an independent database connection verify token
+ * identity, rubric data, saved submissions, completion, and rejected writes.
  */
 import { describe, expect, it } from 'vitest';
 import { jsonRequest, useIntegrationFixture } from './api.js';
@@ -33,6 +37,7 @@ function entry(studentId, overrides = {}) {
   };
 }
 
+// Failed submissions must leave all relevant records untouched, not merely return an error.
 async function snapshot() {
   const { Student, Evaluation } = state.context.models;
   return {

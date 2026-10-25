@@ -1,3 +1,7 @@
+// These tests cover creating teams and changing their membership.
+// TLDR: verify both sides of student/team relationships and protect records in other
+//       courses.
+
 import { describe, expect, it } from 'vitest';
 import { jsonRequest, useIntegrationFixture } from './api.js';
 

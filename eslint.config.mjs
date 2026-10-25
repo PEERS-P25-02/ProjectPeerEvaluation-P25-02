@@ -1,3 +1,10 @@
+/*
+ * This file sets checks for JavaScript and React code in the repository.
+ * It keeps backend, browser, and test rules in one shared flat configuration.
+ *
+ * TLDR: applies core/import rules to JavaScript, React/accessibility rules to the
+ * frontend, CommonJS parsing to backend files, and Vitest rules to tests.
+ */
 import js from '@eslint/js';
 import vitest from '@vitest/eslint-plugin';
 import globals from 'globals';
@@ -7,6 +14,7 @@ import importPlugin from 'eslint-plugin-import';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import prettier from 'eslint-config-prettier/flat';
 
+// Shared JavaScript matching and frontend-only React paths.
 const javascriptFiles = ['**/*.{js,jsx,mjs,cjs}'];
 const frontendFiles = ['src/index.jsx', 'src/frontend/**/*.{js,jsx,mjs,cjs}'];
 
@@ -21,6 +29,7 @@ const config = [
       '**/.*',
     ],
   },
+  // Shared language and import checks apply across both packages.
   {
     name: 'peers/javascript',
     files: javascriptFiles,
@@ -204,6 +213,7 @@ const config = [
       'import/no-named-as-default-member': 'off',
     },
   },
+  // Browser globals and React checks apply only to frontend source files.
   {
     name: 'peers/frontend',
     files: frontendFiles,
@@ -242,6 +252,7 @@ const config = [
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  // Backend files use Node globals; CommonJS source gets its mode below.
   {
     name: 'peers/node',
     files: javascriptFiles,
@@ -254,6 +265,7 @@ const config = [
     ignores: ['src/backend/tests/**', 'src/backend/**/*.{test,spec}.js'],
     languageOptions: { sourceType: 'commonjs' },
   },
+  // Test-only rules catch invalid or accidentally focused Vitest cases.
   {
     name: 'peers/vitest',
     files: ['src/**/*.{test,spec}.{js,jsx,mjs,cjs}'],

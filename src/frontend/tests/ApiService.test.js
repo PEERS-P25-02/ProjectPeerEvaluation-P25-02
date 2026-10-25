@@ -1,3 +1,7 @@
+// These tests check how pages send requests and respond when a request fails.
+// TLDR: mock Axios and check request paths, auth headers, response error messages,
+//       and the configured API base URL.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCourseById } from '../services/api';
 

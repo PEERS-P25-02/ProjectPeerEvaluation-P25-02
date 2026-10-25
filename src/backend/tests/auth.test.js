@@ -1,3 +1,10 @@
+/*
+ * This suite checks missing, expired, and malformed sign-in credentials, and
+ * whether an accepted credential identifies the expected user. It runs without
+ * starting the website.
+ *
+ * TLDR: exercises the JWT authentication middleware and its sanitized 401 errors.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';

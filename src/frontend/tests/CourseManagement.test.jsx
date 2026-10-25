@@ -1,3 +1,7 @@
+// These tests cover course details, rosters, teams, and evaluation actions.
+// TLDR: render the page with mocked API calls and synthetic records; mutation mocks
+//       update their data so refresh behavior is observable.
+
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -16,6 +20,7 @@ vi.mock('../services/api', () => ({
   getCourseById: vi.fn(),
 }));
 
+// Keep routing and auth context in place while each test controls only the API boundary.
 function renderCourseManagement() {
   return render(
     <MemoryRouter>
@@ -44,6 +49,7 @@ const rosterStudent = {
   group_assignment: '',
 };
 
+// This mutable in-memory server lets follow-up GETs prove a mutation triggered a refresh.
 function mockManagedCourse({
   courses = [{ ...managedCourse }],
   students = [],

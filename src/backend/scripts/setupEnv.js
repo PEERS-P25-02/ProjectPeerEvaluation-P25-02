@@ -1,5 +1,13 @@
-// Prepare the root .env file using the root .env.example as the defaults.
-// Run with npm run setup:env after installing dependencies.
+/*
+ * This script prepares local settings so the backend can run on a developer's
+ * machine. It fills in missing defaults and creates a private JWT signing key.
+ *
+ * It only writes the root .env file for development settings, keeps existing
+ * values, and does not print secrets. Run with npm run setup:env.
+ *
+ * TLDR: parses .env.example, adds absent keys, replaces a blank or known
+ * placeholder JWT_SECRET with 32 random bytes, and writes with mode 0600.
+ */
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');

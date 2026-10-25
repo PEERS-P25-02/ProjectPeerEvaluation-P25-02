@@ -1,4 +1,9 @@
-﻿name: CI - Build Lint and Unit Tests
+﻿# This workflow checks that changes build and meet repository quality rules.
+# Pull requests to main and pushes run the applicable jobs independently.
+#
+# TLDR: installs Node 24 dependencies, builds the frontend, and runs lint, unit,
+# coverage, and formatting jobs for frontend and backend code.
+name: CI - Build Lint and Unit Tests
 
 on:
   pull_request:
@@ -9,6 +14,7 @@ permissions:
   contents: read
 
 jobs:
+  # Shared install job verifies both package lockfiles can be installed.
   install-dependencies:
     name: Install Frontend and Backend
     runs-on: ubuntu-latest
@@ -33,6 +39,7 @@ jobs:
         working-directory: ./src/backend
         run: npm ci
 
+  # Frontend build, lint, unit, and coverage jobs report separately.
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
@@ -85,12 +92,14 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run test:coverage
+      # Keep the generated report available after the runner exits.
       - name: Upload frontend coverage report
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
           path: coverage
 
+  # Backend jobs install and run from the backend package directory.
   backend-unit-tests:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
@@ -120,12 +129,14 @@ jobs:
         working-directory: ./src/backend
       - run: npm run test:coverage
         working-directory: ./src/backend
+      # Keep the generated report available after the runner exits.
       - name: Upload backend coverage report
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
           path: src/backend/coverage
 
+  # Report formatting failures separately from build, lint, and test failures.
   formatting-check:
     name: Prettier Formatting Check
     runs-on: ubuntu-latest

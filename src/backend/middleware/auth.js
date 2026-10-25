@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 
 function authenticateToken(req, res, next) {
+  // Accept only a nonempty Bearer credential; other schemes must not reach JWT verification.
   const authHeader = req.headers['authorization'];
   const token =
     typeof authHeader === 'string' &&

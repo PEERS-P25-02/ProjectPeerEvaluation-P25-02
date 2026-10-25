@@ -1,6 +1,8 @@
 /*
- * These checks send real HTTP requests to PEERS and independently read MongoDB
- * to verify course creation, retrieval, updates, deactivation, and reactivation.
+ * These checks show how course management behaves, including filtering and status changes.
+ * They send real HTTP requests to PEERS and independently read MongoDB
+ * to verify course filtering, creation, retrieval, updates, deactivation, and
+ * reactivation.
  * Rejected requests must leave the stored courses unchanged.
  *
  * Each case uses #32's guarded synthetic fixtures and real login. The root
@@ -8,8 +10,8 @@
  * records and closes its own database connection. Browser behavior, permission
  * restrictions, and other application resources need separate coverage.
  *
- * TLDR: Vitest course API/database tests using fetch and an independent Mongoose
- * connection, with sequential fixture reset and no mocked persistence boundary.
+ * TLDR: integration checks use fetch and a separate Mongoose connection, reset
+ * synthetic fixtures between cases, and inspect saved records directly.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {

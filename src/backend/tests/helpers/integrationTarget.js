@@ -11,6 +11,7 @@
  * MongoDB host/database, and requires matching __test_run ownership metadata
  * before fixture reset helpers proceed.
  */
+// Require this run’s exact service URLs and database name before any test reset.
 export function validateTestTarget(environment) {
   const runId = environment.TEST_RUN_ID;
   if (!/^[a-f0-9]{16}$/.test(runId ?? '')) {
@@ -31,6 +32,7 @@ export function validateTestTarget(environment) {
   return { runId, database };
 }
 
+// Confirm the live connection carries this run’s ownership marker before cleanup.
 export async function assertOwnedDatabase(connection, environment) {
   const target = validateTestTarget(environment);
   if (connection.host !== 'mongodb' || connection.name !== target.database) {

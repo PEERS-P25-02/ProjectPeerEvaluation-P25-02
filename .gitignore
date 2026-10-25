@@ -1,3 +1,5 @@
+# This file keeps local and generated files out of Git status.
+# TLDR: ignores dependencies, build and coverage output, test results, and real env files.
 node_modules
 build/
 coverage/

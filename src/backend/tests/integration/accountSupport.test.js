@@ -1,3 +1,7 @@
+// These tests cover account creation and password recovery.
+// TLDR: use the shared isolated fixture to check password hashing, reset-token
+//       lifecycle, and generic responses for unknown accounts.
+
 import { createRequire } from 'node:module';
 import { setTimeout } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';

@@ -1,3 +1,5 @@
+# This file keeps unrelated files out of the frontend image build context.
+# TLDR: omits dependencies, local environment files, generated output, and docs.
 .git
 .gitignore
 node_modules

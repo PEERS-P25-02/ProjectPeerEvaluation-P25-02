@@ -1,8 +1,12 @@
-# Local/CI stack using production builds. Deployment remains on Render.
-# Requires Docker Compose v2.24+ for optional env_file entries.
+# This file runs PEERS locally with its database and a private email inbox.
+# The frontend uses production images; deployment stays on Render.
+#
+# TLDR: starts MongoDB, Mailpit, the backend, and Nginx on localhost ports 27017,
+# 1025/8025, 5000, and 3000. Requires Compose v2.24+ for optional env_file.
 services:
   mongodb:
     image: mongo:8.0
+    # Named storage keeps local database records between Compose restarts.
     ports:
       - "127.0.0.1:27017:27017"
     volumes:
@@ -21,6 +25,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.27.4
+    # Mailpit web UI is localhost:8025; SMTP is published on localhost:1025.
     ports:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
@@ -33,6 +38,7 @@ services:
 
   backend:
     build: ./src/backend
+    # Keep the development API port bound to this computer only.
     ports:
       - "127.0.0.1:5000:5000"
     env_file:
@@ -60,6 +66,7 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_healthy
+    # Compose waits for this health check before starting the frontend.
     healthcheck:
       test:
         - CMD
@@ -75,6 +82,7 @@ services:
       start_period: 10s
 
   frontend:
+    # Nginx serves the site and proxies /api requests to the backend service.
     build:
       context: .
       args:

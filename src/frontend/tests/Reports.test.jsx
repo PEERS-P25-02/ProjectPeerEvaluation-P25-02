@@ -1,3 +1,7 @@
+// These tests cover choosing, creating, and downloading course reports.
+// TLDR: mock API responses and browser download behavior while exercising the
+//       rendered report page.
+
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -11,6 +15,7 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+// A memory router makes the course-in-URL flow deterministic without browser navigation.
 function renderReports(entry = '/reports') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
@@ -55,6 +60,7 @@ const report = {
   ],
 };
 
+// Centralize the common course and report responses; individual tests override only their scenario.
 function mockReportRequests() {
   api.get.mockImplementation(async (url) => {
     if (url === '/courses') return { data: [reportCourse] };

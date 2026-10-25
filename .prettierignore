@@ -1,3 +1,5 @@
+# This file limits formatting checks to maintained application files.
+# TLDR: skips generated output, dependencies, and hidden paths.
 **/node_modules/**
 **/build/**
 **/dist/**

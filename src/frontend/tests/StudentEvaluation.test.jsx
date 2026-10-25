@@ -1,3 +1,7 @@
+// These tests cover a student completing an evaluation from a link.
+// TLDR: render with a memory router and synthetic evaluation data; check validation,
+//       per-teammate payloads, and retry behavior.
+
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';

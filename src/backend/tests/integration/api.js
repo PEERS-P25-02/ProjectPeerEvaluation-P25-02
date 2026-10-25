@@ -1,3 +1,13 @@
+/*
+ * These helpers connect environment checks to the running API and captured
+ * email inbox using the temporary test data.
+ *
+ * They manage request and fixture lifecycles; the individual test files decide
+ * which application behavior is checked.
+ *
+ * TLDR: provides JSON/multipart requests, fixture login, per-test database
+ * reset and seeding, cleanup hooks, and bounded Mailpit inbox polling.
+ */
 import { setTimeout } from 'node:timers/promises';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
 import {
@@ -8,6 +18,7 @@ import {
   seedTestData,
 } from './fixtures.js';
 
+// Send JSON or multipart requests to the configured API, with authentication when supplied.
 export async function apiRequest(method, path, body, token) {
   const multipart = body instanceof FormData;
   return fetch(`${process.env.API_BASE_URL}${path}`, {
@@ -31,6 +42,7 @@ export async function jsonRequest(method, path, body, token) {
   return { status: response.status, body: await response.json() };
 }
 
+// Sign in with the seeded account and fail early if the API does not return a token.
 export async function loginFixture() {
   const response = await jsonRequest('POST', '/api/auth/login', fixtureAccount);
   const token = response.body.access_token;
@@ -40,6 +52,7 @@ export async function loginFixture() {
   return token;
 }
 
+// Set up the owned database once, then reseed and optionally authenticate each test.
 export function useIntegrationFixture({ login = true } = {}) {
   const state = {};
   beforeAll(async () => {

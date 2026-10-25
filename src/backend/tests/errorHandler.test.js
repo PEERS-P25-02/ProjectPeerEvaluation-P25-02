@@ -1,3 +1,9 @@
+/*
+ * These tests check that errors reaching the end of a request produce clear API
+ * responses.
+ *
+ * TLDR: uses a response double to verify custom error fields and safe defaults.
+ */
 import { describe, expect, it } from 'vitest';
 import errorHandler from '../middleware/errorHandler.js';
 

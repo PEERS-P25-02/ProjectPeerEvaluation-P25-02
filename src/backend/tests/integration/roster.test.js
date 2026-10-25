@@ -1,3 +1,7 @@
+// These tests cover importing and managing a course roster.
+// TLDR: exercise course-scoped requests, then inspect saved records and
+//       relationships for successful and rejected changes.
+
 import { describe, expect, it } from 'vitest';
 import { jsonRequest, useIntegrationFixture } from './api.js';
 
