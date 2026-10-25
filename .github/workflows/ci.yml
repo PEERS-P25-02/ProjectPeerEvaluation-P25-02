@@ -148,3 +148,89 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run format:check
+
+  dependency-vulnerability-scan:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      # Dependency-Check analyzes both lockfiles, including development dependencies.
+      - name: Prepare scanner data and report directories
+        id: dependency-check-paths
+        run: |
+          echo "data=$RUNNER_TEMP/dependency-check-data" >> "$GITHUB_OUTPUT"
+          echo "reports=$RUNNER_TEMP/dependency-check-reports" >> "$GITHUB_OUTPUT"
+          echo "cache-day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/dependency-check-data" "$RUNNER_TEMP/dependency-check-reports"
+
+      - name: Restore Dependency-Check vulnerability data
+        id: dependency-check-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.dependency-check-paths.outputs.data }}
+          key: dependency-check-v13-${{ runner.os }}-${{ steps.dependency-check-paths.outputs.cache-day }}
+          restore-keys: |
+            dependency-check-v13-${{ runner.os }}-
+
+      - name: Scan both npm lockfiles
+        id: dependency-check
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --volume "$GITHUB_WORKSPACE:/src:ro" \
+            --volume "${{ steps.dependency-check-paths.outputs.data }}:/usr/share/dependency-check/data" \
+            --volume "${{ steps.dependency-check-paths.outputs.reports }}:/report" \
+            owasp/dependency-check:13.0.0 \
+            --project peers-npm-dependencies \
+            --scan /src/package-lock.json \
+            --scan /src/src/backend/package-lock.json \
+            --format HTML \
+            --format JSON \
+            --out /report \
+            --data /usr/share/dependency-check/data \
+            --failOnCVSS 7
+
+      # Save refreshed scanner data and the report even when findings fail the gate.
+      - name: Save Dependency-Check vulnerability data
+        if: always() && steps.dependency-check.outcome != 'cancelled' && steps.dependency-check-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.dependency-check-paths.outputs.data }}
+          key: dependency-check-v13-${{ runner.os }}-${{ steps.dependency-check-paths.outputs.cache-day }}
+
+      - name: Upload Dependency-Check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-check-report
+          path: ${{ steps.dependency-check-paths.outputs.reports }}
+          if-no-files-found: error
+
+      - name: Fail on scan errors or High/Critical findings
+        if: steps.dependency-check.outcome != 'success'
+        run: exit 1
+
+  secret-scan:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository changes for exposed secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: '8.30.1'
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
