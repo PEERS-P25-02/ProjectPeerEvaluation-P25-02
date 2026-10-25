@@ -1,6 +1,6 @@
 # Quality Gate Policy
 
-**Policy status:** The preservation scope and pass/fail rules are agreed. Enforcement is incomplete; planned gates and verification cases below are not represented as implemented. This policy supplements the [Automated Testing Strategy](../modernization/plans/automated-testing-strategy/README.md), [critical workflow scope](workflows/01-scope-and-classification.md), and [CI verification record](../modernization/implementation/continuous-integration.md). It does not change approved requirements or claim that the separate SWE 4724 course document was updated.
+**Policy status:** The preservation scope and pass/fail rules are agreed. This branch adds blocking dependency-vulnerability and secret-scan jobs to the CI workflow. They are not yet established as passing hosted checks or required by the main-branch ruleset. Planned gates and verification cases below remain unimplemented unless marked current. This policy supplements the [Automated Testing Strategy](../modernization/plans/automated-testing-strategy/README.md), [critical workflow scope](workflows/01-scope-and-classification.md), and [CI verification record](../modernization/implementation/continuous-integration.md). It does not change approved requirements or claim that the separate SWE 4724 course document was updated.
 
 ## 1. Scope and pass/fail rules
 
@@ -10,7 +10,7 @@ A pull request passes only when every activated required check completes success
 
 ## 2. Current checks and planned gates
 
-The current workflow is `.github/workflows/ci.yml`. GitHub Actions runs eight jobs on Ubuntu with Node.js 24 and locked npm installs: dependency installation, frontend build, lint, frontend and backend unit tests, frontend and backend coverage reports, and formatting. Coverage jobs produce reports but enforce no minimum. Lint does not currently enforce zero warnings, and warning-free formatting verification is pending. The workflow has no integration, E2E, or security job. Repository settings must mark the selected checks as required to enforce them for merges; workflow configuration alone does not prove this is set.
+The workflow is `.github/workflows/ci.yml`. Its eight existing jobs run dependency installation, frontend build, lint, frontend and backend unit tests, frontend and backend coverage reports, and formatting. A separately delivered scheduled database updater in `.github/workflows/security.yml` is a prerequisite for the OWASP Dependency-Check CI job, which scans both npm lockfiles from its shared database cache; Gitleaks scans repository changes for secrets. Coverage jobs produce reports but enforce no minimum. Lint does not currently enforce zero warnings, and warning-free formatting verification is pending. The workflow still has no integration or E2E job. Repository settings must mark selected checks as required to enforce them for merges; workflow configuration alone does not prove this is set.
 
 The root command `npm run test:integration` provisions an isolated test environment and runs the implemented API/database integration suite. See the [environment guide](../modernization/implementation/testing/integration-test-environment.md) and [API/database integration guide](../modernization/implementation/testing/api-database-integration.md). This command is available locally; integration execution is not part of the current CI workflow. SMTP capture does not establish external mail-provider delivery; detailed email scenarios remain separately planned. Browser E2E execution and its CI job remain planned.
 
@@ -24,10 +24,10 @@ The root command `npm run test:integration` provisions an isolated test environm
 | Backend unit tests | **Backend Unit Tests** / `npm test` in `src/backend` / Vitest | All required tests pass; no required suite is missing or empty, and no focused or unapproved skipped tests remain. | Current |
 | Frontend coverage | **Frontend Test Coverage** / `npm run test:coverage` / Vitest V8 coverage | Retain report and apply only an approved, mapped floor. | Current informational job; floor inactive |
 | Backend coverage | **Backend Test Coverage** / `npm run test:coverage` in `src/backend` / `vitest.coverage.config.mjs`, V8 coverage, `assertCoverage` guard | Tests and report-integrity guard pass; retain report and apply only an approved, mapped floor. | Current report-integrity check; numerical floor inactive |
+| Dependency vulnerabilities | **OWASP Dependency-Check** / `owasp/dependency-check:13.0.0`; scheduled updater in `.github/workflows/security.yml`; CI scans root and backend `package-lock.json` files, including development dependencies | A completed database refresh is available and no older than 48 hours; both HTML/JSON reports are validated and retained; findings with CVSS 7.0 or higher fail. | Added on this branch; hosted verification pending |
+| Secret scan | **Gitleaks Secret Scan** / Gitleaks CLI v8.30.1; complete PR/push commit ranges | Detected secrets or scanner errors fail the job. Findings are redacted in output; no PR comments or finding artifacts are created. | Added on this branch; hosted verification pending |
 | Integration | Local `npm run test:integration` / Vitest, Docker Compose, MongoDB, Mailpit | Required cases pass against isolated services; readiness, setup, and run-scoped cleanup succeed. | Local command and suites implemented; CI job planned |
 | E2E | Planned Playwright suite and CI job | Every required approved journey passes with retained evidence. | Planned; no CI job |
-| OWASP Dependency-Check | Scan command/job remains to be selected and implemented | Scan direct, transitive, and development dependencies in both npm packages; retain reports and evaluate findings against severity and exception policy. | Required tool/gate planned; no CI job |
-| Secret scanning | Scanner command/job remains to be selected and implemented | Scan repository; confirmed exposed credentials block and must be revoked/rotated. | Planned; no CI job |
 | CodeQL/static analysis | CodeQL activation and required-result handling remain to be implemented | Required analysis completes, results are retained, and findings are evaluated under severity and exception policy. | Proposed; no CI job |
 
 Dependabot weekly version-update configuration exists for both npm package directories and groups production and development updates. The repository's Dependabot alert and security-update settings have not been verified. Dependency maintenance and alerts do not replace OWASP Dependency-Check or constitute a blocking CI gate.
@@ -79,14 +79,47 @@ These cases specify expected behavior only. Their safe fixtures, gate implementa
 
 ## 5. Security findings and exceptions
 
-OWASP Dependency-Check is the required dependency scanner. Scan both npm packages, including direct, transitive, production, and development dependencies. A scanner exit code or uploaded report alone is insufficient: the gate must evaluate findings and retain its report.
+OWASP Dependency-Check is the required dependency scanner. The new job scans both npm lockfiles; its Node Audit analyzer sends lockfile data to the npm Audit API and includes development dependencies by default. It fails on CVSS 7.0 or above and retains HTML/JSON reports as a workflow artifact. Both reports must exist and pass the workflow's integrity checks. A scanner exit code or uploaded report alone is insufficient: the gate must evaluate findings and retain its report.
+
+The separate `.github/workflows/security.yml` updater supports manual dispatch and is scheduled for midnight Eastern in `America/New_York`; its local schedule time respects daylight-saving changes. It runs only on the repository default branch, requires the `NVD_API_KEY` Actions secret, restores the latest completed cache for incremental updates, and saves a new immutable cache only after the update succeeds and `odc.mv.db` is nonempty. The updater allows up to six hours for an initial database build; subsequent runs reuse the database and request new or modified NVD records. Cache data contains the vulnerability database and its successful-update time, not credentials.
+
+The CI scanner only restores this shared cache; it fails with a reseed instruction if no completed cache exists, the database or success timestamp is missing, or the timestamp is malformed, in the future, or older than 48 hours. Run **Update Dependency-Check Database** manually on the default branch after that workflow is present on the default branch to seed CI. PR and push scans do not need the NVD secret and do not update or save the database. Internet access remains necessary for updater runs and npm advisories; the Node Audit analyzer still sends lockfile data to the npm Audit API.
+
+The updater requires `NVD_API_KEY`; it does not fall back to a public mirror. Create a key through NVD, activate it using the email link, then add it under **Settings → Secrets and variables → Actions → New repository secret** as `NVD_API_KEY`. Dependabot and external fork PRs do not receive Actions secrets, but their CI scans consume the shared cache and need no NVD key. Keep key values out of source and logs.
+
+Gitleaks is the blocking secret-scan job. The pinned CLI scans the complete base-to-head PR range or before-to-after push range using local Git history, including merge changes. It does not depend on a paginated GitHub commit listing. New branches scan the history reachable from their head; branch deletion events have no new content and do not run this job. It redacts findings in output and does not post comments or upload finding artifacts. GitHub's repository-level secret-scanning alert configuration is a separate setting; its state has not been verified. Ordinary PR/push ranges do not establish that the entire repository history is free of secrets.
+
+To reproduce the authenticated dependency scan locally, run the same pinned image against both lockfiles with `NVD_API_KEY` already exported in your shell. Docker and internet access must be available. This command performs a local database update before scanning; the scheduled updater and CI cache policy do not change this local command.
+
+```bash
+mkdir -p "${TMPDIR:-/tmp}/peers-dependency-check/data" "${TMPDIR:-/tmp}/peers-dependency-check/reports"
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --env HOME=/tmp \
+  --volume "$PWD:/src:ro" \
+  --volume "${TMPDIR:-/tmp}/peers-dependency-check/data:/usr/share/dependency-check/data" \
+  --volume "${TMPDIR:-/tmp}/peers-dependency-check/reports:/report" \
+  --env NVD_API_KEY \
+  owasp/dependency-check:13.0.0 \
+  --project peers-npm-dependencies \
+  --scan /src/package-lock.json \
+  --scan /src/src/backend/package-lock.json \
+  --format HTML \
+  --format JSON \
+  --out /report \
+  --data /usr/share/dependency-check/data \
+  --nvdApiKey "$NVD_API_KEY" \
+  --failOnCVSS 7
+```
+
+The Gitleaks check runs in GitHub Actions using the pinned CLI version listed in the table.
 
 Confirmed exposed credentials block and must be revoked or rotated; no active credential can receive an exception. Unapproved High/Critical findings block. Track Medium/Low findings with an owner and disposition. Any exception must identify the finding and scope, reason, linked issue, owner, compensating controls, approver, expiry/review date, and audit record. Exceptions are specific and time-limited; expiry blocks until remediation or approved renewal. Do not create blanket exceptions or suppress historical debt without individual review.
 
 ## 6. Evidence and implementation status
 
-The current source configuration establishes eight CI jobs, local API/database integration commands, separate frontend/backend coverage reports, and weekly Dependabot version updates for both npm packages. The available source does not establish that repository rules require these jobs, that Dependabot alerts/security updates are enabled, or that any planned security/E2E job is active. No fresh tests or scans are asserted by this policy update.
+The source configuration on this branch establishes ten CI jobs, local API/database integration commands, separate frontend/backend coverage reports, and weekly Dependabot version updates for both npm packages. A separately delivered scheduled Dependency-Check database updater is a prerequisite for the CI scanner cache. The two security jobs require passing hosted runs before they can be described as verified. The available source does not establish that repository rules require these jobs, that Dependabot alerts/security updates or GitHub secret-scanning alerts are enabled, or that planned integration/E2E jobs are active. No local security scan or controlled-failure result is asserted here.
 
 For each future run, retain the source revision, tool/configuration versions, exact command or check name, outcome, report/evidence location, and relevant exception disposition. Preserve prior evidence as historical; do not present it as a fresh run or as proof of a different baseline. See the [CI verification record](../modernization/implementation/continuous-integration.md), [isolated environment guide](../modernization/implementation/testing/integration-test-environment.md), [API/database integration guide](../modernization/implementation/testing/api-database-integration.md), and [API operation inventory](../modernization/implementation/testing/api-database-operation-inventory.md) for their respective scope and evidence.
 
-**Implementation status:** CI integration and E2E jobs, required GitHub status settings, security gate implementation, and failure-gate proof remain incomplete. This policy does not claim those implementations or proofs are complete.
+**Implementation status:** The main-branch ruleset currently requires the eight existing build, lint, unit, coverage-report, and formatting checks. This branch adds the two security jobs above; their hosted results and adding them to the ruleset remain pending. CI integration/E2E jobs and failure-gate proof remain incomplete. This policy does not claim those implementations or proofs are complete.

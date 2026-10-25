@@ -148,3 +148,296 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run format:check
+
+  dependency-vulnerability-scan:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      # The updater writes this shared cache namespace after a complete successful refresh.
+      - name: Prepare scanner data and report directories
+        id: dependency-check-paths
+        run: |
+          echo "data=$RUNNER_TEMP/dependency-check-data" >> "$GITHUB_OUTPUT"
+          echo "reports=$RUNNER_TEMP/dependency-check-reports" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/dependency-check-data" "$RUNNER_TEMP/dependency-check-reports"
+
+      # PR/push jobs only restore a completed updater cache; they never call NVD or save data.
+      - name: Restore Dependency-Check vulnerability data
+        id: dependency-check-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.dependency-check-paths.outputs.data }}
+          key: dependency-check-v13.0.0-shared-v1-${{ runner.os }}-reader-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            dependency-check-v13.0.0-shared-v1-${{ runner.os }}-
+
+      - name: Validate cached Dependency-Check database freshness
+        id: dependency-check-database
+        env:
+          DATA_DIR: ${{ steps.dependency-check-paths.outputs.data }}
+        run: |
+          python3 - "$DATA_DIR" <<'PY'
+          from pathlib import Path
+          import sys
+          import time
+
+          data_dir = Path(sys.argv[1])
+          database = data_dir / "odc.mv.db"
+          timestamp = data_dir / ".dependency-check-last-successful-update"
+          if not database.is_file() or database.stat().st_size == 0:
+              raise SystemExit("No completed Dependency-Check database cache was restored, or its database is empty. Run Update Dependency-Check Database on the default branch, then rerun this check.")
+          try:
+              updated_at = int(timestamp.read_text(encoding="ascii").strip())
+          except (OSError, UnicodeError, ValueError):
+              raise SystemExit("Cached Dependency-Check update timestamp is missing or malformed; run Update Dependency-Check Database on the default branch.")
+          age_seconds = int(time.time()) - updated_at
+          if age_seconds < 0:
+              raise SystemExit("Cached Dependency-Check update timestamp is in the future; run Update Dependency-Check Database on the default branch.")
+          if age_seconds > 48 * 60 * 60:
+              raise SystemExit("Cached Dependency-Check database is older than 48 hours; run Update Dependency-Check Database on the default branch.")
+          PY
+
+      # Dependency-Check analyzes both lockfiles, including development dependencies.
+      - name: Scan both npm lockfiles
+        id: dependency-check-scan
+        continue-on-error: true
+        run: |
+          status=0
+          test -s "$GITHUB_WORKSPACE/package-lock.json"
+          test -s "$GITHUB_WORKSPACE/src/backend/package-lock.json"
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --volume "$GITHUB_WORKSPACE:/src:ro" \
+            --volume "${{ steps.dependency-check-paths.outputs.data }}:/usr/share/dependency-check/data" \
+            --volume "${{ steps.dependency-check-paths.outputs.reports }}:/report" \
+            owasp/dependency-check:13.0.0 \
+            --project peers-npm-dependencies \
+            --scan /src/package-lock.json \
+            --scan /src/src/backend/package-lock.json \
+            --format HTML \
+            --format JSON \
+            --out /report \
+            --data /usr/share/dependency-check/data \
+            --noupdate \
+            --failOnCVSS 7 || status=$?
+          echo "exit-code=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Validate Dependency-Check reports
+        id: dependency-check-reports
+        if: always()
+        run: |
+          html="$RUNNER_TEMP/dependency-check-reports/dependency-check-report.html"
+          json="$RUNNER_TEMP/dependency-check-reports/dependency-check-report.json"
+          test -s "$html"
+          grep -Eiq '<html([[:space:]>])' "$html"
+          test -s "$json"
+          python3 - "$json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as report_file:
+              report = json.load(report_file)
+
+          scan_info = report.get("scanInfo") if isinstance(report, dict) else None
+          project_info = report.get("projectInfo") if isinstance(report, dict) else None
+          dependencies = report.get("dependencies") if isinstance(report, dict) else None
+          # Clean lockfile-only scans can have no dependency entries; require the list, not a finding.
+          if (
+              not isinstance(scan_info, dict)
+              or scan_info.get("engineVersion") != "13.0.0"
+              or not isinstance(project_info, dict)
+              or project_info.get("name") != "peers-npm-dependencies"
+              or not isinstance(dependencies, list)
+          ):
+              raise SystemExit("Dependency-Check JSON is missing the expected scanner, project, or dependencies list")
+          PY
+
+      # Retain whichever reports were produced, including when scan validation fails.
+      - name: Upload Dependency-Check reports
+        id: dependency-check-upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-check-report
+          path: |
+            ${{ steps.dependency-check-paths.outputs.reports }}/dependency-check-report.html
+            ${{ steps.dependency-check-paths.outputs.reports }}/dependency-check-report.json
+          if-no-files-found: error
+
+      - name: Summarize Dependency-Check result and enforce security gate
+        if: always()
+        env:
+          DATABASE_OUTCOME: ${{ steps.dependency-check-database.outcome }}
+          SCAN_OUTCOME: ${{ steps.dependency-check-scan.outcome }}
+          SCAN_EXIT_CODE: ${{ steps.dependency-check-scan.outputs.exit-code }}
+          REPORT_OUTCOME: ${{ steps.dependency-check-reports.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.dependency-check-upload.outcome }}
+          REPORT_JSON: ${{ steps.dependency-check-paths.outputs.reports }}/dependency-check-report.json
+          ARTIFACT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import html
+          import os
+          from pathlib import Path
+
+          failures = []
+          details = []
+
+          def error(message):
+              # Escape GitHub workflow-command delimiters in any report-derived text.
+              escaped = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error::{escaped}')
+              failures.append(message)
+
+          def summary_text(value):
+              # Keep report-controlled values on one Markdown line and inside list text.
+              text = str(value).replace('\\', '\\\\').replace('|', '\\|').replace('`', '\\`').replace('[', '\\[').replace(']', '\\]')
+              return html.escape(text.replace('\r', ' ').replace('\n', ' '), quote=True)
+
+          if os.environ['DATABASE_OUTCOME'] != 'success':
+              error('Dependency-Check database validation failed; inspect the freshness validation step and run the default-branch database updater.')
+
+          scan_outcome = os.environ['SCAN_OUTCOME']
+          scan_code = os.environ.get('SCAN_EXIT_CODE', '')
+          if scan_outcome != 'success':
+              if scan_code == '15':
+                  details.append('Scanner exit code 15 indicates the configured CVSS 7 security gate failed.')
+                  error('The configured Dependency-Check CVSS 7 security gate failed; see the findings listed in the job summary.')
+              elif scan_code:
+                  error(f'Dependency-Check scanner failed with exit code {scan_code}; inspect the scan step logs for scanner or setup errors.')
+              elif os.environ['DATABASE_OUTCOME'] != 'success':
+                  details.append('The scan did not run because database validation failed.')
+              else:
+                  error('Dependency-Check scan did not complete and produced no scanner exit code; inspect the scan step for setup or runner errors.')
+
+          report_path = Path(os.environ['REPORT_JSON'])
+          report = None
+          if os.environ['REPORT_OUTCOME'] != 'success':
+              error('Dependency-Check report validation failed; inspect the report validation step for missing, malformed, or unexpected reports.')
+          else:
+              try:
+                  report = json.loads(report_path.read_text(encoding='utf-8'))
+              except (OSError, UnicodeError, json.JSONDecodeError):
+                  error('Dependency-Check JSON report could not be read for the summary.')
+
+          findings = []
+          if isinstance(report, dict):
+              for dependency in report.get('dependencies', []):
+                  if not isinstance(dependency, dict):
+                      continue
+                  package = dependency.get('packages')
+                  package_name = package[0].get('id') if isinstance(package, list) and package and isinstance(package[0], dict) else None
+                  package_name = package_name or dependency.get('fileName') or 'Unknown package'
+                  for vulnerability in dependency.get('vulnerabilities', []):
+                      if not isinstance(vulnerability, dict):
+                          continue
+                      scores = []
+                      for key, field in (('cvssv2', 'score'), ('cvssv3', 'baseScore'), ('cvssv4', 'baseScore')):
+                          value = vulnerability.get(key)
+                          if isinstance(value, dict):
+                              try:
+                                  scores.append(float(value[field]))
+                              except (KeyError, TypeError, ValueError):
+                                  pass
+                      score = max(scores) if scores else None
+                      if score is not None and score >= 7:
+                          findings.append((package_name, vulnerability.get('name') or 'Unknown advisory', score))
+
+          if findings:
+              details.append(f'{len(findings)} finding(s) have an available CVSS score of 7.0 or higher:')
+              details.extend(f'- {summary_text(package)}: {summary_text(advisory)} (CVSS {score:g})' for package, advisory, score in findings)
+          elif scan_code == '15':
+              details.append('The report contained no parsable CVSS 7+ findings; inspect the original scan logs and full report.')
+          elif report is not None:
+              details.append('No findings with an available CVSS score of 7.0 or higher were listed in the validated report.')
+
+          if os.environ['UPLOAD_OUTCOME'] != 'success':
+              error('Dependency-Check report artifact upload failed; the report may be unavailable from this run.')
+
+          summary_lines = ['## OWASP Dependency-Check', '']
+          summary_lines.append('**Result: FAILED**' if failures else '**Result: PASSED**')
+          if failures:
+              summary_lines.extend(['', '**Failure reasons:**'])
+              summary_lines.extend(f'- {summary_text(reason)}' for reason in failures)
+          if findings:
+              summary_lines.append(f'**{len(findings)} CVSS 7+ finding(s)**')
+          elif scan_outcome == 'success' and report is not None:
+              summary_lines.append('No CVSS 7+ findings reported.')
+          for detail in details:
+              summary_lines.append(detail)
+          summary_lines.extend(['', f'[Open run logs and the `owasp-dependency-check-report` artifact]({os.environ["ARTIFACT_URL"]}).'])
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('\n'.join(summary_lines) + '\n')
+          print('\n'.join(summary_lines))
+
+          if failures:
+              raise SystemExit(1)
+          PY
+
+  secret-scan:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    if: github.event.deleted != true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan repository changes for exposed secrets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.event.after }}
+        run: |
+          all_zero_sha=0000000000000000000000000000000000000000
+
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            base_sha="$PR_BASE_SHA"
+            head_sha="$PR_HEAD_SHA"
+          elif [[ "$EVENT_NAME" == push ]]; then
+            head_sha="$PUSH_AFTER_SHA"
+            if [[ "$PUSH_BEFORE_SHA" == "$all_zero_sha" ]]; then
+              base_sha=""
+            else
+              base_sha="$PUSH_BEFORE_SHA"
+            fi
+          else
+            echo "Unsupported event: $EVENT_NAME" >&2
+            exit 1
+          fi
+
+          shas=("$head_sha")
+          if [[ -n "$base_sha" ]]; then
+            shas+=("$base_sha")
+          fi
+          for sha in "${shas[@]}"; do
+            if [[ ! "$sha" =~ ^[0-9a-fA-F]{40,64}$ ]] || ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+              echo "Event commit is missing or invalid: $sha" >&2
+              exit 1
+            fi
+          done
+
+          # New branches have no before SHA, so scan all history reachable from the head.
+          if [[ -z "$base_sha" ]]; then
+            log_opts="$head_sha --full-history -m"
+          else
+            log_opts="$base_sha..$head_sha --full-history -m"
+          fi
+
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --volume "$GITHUB_WORKSPACE:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git --verbose --redact=100 --log-opts="$log_opts" /repo
