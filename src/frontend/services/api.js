@@ -7,7 +7,7 @@ const isProduction =
   window.location.hostname.includes('onrender.com') ||
   window.location.hostname !== 'localhost';
 
-// Compose selects /api at build time; other builds keep their existing defaults.
+// Vite embeds this override at build time; the fallback keeps local and hosted defaults.
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (isProduction

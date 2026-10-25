@@ -1,3 +1,10 @@
+/*
+ * These tests check that common requests complete successfully and return the
+ * expected information.
+ *
+ * TLDR: exercises controller contracts with mocked models and email delivery
+ * across course, roster, team, evaluation, and report success paths.
+ */
 import {
   afterAll,
   afterEach,

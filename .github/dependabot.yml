@@ -1,3 +1,8 @@
+# This file asks Dependabot to check root and backend npm packages weekly.
+# Minor and patch updates are grouped to keep routine upgrade PRs manageable.
+#
+# TLDR: checks both package directories each Monday and limits open version-update
+# PRs to three per directory, separating production and development updates.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -8,6 +13,7 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 3
+    # Keep production and development package updates in separate groups.
     groups:
       frontend-production:
         applies-to: "version-updates"

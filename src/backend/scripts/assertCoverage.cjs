@@ -1,3 +1,13 @@
+/*
+ * This check helps catch backend coverage reports that omit application files
+ * or fail to show selected controller paths were exercised.
+ *
+ * It validates report contents and source mappings; it does not run tests or
+ * calculate a coverage percentage.
+ *
+ * TLDR: compares the report file manifest with backend app sources and checks
+ * mapped function, callback, and branch counters for required controller paths.
+ */
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -63,6 +73,7 @@ function appSourceFiles(directory) {
   });
 }
 
+// Build the denominator from production modules so unimported app code cannot disappear from coverage.
 function expectedAppSourceFiles() {
   return [
     normalizedPath(path.join(backendRoot, 'index.js')),
@@ -77,6 +88,7 @@ function expectedAppSourceFiles() {
   ].sort();
 }
 
+// Reject missing or extra report entries so the measured application scope stays fixed.
 function verifyAppSourceManifest() {
   const expected = expectedAppSourceFiles();
   const actual = Object.keys(report).map(normalizedPath).sort();
@@ -103,6 +115,7 @@ function sourceLine(file, pattern) {
   return lineIndex + 1;
 }
 
+// Match a named CommonJS export to its source location before checking V8's function count.
 function mappedFunction(fileSuffix, exportName, expectedCount) {
   const [file, coverage] = fileEntry(fileSuffix);
   const expectedLine = sourceLine(
@@ -130,6 +143,7 @@ function mappedFunction(fileSuffix, exportName, expectedCount) {
   return { file, coverage, fn };
 }
 
+// Check callback coverage by source line when a callback is not a named export.
 function mappedFunctionAtSource(fileSuffix, pattern, expectedCount) {
   const [file, coverage] = fileEntry(fileSuffix);
   const line = sourceLine(file, pattern);

@@ -32,6 +32,7 @@ export const fixtureAccount = {
   password: 'EnvironmentCheck123!',
 };
 
+// Connect only to the validated run database and initialize the backend model indexes.
 export async function openTestDatabase(environment) {
   const target = validateTestTarget(environment);
   const connection = await mongoose
@@ -86,6 +87,7 @@ export async function openTestDatabase(environment) {
   }
 }
 
+// Route inbox operations through the validated Mailpit service with a bounded wait.
 export async function mailpitRequest(environment, path, options) {
   validateTestTarget(environment);
   const response = await fetch(`${environment.MAILPIT_API_URL}${path}`, {
@@ -98,6 +100,7 @@ export async function mailpitRequest(environment, path, options) {
   return response;
 }
 
+// Clear known application collections and captured messages after verifying run ownership.
 export async function resetTestData(context) {
   const { connection, models, environment } = context;
   await assertOwnedDatabase(connection, environment);
@@ -108,6 +111,7 @@ export async function resetTestData(context) {
   await mailpitRequest(environment, '/api/v1/messages', { method: 'DELETE' });
 }
 
+// Rebuild the small synthetic professor/course/team/student set used by API checks.
 export async function seedTestData(context) {
   await resetTestData(context);
   const { Professor, Course, Student, Team } = context.models;

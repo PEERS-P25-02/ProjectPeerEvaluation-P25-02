@@ -1,3 +1,5 @@
+# This file keeps local state out of backend image builds.
+# TLDR: omits dependencies, environment files, coverage, uploads, and Git data.
 node_modules
 .env
 .env.*

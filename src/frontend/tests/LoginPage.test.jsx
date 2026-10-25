@@ -1,3 +1,7 @@
+// These tests cover sign-in, account creation, and password recovery.
+// TLDR: render the page with mocked service calls and a memory router, then drive
+//       the forms as a user.
+
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';

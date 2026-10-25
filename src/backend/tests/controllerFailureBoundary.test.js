@@ -1,3 +1,9 @@
+/*
+ * These tests check that failed requests receive controlled API responses.
+ *
+ * TLDR: exercises controller contracts with mocked persistence and response
+ * objects across authentication, validation, missing-record, and boundary cases.
+ */
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 

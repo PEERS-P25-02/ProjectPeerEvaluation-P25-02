@@ -1,3 +1,11 @@
+/*
+ * This script fills the IT Management course with a generated student roster
+ * and updates its team and student totals. It changes data in the database
+ * selected by the configured MongoDB connection.
+ *
+ * TLDR: loads the root .env, removes that course's students and teams, creates
+ * ten teams of five synthetic students, then calls connection.close() in finally.
+ */
 const mongoose = require('mongoose');
 const { randomUUID } = require('node:crypto');
 const path = require('node:path');
@@ -158,7 +166,7 @@ async function createITManagementTeams() {
 
     console.log(`✅ Found course: ${course.course_name} (${course._id})`);
 
-    // Clear existing students and teams for this course
+    // Clear the roster before rebuilding it; evaluation records are left in place.
     console.log('🧹 Clearing existing students and teams...');
     await Student.deleteMany({ course_id: course._id });
     await Team.deleteMany({ course_id: course._id });

@@ -1,8 +1,13 @@
+// These tests check how the app remembers who is signed in.
+// TLDR: render a small consumer of AuthContext and verify login, logout, saved-user
+//       restoration, and malformed-data cleanup.
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
+// Expose context state and actions as visible UI so tests exercise the provider contract.
 function TestAuthComponent() {
   const { currentUser, login, logout } = useAuth();
 

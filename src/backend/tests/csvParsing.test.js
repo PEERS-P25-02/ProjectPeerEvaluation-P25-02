@@ -1,3 +1,10 @@
+/*
+ * These tests check how roster uploads handle student details, team names, and
+ * incomplete rows.
+ *
+ * TLDR: sends temporary CSV files through the upload controller with mocked
+ * database operations.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';

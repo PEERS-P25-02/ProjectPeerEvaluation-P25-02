@@ -1,3 +1,7 @@
+// These tests cover viewing and changing the flagged-word settings.
+// TLDR: mock the settings API and verify the page reflects saved values and request
+//       failures.
+
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';

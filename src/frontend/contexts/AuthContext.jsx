@@ -6,7 +6,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    // Replace with real auth logic (e.g., check localStorage or API)
+    // Restore a saved session; discard malformed JSON so it cannot break app startup.
     const storedUser = localStorage.getItem('user');
     if (!storedUser) return;
 

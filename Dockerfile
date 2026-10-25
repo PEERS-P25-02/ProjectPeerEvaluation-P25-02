@@ -1,8 +1,14 @@
+# This file prepares the browser app for a web server. It supports a local
+# API proxy in Compose and a separately configured API address in deployments.
+#
+# TLDR: builds the Vite files in Node, then copies them into an Nginx image.
+# VITE_API_BASE_URL is embedded in the browser bundle at build time.
 FROM node:24.22.0-bookworm-slim AS build
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+# Install from the lockfile before copying source so source edits can reuse this layer.
 RUN npm ci
 
 COPY . .
@@ -10,6 +16,7 @@ COPY . .
 ARG VITE_API_BASE_URL=""
 RUN VITE_API_BASE_URL="$VITE_API_BASE_URL" npm run build
 
+# Only the compiled site and its Nginx config are needed in the serving image.
 FROM nginx:1.28.0-alpine
 
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf

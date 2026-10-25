@@ -1,3 +1,10 @@
+/*
+ * These tests check how requests with valid or missing information are handled
+ * by the API.
+ *
+ * TLDR: checks controller contracts with mocked persistence for login, course,
+ * team, student, and report requests.
+ */
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';

@@ -1,3 +1,7 @@
+// These tests cover evaluation invitations, progress, reminders, and resets.
+// TLDR: check returned results and saved records so course and team operations
+//       cannot affect unrelated students.
+
 import { describe, expect, it } from 'vitest';
 import { jsonRequest, useIntegrationFixture, waitForMessages } from './api.js';
 import { mailpitRequest } from './fixtures.js';
@@ -8,6 +12,7 @@ const base = () => `/api/courses/${state.fixture.course.id}`;
 const request = (method, suffix, body) =>
   jsonRequest(method, `${base()}${suffix}`, body, state.token);
 
+// Compare full persisted records around rejected/read-only operations, including indirect changes.
 async function snapshot() {
   const { Student, Evaluation } = state.context.models;
   return normalized(

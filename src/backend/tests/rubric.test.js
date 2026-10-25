@@ -1,3 +1,9 @@
+/*
+ * These tests check that the evaluation criteria, score descriptions, and
+ * feedback rules stay consistent.
+ *
+ * TLDR: verifies the rubric configuration without starting the application.
+ */
 import { describe, expect, it } from 'vitest';
 import rubric from '../config/rubric.js';
 

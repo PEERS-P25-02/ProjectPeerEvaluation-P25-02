@@ -1,3 +1,10 @@
+/*
+ * These tests check that course, student, team, and evaluation records follow
+ * the project's data rules.
+ *
+ * TLDR: validates Mongoose schemas directly, without a database connection or
+ * saved records.
+ */
 import { describe, expect, it } from 'vitest';
 import Course from '../models/Course.js';
 import Evaluation from '../models/Evaluation.js';

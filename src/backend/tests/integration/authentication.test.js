@@ -1,3 +1,7 @@
+// These tests cover professor sign-in with a saved account.
+// TLDR: send requests through the app and check token identity, last-login updates,
+//       and rejected credentials.
+
 import { describe, expect, it } from 'vitest';
 import { jsonRequest, useIntegrationFixture } from './api.js';
 import { fixtureAccount } from './fixtures.js';

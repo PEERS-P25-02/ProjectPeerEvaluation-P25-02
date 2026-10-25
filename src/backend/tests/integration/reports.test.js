@@ -1,3 +1,7 @@
+// These tests check course and team reports built from saved evaluations.
+// TLDR: compare results with synthetic expectations and database snapshots to
+//       confirm reports do not change records.
+
 import { beforeEach, describe, expect, it } from 'vitest';
 import { apiRequest, jsonRequest, useIntegrationFixture } from './api.js';
 
@@ -16,6 +20,7 @@ const rating = (score, participation) => ({
   participation,
 });
 
+// Report endpoints should derive output without inserting or modifying application records.
 async function databaseSnapshot() {
   const data = {};
   for (const [name, model] of Object.entries(state.context.models)) {
