@@ -378,6 +378,7 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
           PUSH_AFTER_SHA: ${{ github.event.after }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           all_zero_sha=0000000000000000000000000000000000000000
 
@@ -387,7 +388,16 @@ jobs:
           elif [[ "$EVENT_NAME" == push ]]; then
             head_sha="$PUSH_AFTER_SHA"
             if [[ "$PUSH_BEFORE_SHA" == "$all_zero_sha" ]]; then
-              base_sha=""
+              # A new branch scans commits introduced since the repository default branch.
+              default_ref="refs/remotes/origin/$DEFAULT_BRANCH"
+              if [[ -z "$DEFAULT_BRANCH" ]] || ! git check-ref-format "$default_ref" >/dev/null 2>&1; then
+                echo "Repository default branch is missing or invalid" >&2
+                exit 1
+              fi
+              base_sha="$(git rev-parse --verify "$default_ref^{commit}" 2>/dev/null)" || {
+                echo "Repository default branch ref is unavailable: $default_ref" >&2
+                exit 1
+              }
             else
               base_sha="$PUSH_BEFORE_SHA"
             fi
@@ -396,10 +406,7 @@ jobs:
             exit 1
           fi
 
-          shas=("$head_sha")
-          if [[ -n "$base_sha" ]]; then
-            shas+=("$base_sha")
-          fi
+          shas=("$base_sha" "$head_sha")
           for sha in "${shas[@]}"; do
             if [[ ! "$sha" =~ ^[0-9a-fA-F]{40,64}$ ]] || ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
               echo "Event commit is missing or invalid: $sha" >&2
@@ -407,12 +414,7 @@ jobs:
             fi
           done
 
-          # New branches have no before SHA, so scan all history reachable from the head.
-          if [[ -z "$base_sha" ]]; then
-            log_opts="$head_sha --full-history -m"
-          else
-            log_opts="$base_sha..$head_sha --full-history -m"
-          fi
+          log_opts="$base_sha..$head_sha --full-history -m"
 
           docker run --rm --user "$(id -u):$(id -g)" \
             --volume "$GITHUB_WORKSPACE:/repo:ro" \
