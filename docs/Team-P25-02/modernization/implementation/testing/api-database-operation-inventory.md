@@ -11,9 +11,12 @@ MongoDB document ID; the student-report route instead uses the business ID.
 Suite paths are under `src/backend/tests/integration/`. Each suite exercises
 actual HTTP and independently queries MongoDB. Cases, recorded results, and
 limitations are in the [integration test guide](api-database-integration.md).
-The suites contain 69 application cases for these operations plus four
-environment checks. The October 24, 2026 record reports two complete 73-test
-runs with cleanup verified; these are historical verification results.
+The original suites contained 69 application cases for these operations plus
+four environment checks. Later authentication/authorization and email suites
+bring the recorded total to 176 tests in 12 files (73 original + 96
+authentication/authorization + 7 email). Two full runs and focused/concurrent
+email runs are recorded in the linked integration reports; this inventory's
+count is not a fresh execution claim.
 
 ## Professor authentication (1)
 
@@ -114,6 +117,8 @@ placeholders, health/logout, and unmounted duplicate routers. The rubric is
 static configuration with no mounted database CRUD API. Reports are derived in
 memory; these operations do not save Report documents.
 
-Operation coverage does not establish complete validation, resource ownership,
-failure atomicity, concurrency safety, browser navigation, or SMTP failure
-handling. Those limits remain explicit in the test guide.
+Operation coverage does not establish complete validation, failure atomicity,
+concurrency safety, or browser navigation. Dedicated suites now exercise
+professor ownership and child-resource isolation, invitation-link shape, and
+deterministic SMTP rejection/retry; captured SMTP still does not establish
+external delivery. See the integration guide for remaining limitations.

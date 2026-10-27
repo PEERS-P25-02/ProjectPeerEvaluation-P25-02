@@ -1,9 +1,14 @@
 # Backend API and Database Integration Tests
 
 The integration suite covers all [36 inventoried operations](api-database-operation-inventory.md)
-through actual HTTP requests and MongoDB persistence. The implementation
-contains the integration environment, eight application suites, and four
-application repairs described in this record. The latest detailed verification preserved here is dated October 24, 2026.
+through actual HTTP requests and MongoDB persistence. The current recorded
+suite contains 12 files and 176 tests: the original 73, 96 authentication and
+authorization cases, and seven email integration cases. The implementation
+contains the integration environment, eleven application suites, and four
+application repairs described in this record. The detailed course and database
+verification below preserves the October 24, 2026 snapshot; later full-suite
+and focused email results are recorded separately below and in
+[email integration](email-integration.md).
 
 ## 1. Testing Strategy
 
@@ -214,10 +219,11 @@ course submission document was updated.
 
 ## 4. Expanded Verification and Review
 
-The implementation contains eight application suites for all 36 inventoried
-operations. Plans above precede execution; operation IDs are included in test
-titles. This is selected scenario coverage for every inventoried operation,
-not exhaustive verification of every input or failure path.
+The initial implementation record covered eight application suites for all 36
+inventoried operations. Plans above precede execution; operation IDs are
+included in test titles. This is selected scenario coverage for every
+inventoried operation, not exhaustive verification of every input or failure
+path.
 
 | Section | Operations | Application tests | Suite |
 | --- | --- | --- | --- |
@@ -247,7 +253,20 @@ assertions after repair. See BUG-005–008 in [Known Bugs](../../../known-bugs.m
 cardinality, foreign-course exclusion from completion totals, and course-filter
 and read-only assertions. No new dependencies or configuration were added.
 
+### Current Recorded Integration Results — October 26, 2026
+
+Two complete local integration runs passed 176 tests in 12 files: the original
+73, 96 authentication/authorization cases, and seven email cases. Both runs
+verified cleanup. The focused and concurrent email runs are recorded in
+[email integration](email-integration.md). Current source review confirms
+dedicated assertions for invitation-link shape and SMTP rejection/retry,
+professor ownership, and student-recipient authorization. This documentation
+update did not rerun those suites. These local results do not establish hosted
+CI execution.
+
 ### Recorded Full-Suite Results — October 24, 2026
+
+These dated results are an earlier snapshot.
 
 | Check | Actual result |
 | --- | --- |
@@ -275,19 +294,26 @@ performed for the expanded backend change.
   cover professor ownership, credential rejection, child-resource isolation,
   and student-recipient permissions; consult that record for execution results
   and remaining access-control limits.
-- Captured SMTP establishes actual recipients/token association, not provider
-  delivery, browser-reachable links or controlled SMTP failures. These behaviors remain unverified;
-  known reset-link/frontend response defects remain BUG-001/002.
+- Captured SMTP establishes recipients, token association, invitation link
+  shape, and deterministic rejection/retry behavior, not provider delivery or
+  browser navigation. Known account-recovery defects remain separate concerns.
 - Self/foreign recipients are addressed in the access-control record above.
-  Later-entry rating/feedback failures, concurrency,
+  Duplicate recipients, later-entry rating/feedback failures, concurrency,
   token uniqueness/security, deadline enforcement and database outages remain
   unverified integrity concerns. Rejecting an invalid first entry does not prove
   submission atomicity.
-- Evaluation reset clears tokens/records; its cached completion-flag lifecycle
-  remains a gap. Token existence does not establish successful SMTP delivery.
+- Evaluation reset clears tokens/records and is tested to invalidate the old
+  student capability. Cached completion flags and the complete reset/relaunch
+  lifecycle remain verification gaps. The status endpoint still reports `evaluations_sent: true`
+  when at least one student has recorded SMTP acceptance; partial-roster
+  acceptance and its aggregate status are not fully covered. Token existence
+  does not establish successful SMTP delivery.
 - Roster reassignment/reimport variations, malformed streams/filesystem failures,
   arbitrary CSV escaping, every grading boundary, and unrestricted update-field
-  validation are outside these bounded cases.
-- Browser/end-to-end behavior, service-backed CI, and the unavailable
+  variants outside the fields specifically protected by authorization tests
+  are outside these bounded cases. Protected ownership and operator-field
+  handling on selected updates is covered in the
+  [authorization integration record](authentication-authorization-integration.md).
+- Browser navigation/end-to-end behavior, service-backed CI, and the unavailable
   separate shared SWE4724 Test Document remain separate work. No requirement text
   or historical implementation assessment is rewritten to match current code.
