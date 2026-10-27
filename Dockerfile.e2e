@@ -1,0 +1,11 @@
+# Keep this image version equal to the exact @playwright/test package version.
+# The official image supplies Chromium and its operating-system dependencies.
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY playwright.config.cjs ./
+COPY tests/e2e ./tests/e2e
+CMD ["node", "node_modules/@playwright/test/cli.js", "test"]
