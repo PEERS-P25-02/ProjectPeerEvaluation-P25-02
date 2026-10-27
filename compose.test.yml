@@ -48,6 +48,9 @@ services:
   mailpit:
     image: axllent/mailpit:v1.27.4
     # Mailpit's default inbox is disposable; forwarding and relay stay disabled.
+    environment:
+      # Enable runtime SMTP failure injection for tests; triggers start at 0%.
+      MP_ENABLE_CHAOS: 'true'
     healthcheck:
       test: [CMD, /mailpit, readyz]
       interval: 2s

@@ -651,7 +651,7 @@ describe('CourseManagement', () => {
     renderCourseManagement();
     const dialog = await openEvaluationStatus(user);
     expect(
-      await within(dialog).findByText('Evaluations Have Not Been Sent'),
+      await within(dialog).findByText('No Sent Invitations Recorded'),
     ).toBeInTheDocument();
     await user.click(
       within(dialog).getByRole('button', { name: 'Send Evaluations Now' }),

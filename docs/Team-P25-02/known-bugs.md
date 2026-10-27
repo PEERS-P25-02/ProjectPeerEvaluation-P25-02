@@ -103,3 +103,27 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Fix: Validate the complete recipient set against the token holder's eligible peer set before saving any evaluations. Teamless students retain the supported same-course peer eligibility rule.
 - Verification: The original backend failed all five recipient-denial cases. The repaired backend passed those cases, the mixed-recipient no-write check, and the allowed teamless submission in both final full-suite runs.
 - Evidence: [Authentication and authorization integration record](modernization/implementation/testing/authentication-authorization-integration.md).
+
+## BUG-013: Invitation email links omit the frontend hash route
+
+- Status: Fixed and covered by captured-email integration tests.
+- Previous behavior: Invitation emails used `/evaluate/<token>`, while the frontend routes evaluations through `/#/evaluate/<token>`.
+- Fix: Build the invitation URL with the evaluation route in its hash, preserving the configured frontend pathname. The clickable link and fallback text use the same URL.
+- Verification: Both original-backend content cases failed on the missing hash route. The repaired cases check the captured URL and resolve its token to the intended student/course through the real API. Actual browser navigation remains an E2E target.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## BUG-014: Failed invitation sends are reported as successful
+
+- Status: Fixed and covered by real SMTP rejection tests.
+- Previous behavior: Course and team invitation endpoints returned HTTP 200 and a success message even when Mailpit rejected every attempted message; frontend handlers treat successful HTTP responses as successful sends.
+- Fix: Return HTTP 502 when any intended send fails, retaining accepted/failed counts and recipient details. Fully successful batches continue to return HTTP 200.
+- Verification: Four original-backend cases failed when actual Mailpit sender/recipient rejection produced HTTP 200. The repaired cases require truthful failure responses, no captured rejected messages, restored SMTP, and successful retry with retained tokens.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## BUG-015: Generated tokens are mistaken for successful invitation sends
+
+- Status: Fixed and covered by SMTP, status, reset, and roster tests.
+- Previous behavior: Tokens were stored before SMTP was attempted, and their existence made evaluation status claim invitations were sent even after rejection.
+- Fix: Record `invitation_accepted_at` only after SMTP acceptance and only for the token actually emailed. Status requires recorded acceptance; a failed resend preserves prior acceptance. Evaluation reset and roster replacement clear the marker with the token. Existing tokens are not assigned guessed acceptance history.
+- Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).

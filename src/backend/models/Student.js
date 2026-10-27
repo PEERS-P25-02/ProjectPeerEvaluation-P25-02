@@ -12,6 +12,7 @@ const StudentSchema = new mongoose.Schema({
   team_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', default: null }, // Reference to actual Team
   group_assignment: { type: String, trim: true, default: null }, // Group name from CSV (used to create/find team)
   evaluation_token: { type: String, default: null }, // Unique token for evaluation links (set when evaluations are sent)
+  invitation_accepted_at: { type: Date }, // SMTP server accepted the invitation; delivery is not guaranteed
   evaluation_completed: { type: Boolean, default: false },
   created_at: { type: Date, default: Date.now },
 });
