@@ -142,7 +142,14 @@ exports.listStudents = async (req, res, next) => {
 exports.updateStudent = async (req, res, next) => {
   try {
     const { course_id, student_id } = req.params;
-    const updates = req.body;
+    // Keep course, team, and evaluation state server controlled; team_id is derived below.
+    const editableFields = ['student_id', 'name', 'email', 'group_assignment'];
+    const body = req.body || {};
+    const updates = Object.fromEntries(
+      editableFields
+        .filter((field) => Object.hasOwn(body, field))
+        .map((field) => [field, body[field]]),
+    );
     if (!mongoose.Types.ObjectId.isValid(student_id)) {
       const err = new Error('Invalid student ID.');
       err.code = 'VALIDATION_ERROR';

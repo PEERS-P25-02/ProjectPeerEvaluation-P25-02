@@ -270,12 +270,16 @@ performed for the expanded backend change.
 
 ### Remaining Limits
 
-- Resource ownership and broader authorization remain unverified; current course-scoped
-  sentinel checks do not establish cross-professor access control.
+- The original course-scoped sentinel checks do not establish cross-professor
+  access control. The subsequent [authentication and authorization tests](authentication-authorization-integration.md)
+  cover professor ownership, credential rejection, child-resource isolation,
+  and student-recipient permissions; consult that record for execution results
+  and remaining access-control limits.
 - Captured SMTP establishes actual recipients/token association, not provider
   delivery, browser-reachable links or controlled SMTP failures. These behaviors remain unverified;
   known reset-link/frontend response defects remain BUG-001/002.
-- Self/foreign evaluation recipients, later-entry partial writes, concurrency,
+- Self/foreign recipients are addressed in the access-control record above.
+  Later-entry rating/feedback failures, concurrency,
   token uniqueness/security, deadline enforcement and database outages remain
   unverified integrity concerns. Rejecting an invalid first entry does not prove
   submission atomicity.

@@ -419,6 +419,7 @@ exports.getEvaluationForm = async (req, res, next) => {
     let teammates = [];
     if (student.team_id) {
       teammates = await Student.find({
+        course_id: student.course_id._id,
         team_id: student.team_id._id,
         _id: { $ne: student._id }, // Exclude self
       }).select('_id name student_id');
@@ -499,6 +500,27 @@ exports.submitEvaluation = async (req, res, next) => {
       evaluations.length === 0
     ) {
       const err = new Error('Evaluations array is required.');
+      err.code = 'VALIDATION_ERROR';
+      err.status = 400;
+      return next(err);
+    }
+
+    // A link authorizes feedback only for the peers shown on its form. Check
+    // every recipient before saving so a later forbidden entry cannot leave writes.
+    const eligiblePeers = await Student.find({
+      course_id: student.course_id._id,
+      ...(student.team_id ? { team_id: student.team_id } : {}),
+      _id: { $ne: student._id },
+    }).select('_id');
+    const eligibleIds = new Set(
+      eligiblePeers.map((peer) => peer._id.toString()),
+    );
+    if (
+      evaluations.some(
+        (entry) => !entry || !eligibleIds.has(String(entry.student_id)),
+      )
+    ) {
+      const err = new Error('Evaluation recipient is not an eligible peer.');
       err.code = 'VALIDATION_ERROR';
       err.status = 400;
       return next(err);
