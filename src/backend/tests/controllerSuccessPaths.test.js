@@ -407,6 +407,8 @@ describe('evaluation controller success paths', () => {
     student_id: 'S1',
     email: 'one@example.com',
     evaluation_token: 'token',
+    // This mock represents an invitation previously accepted by the SMTP server.
+    invitation_accepted_at: new Date('2026-01-01T00:00:00.000Z'),
     course_id: courseId,
     team_id: null,
   };
@@ -424,6 +426,7 @@ describe('evaluation controller success paths', () => {
       .mockReturnValue([student]);
     vi.spyOn(Team, 'findById').mockResolvedValue({ course_id: courseId });
     vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
+    vi.spyOn(Student, 'findOneAndUpdate').mockResolvedValue(student);
     vi.spyOn(Evaluation, 'find').mockReturnValue({
       distinct: vi.fn().mockResolvedValue([]),
     });
@@ -461,6 +464,55 @@ describe('evaluation controller success paths', () => {
       expect.objectContaining({ reminders_sent: 1, total_reminded: 1 }),
     );
   });
+
+  it.each(['course', 'team'])(
+    'does not count a %s invitation when the token-matched acceptance update fails',
+    async (scope) => {
+      vi.spyOn(Course, 'findById').mockResolvedValue(course);
+      vi.spyOn(Student, 'find').mockImplementation(() =>
+        scope === 'course'
+          ? { populate: vi.fn().mockResolvedValue([student]) }
+          : Promise.resolve([student]),
+      );
+      vi.spyOn(Team, 'findById').mockResolvedValue({ course_id: courseId });
+      vi.spyOn(Student, 'findOneAndUpdate').mockResolvedValue(null);
+
+      const res = response();
+      const handler =
+        scope === 'course'
+          ? evaluationController.sendEvaluations
+          : evaluationController.sendTeamEvaluations;
+      await handler(
+        {
+          params: {
+            course_id: courseId.toString(),
+            team_id: id().toString(),
+          },
+          body: {},
+        },
+        res,
+        vi.fn(),
+      );
+
+      expect(Student.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: student._id, evaluation_token: student.evaluation_token },
+        { invitation_accepted_at: expect.any(Date) },
+        { new: true },
+      );
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          emails_sent: 0,
+          total_students: 1,
+          failed: [
+            expect.stringContaining(
+              'Evaluation access changed while sending invitation.',
+            ),
+          ],
+        }),
+      );
+    },
+  );
 
   it('gets forms, token status, submits evaluations, and reports status', async () => {
     const populated = {

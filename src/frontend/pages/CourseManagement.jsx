@@ -3317,7 +3317,7 @@ function CourseManagement() {
               {!evaluationStatus.evaluations_sent ? (
                 <Alert severity="info" sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="h6" gutterBottom>
-                    Evaluations Have Not Been Sent
+                    No Sent Invitations Recorded
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
                     Send evaluations to students to begin tracking completion
@@ -3639,7 +3639,7 @@ function CourseManagement() {
               {!testEvaluationData.evaluations_sent ? (
                 <Alert severity="info" sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="h6" gutterBottom>
-                    Evaluations Have Not Been Sent
+                    No Sent Invitations Recorded
                   </Typography>
                   <Typography variant="body1">
                     You must send evaluations to students before you can test

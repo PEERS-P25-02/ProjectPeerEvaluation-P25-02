@@ -61,6 +61,7 @@ These project documents describe existing test implementations, evidence, and li
 - [Backend unit testing implementation](../modernization/implementation/testing/backend-unit-testing.md)
 - [CI build, lint, and unit verification](../modernization/implementation/continuous-integration.md)
 - [Integration test environment](../modernization/implementation/testing/integration-test-environment.md)
+- [Evaluation invitation email integration](../modernization/implementation/testing/email-integration.md)
 - [API and database integration](../modernization/implementation/testing/api-database-integration.md)
 - [Authentication and authorization integration](../modernization/implementation/testing/authentication-authorization-integration.md)
 - [API/database operation inventory](../modernization/implementation/testing/api-database-operation-inventory.md)

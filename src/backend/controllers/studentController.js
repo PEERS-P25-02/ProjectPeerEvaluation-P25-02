@@ -505,7 +505,7 @@ exports.uploadRoster = async (req, res, next) => {
           // Clear evaluation tokens from all existing students in this course
           await Student.updateMany(
             { course_id: courseObjectId },
-            { $unset: { evaluation_token: 1 } },
+            { $unset: { evaluation_token: 1, invitation_accepted_at: 1 } },
           );
 
           // Clear all evaluation records for this course
@@ -863,7 +863,7 @@ exports.resetEvaluationState = async (req, res, next) => {
     // Clear evaluation tokens from all students in this course
     const tokenUpdateResult = await Student.updateMany(
       { course_id: courseObjectId },
-      { $unset: { evaluation_token: 1 } },
+      { $unset: { evaluation_token: 1, invitation_accepted_at: 1 } },
     );
 
     // Clear all evaluation records for this course

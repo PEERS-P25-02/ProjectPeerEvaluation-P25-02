@@ -43,6 +43,7 @@ async function foreignFixture() {
     course_id: course._id,
     team_id: team._id,
     evaluation_token: 'unrelated-evaluation-token',
+    invitation_accepted_at: new Date('2026-01-01T00:00:00.000Z'),
   });
   return { course, team, student };
 }
@@ -69,8 +70,10 @@ async function evaluationFor(course, evaluator, recipient) {
 async function assignTokens() {
   const { Student } = state.context.models;
   for (const [index, student] of state.fixture.students.entries()) {
+    // These fixtures represent invitations previously accepted by the SMTP server.
     await Student.findByIdAndUpdate(student._id, {
       evaluation_token: `fixture-evaluation-token-${index}`,
+      invitation_accepted_at: new Date('2026-01-01T00:00:00.000Z'),
     });
   }
 }
@@ -146,6 +149,11 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
     await state.context.models.Student.findByIdAndUpdate(first._id, {
       evaluation_token: 'existing-fixture-token',
     });
+    const legacyStatus = await request('GET', '/evaluations/status');
+    expect(legacyStatus.body).toMatchObject({
+      total_count: 0,
+      evaluations_sent: false,
+    });
     const result = await request('POST', '/evaluations/send', {});
     expect(result.status).toBe(200);
     expect(result.body).toMatchObject({
@@ -162,6 +170,10 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
       stored.find((student) => String(student._id) === first.id)
         .evaluation_token,
     ).toBe('existing-fixture-token');
+    expect(
+      stored.find((student) => String(student._id) === first.id)
+        .invitation_accepted_at,
+    ).toBeInstanceOf(Date);
     const messages = await capturedContents(2);
     expect(messages.map((message) => message.recipient).sort()).toEqual(
       stored.map((student) => student.email).sort(),
@@ -256,6 +268,7 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
       completed: true,
       last_activity: evaluation.submitted_at.toISOString(),
       evaluation_token: 'fixture-evaluation-token-0',
+      invitation_accepted_at: '2026-01-01T00:00:00.000Z',
     });
     expect(
       result.body.students.find(
@@ -267,6 +280,7 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
       completed: false,
       last_activity: null,
       evaluation_token: 'fixture-evaluation-token-1',
+      invitation_accepted_at: '2026-01-01T00:00:00.000Z',
     });
     expect(await snapshot()).toEqual(before);
   });
@@ -351,7 +365,11 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
     });
     // Reset's bounded contract clears tokens/records; completion-flag lifecycle is deferred.
     const expected = selectedBefore.map(
-      ({ evaluation_token: _token, ...student }) => student,
+      ({
+        evaluation_token: _token,
+        invitation_accepted_at: _acceptedAt,
+        ...student
+      }) => student,
     );
     expect(
       await Student.find({ course_id: state.fixture.course._id })
@@ -361,6 +379,12 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
     expect(
       await Evaluation.countDocuments({ course_id: state.fixture.course._id }),
     ).toBe(0);
+    const status = await request('GET', '/evaluations/status');
+    expect(status.status).toBe(200);
+    expect(status.body).toMatchObject({
+      total_count: 0,
+      evaluations_sent: false,
+    });
     const foreignAfter = await snapshot();
     expect(
       foreignAfter[0].filter(
