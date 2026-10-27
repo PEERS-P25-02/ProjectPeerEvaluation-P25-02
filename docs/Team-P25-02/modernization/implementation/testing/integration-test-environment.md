@@ -137,8 +137,10 @@ changes.
 - SIGKILL/daemon failure recovery and interruption during an image build have
   not been exercised. Automatic cleanup requires a functioning Docker daemon.
 - The four environment cases do not establish complete authentication, CSV,
-  evaluation, reporting, or email-content correctness. Detailed email assertions
-  remain separate; known reset-page/link defects remain open.
+  evaluation, reporting, or email-content correctness. The later invitation
+  suite checks message content/link shape and deterministic SMTP rejection and
+  retry; it does not establish browser navigation or external delivery. Account
+  recovery remains separately tested, with known recovery defects still open.
 
 This is a repository Test Document record. The separate shared SWE4724
 Test Document/template was not present in the reviewed checkout, so this record

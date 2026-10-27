@@ -27,11 +27,11 @@ npm --prefix src/backend run test:coverage
 npm run test:all:coverage
 ```
 
-Coverage reports are written to `coverage/` and `src/backend/coverage/`. CI uploads coverage as workflow artifacts. Coverage is informational; no minimum threshold is enforced.
+Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server. CI uploads coverage as workflow artifacts. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred until the end-to-end suite is implemented.
 
 ## Isolated backend integration environment
 
-The implemented integration command requires Docker and Compose:
+The implemented integration command requires Docker and Compose, with Docker already running:
 
 ```bash
 npm run test:integration
@@ -39,7 +39,16 @@ npm run test:integration
 
 The runner starts a backend with disposable MongoDB and Mailpit services, generates isolated settings rather than reading the development `.env`, runs the backend integration suite, saves logs and a result summary under the ignored `test-results/integration/` directory, and cleans up its Compose project and volumes after success, failure, or a handled interrupt. It publishes no host ports. If Docker or the computer stops unexpectedly, inspect for leftover Compose resources before retrying.
 
-The current checks cover readiness, API/database communication, SMTP capture, and fixture reset. They do not start the frontend or test every application workflow. Broader regression and end-to-end coverage remains planned.
+The suite contains 176 tests in 12 files: four environment checks, 69 original API/database cases, 96 authentication/authorization cases, and seven invitation-email cases. It exercises stored course, roster, team, evaluation, and report state; professor ownership and student-recipient access; and actual SMTP content, links, rejection, and recovery through Mailpit. The [API/database record](../modernization/implementation/testing/api-database-integration.md) and [email record](../modernization/implementation/testing/email-integration.md) retain dated passing results and verified cleanup; these are recorded outcomes, not a new execution claim.
+
+Run focused groups through the same isolated runner:
+
+```bash
+npm run test:integration -- authentication.test.js authenticationAccess.test.js authorization.test.js
+npm run test:integration -- emailIntegration.test.js evaluationManagement.test.js
+```
+
+These tests do not start the frontend or establish complete browser journeys, external email delivery, or exhaustive failure handling. Integration execution is not yet part of the CI workflow. Use the [regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md) to distinguish existing assertions from incomplete and missing scenarios; keep the stable regression matrix's expected outcomes unchanged.
 
 ## Linting and formatting
 

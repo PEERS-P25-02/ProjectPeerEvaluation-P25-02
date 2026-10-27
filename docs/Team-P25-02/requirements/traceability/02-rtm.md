@@ -1,5 +1,7 @@
 # RTM
 
+The recorded October 26, 2026 local integration results are two full runs passing 176 tests in 12 files with cleanup verified. This is historical execution evidence for the documented application and test sources; no tests were run for this documentation update. It is not browser E2E, hosted integration CI, external email delivery, or code-coverage evidence. See the [API/database integration record](../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review), [authentication and authorization record](../../modernization/implementation/testing/authentication-authorization-integration.md), and [email integration record](../../modernization/implementation/testing/email-integration.md).
+
 <table>
 <tr>
 <td>Requirement ID</td>
@@ -24,12 +26,12 @@
 <td>Client</td>
 <td>Authentication / Authorization</td>
 <td><a href="../../../../src/backend/middleware/auth.js">Authentication middleware</a>; <a href="../../../../src/backend/tests/auth.test.js">Backend authentication test</a></td>
-<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015; UNIT-FE-001; OP-33-01; OP-33-34 through OP-33-36</td>
+<td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015; UNIT-FE-001; OP-33-01; OP-33-34 through OP-33-36; REG-CW01-06</td>
 <td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/unit-testing.md#initial-test-results">Initial recorded results</a>; <a href="../../modernization/implementation/testing/frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>The integration suites include four login cases and eight account-support cases with independent MongoDB and captured SMTP checks. The October 24, 2026 recorded full suite passed 73 tests twice with cleanup verified. Cross-resource ownership remains unverified.</td>
+<td>Four persisted-login and eight account-support integration cases are recorded. Credential-boundary and protected-route assertions are covered by the authentication/authorization suite. Browser login and navigation remain unverified; see the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-02</td>
@@ -39,12 +41,12 @@
 <td>Client</td>
 <td>Course Management</td>
 <td><a href="../../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../../src/backend/models/Course.js">Course model</a></td>
-<td>UNIT-BE-004; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015; API-33-01 through API-33-07; OP-33-02 through OP-33-06</td>
+<td>UNIT-BE-004; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015; API-33-01 through API-33-07; OP-33-02 through OP-33-06; REG-CW02-01; REG-CW02-04; REG-CW02-05; REG-CW02-06; REG-CW02-07</td>
 <td>Unit Test + Integration Test + Functional Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md">API/database cases and results</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Seven course cases cover create, read, filter, update, deactivate, reactivate, and rejected writes. The October 24, 2026 recorded full suite passed 73 tests twice with cleanup verified. Authorization remains unverified.</td>
+<td>Seven course integration cases cover create, read/filter, update, deactivate/reactivate, and rejected writes. Authorization tests cover cross-professor boundaries. Complete browser workflows and partial targets remain open; see the <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-03</td>
@@ -54,12 +56,12 @@
 <td>Client</td>
 <td>Roster Management / CSV Processing</td>
 <td><a href="../../../../src/backend/controllers/courseController.js">Course controller</a>; <a href="../../../../src/backend/controllers/studentController.js">CSV roster parsing</a></td>
-<td>UNIT-BE-004; UNIT-BE-005; UNIT-BE-007; UNIT-BE-008; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-07 through OP-33-13</td>
+<td>UNIT-BE-004; UNIT-BE-005; UNIT-BE-007; UNIT-BE-008; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-07 through OP-33-13; REG-CW03-01; REG-CW03-02; REG-CW03-04; REG-CW03-05; REG-CW03-07 through REG-CW03-10</td>
 <td>Unit Test + Integration Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Twelve roster cases cover multipart CSV, normalized persistence, team relationships, scoped evaluation cleanup, and rejected writes. The recorded full suite passed 73 tests twice. Malformed streams and failure atomicity remain gaps.</td>
+<td>Twelve roster cases cover multipart import, persistence/relationships, edits, deletes, clearing, and rejected writes. A foreign-professor upload denial is covered. Malformed-row outcomes and processing failure after valid rows remain gaps (REG-CW03-03 and REG-CW03-06); manual student creation is partial (REG-CW03-11). See the <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-04</td>
@@ -69,12 +71,12 @@
 <td>Client</td>
 <td>Team Management</td>
 <td><a href="../../../../src/backend/controllers/teamController.js">Team controller</a>; <a href="../../../../src/backend/models/Team.js">Team model</a></td>
-<td>UNIT-BE-004; UNIT-BE-006; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015; OP-33-14 through OP-33-20</td>
+<td>UNIT-BE-004; UNIT-BE-006; UNIT-BE-009; UNIT-BE-010; UNIT-BE-014; UNIT-BE-015; OP-33-14 through OP-33-20; REG-CW04-02 through REG-CW04-09; REG-CW04-11</td>
 <td>Unit Test + Integration Test + Functional Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Thirteen team cases cover CRUD, membership moves/removal, counts, constraints, and course isolation. The recorded full suite passed 73 tests twice. Cross-resource ownership and concurrency remain gaps.</td>
+<td>Thirteen team integration cases cover CRUD, membership changes, counts, constraints, and course isolation. Cross-course child-resource denial is covered by authorization tests. Complete browser organization flow and partial targets remain open; see the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-05</td>
@@ -84,13 +86,12 @@
 <td>Client</td>
 <td>Evaluation Management / Distribution</td>
 <td><a href="../../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-21 through OP-33-25</td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-21 through OP-33-25; REG-CW05-03; REG-CW05-06; REG-CW05-10</td>
 <td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Eight evaluation-management cases cover invitations, completion status, selected/default reminders, and reset using persisted state and captured SMTP. The recorded full suite passed 73 tests twice. Provider delivery, browser behavior, and atomicity remain gaps.</td>
-<td></td>
+<td>Eight evaluation-management cases cover invitations, completion status, reminders, and reset using persisted state and captured SMTP. Cross-professor access and foreign-team invitation denial are covered. Reset/relaunch lifecycle and reset-prompt behavior remain gaps or partial; SMTP acceptance is not external delivery. See the <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-06</td>
@@ -100,12 +101,12 @@
 <td>Client</td>
 <td>Evaluation Management / Token Generation</td>
 <td><a href="../../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-014; UNIT-BE-015; OP-33-21; OP-33-22; OP-33-26 through OP-33-28</td>
+<td>UNIT-BE-014; UNIT-BE-015; OP-33-21; OP-33-22; OP-33-26 through OP-33-28; REG-CW06-02; REG-CW07-01; REG-CW07-02</td>
 <td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Student-evaluation cases check token association, public form access, submission, and stored completion. The recorded full suite passed 73 tests twice. Token security and browser-reachable links remain unverified.</td>
+<td>Student-evaluation and email cases check assigned-token association, API context, captured personalized links, and intended recipients. Link resolution uses the real API but does not establish browser navigation. Cross-token denial and token security remain unverified; see the <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-07</td>
@@ -115,12 +116,12 @@
 <td>Client</td>
 <td>Evaluation Management / Email Service</td>
 <td><a href="../../../../src/backend/controllers/evaluationController.js">Evaluation controller</a>; <a href="../../../../src/backend/utils/emailUtils.js">Email utilities</a></td>
-<td>UNIT-BE-014; OP-33-21; OP-33-22; OP-33-24</td>
+<td>UNIT-BE-014; OP-33-21; OP-33-22; OP-33-24; REG-CW07-01 through REG-CW07-04</td>
 <td>Integration Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Invitation and reminder cases inspect actual Mailpit recipients and stored-token association. The recorded full suite passed 73 tests twice. External delivery, browser links, and controlled transport failures remain unverified.</td>
+<td>Email cases check captured invitation content/links, recipient selection, deterministic SMTP rejection, retry, and acceptance-state handling. Evidence establishes local Mailpit acceptance, not external provider delivery or browser navigation. See the <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a>.</td>
 </tr>
 <tr>
 <td>FR-08</td>
@@ -130,13 +131,12 @@
 <td>Client</td>
 <td>Student Evaluation / Submission</td>
 <td><a href="../../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-014; UNIT-BE-015; OP-33-26 through OP-33-28</td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-014; UNIT-BE-015; OP-33-26 through OP-33-28; REG-CW08-02; REG-CW08-03; REG-CW08-05; REG-CW08-08 through REG-CW08-10; REG-CW08-12; REG-CW08-13</td>
 <td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Ten public API/MongoDB cases cover two-peer persistence, completion, repeated submission, and invalid first-entry rejection. The recorded full suite passed 73 tests twice. Recipient authorization, later partial writes, and concurrency remain gaps.</td>
-<td></td>
+<td>Ten student-evaluation integration cases cover form context, submission/persistence, completion, repeat submission, and invalid requests. Authorization tests also reject self, foreign-course, and different-team recipients before writes. Browser journey, duplicate recipients, concurrency, and later-entry validation remain gaps; partial recipient-atomicity coverage is REG-CW08-07. See the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-09</td>
@@ -151,7 +151,7 @@
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/api-database-integration.md">API/database cases and results</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>The implementation contains integration suites for all 36 inventoried operations: 69 application cases plus four environment checks. The October 24, 2026 record reports two complete 73-test runs in fresh isolated stacks with cleanup verified. These are recorded historical outcomes.</td>
+<td>The API/database suite covers all 36 inventoried operations through HTTP requests and independently queried MongoDB state. Authentication/authorization and email cases add persisted ownership, token, and acceptance-state checks. Browser E2E and exhaustive atomicity are not established; see the <a href="../../modernization/implementation/testing/api-database-integration.md">API/database record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-10</td>
@@ -161,13 +161,12 @@
 <td>Client</td>
 <td>Reporting / Results Management</td>
 <td><a href="../../../../src/backend/controllers/reportController.js">Report controller</a></td>
-<td>UNIT-BE-004; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-29 through OP-33-33</td>
+<td>UNIT-BE-004; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-29 through OP-33-33; REG-CW09-02; REG-CW09-03; REG-CW09-05; REG-CW09-06; REG-CW09-08</td>
 <td>Unit Test + Integration Test + Functional Test</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Seven reporting cases cover mean and curved reports, CSV content, individual/team selection, the generate alias, and no-write behavior. The recorded full suite passed 73 tests twice. Ownership, CSV edge cases, and grading-boundary sweeps remain gaps.</td>
-<td></td>
+<td>Seven report integration cases cover mean/curved reports, CSV content, individual/team selection, the generate alias, and no-write behavior. Authorization tests check foreign-professor report access. Complete browser review, CSV edge cases, and grading-boundary sweeps remain gaps; see the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-11</td>
@@ -236,13 +235,13 @@
 <td>High</td>
 <td>Client</td>
 <td>CI Automated Test Execution</td>
-<td></td>
-<td></td>
+<td><a href="../../../../.github/workflows/ci.yml">CI workflow</a>; <a href="../../../../src/backend/tests/integration">API/database integration suites</a></td>
+<td>UNIT-CI-001; UNIT-CI-002; CI-45-03 through CI-45-06</td>
 <td>CI Validation</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Local integration results</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Hosted unit tests and local service-backed integration tests are implemented; the hosted workflow has no integration-test job, so FR-15 remains In Progress. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
 </tr>
 <tr>
 <td>FR-16</td>
@@ -257,7 +256,7 @@
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/unit-testing.md#initial-test-results">Initial recorded results</a>; <a href="../../modernization/implementation/testing/unit-testing.md#verification-after-runtime-alignment">Verification after runtime alignment</a></td>
 <td></td>
-<td>Unit tests and API/database integration suites are implemented; the October 24, 2026 recorded suite passed 73 tests twice with cleanup verified. The implementation uses Vitest while FR-16 specifies Jest. This requirement conflict remains open. UNIT-CI identifiers refer to local command checks, not CI workflow execution.</td>
+<td>The project uses Vitest and React Testing Library rather than the Jest framework named in FR-16; this requirement conflict remains open. See the <a href="../../modernization/implementation/testing/unit-testing.md">unit-testing record</a>. End-to-end verification remains separately tracked under FR-17.</td>
 </tr>
 <tr>
 <td>FR-17</td>

@@ -71,6 +71,11 @@ Docker Engine 29.9.2, and Compose 5.6.1. The two new files add 96 cases:
 48 authentication-boundary cases and 48 resource/capability authorization cases.
 The existing four persisted-login cases remain unchanged.
 
+The [email integration record](email-integration.md) documents later full
+integration runs including these authorization cases, as well as focused and
+concurrent SMTP verification. The results predate this source/documentation
+review; this update did not rerun tests.
+
 | Command or experiment | Actual result |
 | --- | --- |
 | New authorization suite against an isolated copy of the original backend | 40 failed and 8 passed out of 48. This expected nonzero run exposed missing ownership/recipient checks, foreign-team report access, and unprotected request fields; cleanup was verified. |
@@ -85,8 +90,8 @@ captured-email workflows continue to pass. These results do not establish a
 new coverage percentage or a hosted CI integration job.
 
 These checks do not establish browser login/navigation, real invitation-link
-routing, token entropy/uniqueness, MFA, refresh tokens, external email delivery,
-or exhaustive resource permissions outside the covered routes. The legacy
+navigation, token entropy/uniqueness, MFA, refresh tokens, external email
+delivery, or exhaustive resource permissions outside the covered routes. The legacy
 migration and automatic-assignment endpoints receive authentication-boundary
 checks, not functional approval. Existing account-recovery tests remain in the
 full suite; account-support expansion is outside this test scope.
