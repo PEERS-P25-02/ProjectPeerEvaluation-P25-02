@@ -14,6 +14,10 @@
 - [Quality gate policy](requirements/quality-gate-policy.md)
 - [Critical and supporting workflows](requirements/workflows/README.md)
 
+## Validation and testing references
+
+- [Functional regression test matrix](requirements/regression-test-matrix.md) (scenario target catalog)
+
 ## Inherited application baseline
 
 These reports describe the inherited application and environment at assessment time; they are historical findings, not statements of current implementation.
