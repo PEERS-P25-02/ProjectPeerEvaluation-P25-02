@@ -471,7 +471,7 @@ describe('evaluation controller success paths', () => {
     };
     vi.spyOn(Student, 'findOne').mockReturnValue(populated);
     vi.spyOn(Evaluation, 'findOne').mockResolvedValue(null);
-    vi.spyOn(Student, 'find').mockReturnValue({
+    const studentFindSpy = vi.spyOn(Student, 'find').mockReturnValue({
       select: vi.fn().mockResolvedValue([]),
     });
     vi.spyOn(Evaluation, 'exists').mockResolvedValue(null);
@@ -499,6 +499,10 @@ describe('evaluation controller success paths', () => {
     );
     const saveSpy = vi.spyOn(Evaluation.prototype, 'save').mockResolvedValue();
     const recipientId = id();
+    const eligiblePeersQuery = {
+      select: vi.fn().mockResolvedValue([{ _id: recipientId }]),
+    };
+    studentFindSpy.mockReturnValue(eligiblePeersQuery);
     vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
     const ratings = {
       professionalism: 4,
@@ -532,6 +536,11 @@ describe('evaluation controller success paths', () => {
     expect(Student.findByIdAndUpdate).toHaveBeenCalledWith(student._id, {
       evaluation_completed: true,
     });
+    expect(Student.find).toHaveBeenLastCalledWith({
+      course_id: courseId,
+      _id: { $ne: student._id },
+    });
+    expect(eligiblePeersQuery.select).toHaveBeenCalledWith('_id');
     expect(saveSpy).toHaveBeenCalledOnce();
     // Check the document being saved while keeping MongoDB mocked.
     expect(saveSpy.mock.instances[0].toObject()).toMatchObject({

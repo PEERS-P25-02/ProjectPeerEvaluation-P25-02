@@ -92,7 +92,10 @@ services:
     build:
       context: ./src/backend
       dockerfile: Dockerfile.test
-    environment: *test-environment
+    environment:
+      <<: *test-environment
+      # Mint expired and wrongly signed credentials without exposing the run secret.
+      TEST_JWT_SECRET: ${TEST_JWT_SECRET:?Supply an ephemeral test JWT secret}
     depends_on:
       backend:
         condition: service_healthy

@@ -611,8 +611,11 @@ exports.getTeamReport = async (req, res, next) => {
     const courseObjectId = new mongoose.Types.ObjectId(course_id);
     const teamObjectId = new mongoose.Types.ObjectId(team_id);
 
-    // Find the team
-    const team = await Team.findById(teamObjectId);
+    // Keep the team lookup within the already authorized course.
+    const team = await Team.findOne({
+      _id: teamObjectId,
+      course_id: courseObjectId,
+    });
     if (!team) {
       const err = new Error('Team not found.');
       err.code = 'NOT_FOUND';

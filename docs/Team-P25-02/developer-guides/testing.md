@@ -58,5 +58,6 @@ These project documents describe existing test implementations, evidence, and li
 - [CI build, lint, and unit verification](../modernization/implementation/continuous-integration.md)
 - [Integration test environment](../modernization/implementation/testing/integration-test-environment.md)
 - [API and database integration](../modernization/implementation/testing/api-database-integration.md)
+- [Authentication and authorization integration](../modernization/implementation/testing/authentication-authorization-integration.md)
 - [API/database operation inventory](../modernization/implementation/testing/api-database-operation-inventory.md)
 - [ESLint migration notes](../modernization/implementation/tooling/eslint-and-formatting.md)
