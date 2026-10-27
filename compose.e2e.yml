@@ -1,0 +1,92 @@
+# Standalone smoke stack: no development .env, volumes, host ports, or external
+# runtime network. npm run test:e2e creates and removes one project per run.
+name: peers-e2e-${E2E_RUN_ID:?E2E_RUN_ID must identify this run}
+
+services:
+  mongodb:
+    image: mongo:8.0
+    tmpfs:
+      - /data/db
+      - /data/configdb
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, 'quit(db.adminCommand({ ping: 1 }).ok === 1 ? 0 : 1)']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./src/backend
+    environment:
+      NODE_ENV: test
+      PORT: '5000'
+      MONGODB_URI: mongodb://mongodb:27017/peers_e2e_${E2E_RUN_ID}
+      JWT_SECRET: ${E2E_JWT_SECRET:?Supply an ephemeral JWT secret}
+      FRONTEND_URL: http://frontend
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      SMTP_SECURE: 'false'
+      SMTP_AUTH_REQUIRED: 'false'
+      SMTP_SERVICE: ''
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      SMTP_FROM: peers-e2e@example.invalid
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:5000/api/health')
+          .then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  frontend:
+    build:
+      context: .
+      args:
+        # Embed same-origin requests rather than the hosted API fallback.
+        VITE_API_BASE_URL: /api
+    volumes:
+      - ./nginx/compose.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, --quiet, --spider, http://127.0.0.1/api/health]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    init: true
+    # Give Chromium private shared memory without sharing the host IPC namespace.
+    shm_size: 1gb
+    environment:
+      E2E_BASE_URL: http://frontend
+    depends_on:
+      frontend:
+        condition: service_healthy
+
+networks:
+  default:
+    internal: true

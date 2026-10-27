@@ -1,6 +1,10 @@
 const { defineConfig, devices } = require('@playwright/test');
 
-const baseURL = process.env.E2E_BASE_URL || 'http://127.0.0.1:3000';
+// This suite must only target the disposable Compose frontend, never a deployment.
+const baseURL = 'http://frontend';
+if (process.env.E2E_BASE_URL && process.env.E2E_BASE_URL !== baseURL) {
+  throw new Error(`E2E_BASE_URL must be ${baseURL}`);
+}
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
@@ -9,6 +13,7 @@ module.exports = defineConfig({
   retries: 0,
   timeout: 30000,
   reporter: 'list',
+  outputDir: './test-results/e2e/playwright',
   use: {
     ...devices['Desktop Chrome'],
     baseURL,
