@@ -379,6 +379,7 @@ jobs:
           PUSH_BEFORE_SHA: ${{ github.event.before }}
           PUSH_AFTER_SHA: ${{ github.event.after }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           all_zero_sha=0000000000000000000000000000000000000000
 
@@ -406,12 +407,40 @@ jobs:
             exit 1
           fi
 
+          ensure_commit() {
+            local sha="$1"
+            if git cat-file -e "$sha^{commit}" 2>/dev/null; then
+              return 0
+            fi
+
+            # Force-pushed commits may no longer be reachable from fetched refs.
+            if [[ -z "$GH_TOKEN" ]]; then
+              echo "Event commit is unavailable locally and authenticated retrieval is unavailable: $sha" >&2
+              return 1
+            fi
+            local auth_header
+            auth_header="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+            local git_http_url="${GITHUB_SERVER_URL%/}/"
+            if ! git -c "http.${git_http_url}.extraheader=AUTHORIZATION: basic $auth_header" \
+              fetch --no-tags --no-write-fetch-head origin "$sha" >/dev/null 2>&1; then
+              echo "Event commit could not be retrieved from origin: $sha" >&2
+              return 1
+            fi
+            if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+              echo "Event commit retrieval did not provide a commit object: $sha" >&2
+              return 1
+            fi
+          }
+
           shas=("$base_sha" "$head_sha")
           for sha in "${shas[@]}"; do
-            if [[ ! "$sha" =~ ^[0-9a-fA-F]{40,64}$ ]] || ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
-              echo "Event commit is missing or invalid: $sha" >&2
+            if [[ ! "$sha" =~ ^[0-9a-fA-F]{40,64}$ ]]; then
+              echo "Event commit SHA is invalid: $sha" >&2
               exit 1
             fi
+          done
+          for sha in "${shas[@]}"; do
+            ensure_commit "$sha" || exit 1
           done
 
           log_opts="$base_sha..$head_sha --full-history -m"
