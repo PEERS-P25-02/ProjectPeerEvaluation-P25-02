@@ -82,7 +82,11 @@ services:
     # Give Chromium private shared memory without sharing the host IPC namespace.
     shm_size: 1gb
     environment:
+      NODE_ENV: test
+      E2E_RUN_ID: ${E2E_RUN_ID:?E2E_RUN_ID must identify this run}
+      MONGODB_URI: mongodb://mongodb:27017/peers_e2e_${E2E_RUN_ID}
       E2E_BASE_URL: http://frontend
+      MAILPIT_API_URL: http://mailpit:8025
     depends_on:
       frontend:
         condition: service_healthy

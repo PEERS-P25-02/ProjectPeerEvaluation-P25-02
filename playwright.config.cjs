@@ -8,6 +8,7 @@ if (process.env.E2E_BASE_URL && process.env.E2E_BASE_URL !== baseURL) {
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
+  globalSetup: './tests/e2e/helpers/globalSetup.cjs',
   fullyParallel: false,
   workers: 1,
   retries: 0,
