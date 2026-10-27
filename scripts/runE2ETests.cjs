@@ -19,11 +19,12 @@ if (process.env.E2E_BASE_URL && process.env.E2E_BASE_URL !== baseURL) {
 if (
   testArguments.some(
     (argument) =>
-      /^--(?:config|output)(?:=|$)/.test(argument) || /^-[co]/.test(argument),
+      /^--(?:config|output|workers|fully-parallel)(?:=|$)/.test(argument) ||
+      /^-[coj]/.test(argument),
   )
 ) {
   throw new Error(
-    'The smoke runner owns the Playwright config and output directory',
+    'The E2E runner owns the config, output, and single-worker sequential execution',
   );
 }
 
@@ -150,6 +151,17 @@ async function main() {
           { quiet: true },
         );
         if (exists.code === 0) {
+          if (exists.stdout.trim() === 'running') {
+            // An interrupted/timed-out Compose client can leave the browser
+            // running. Give it time to finalize traces before copying artifacts.
+            const stopped = await docker([
+              'stop',
+              '--time',
+              '10',
+              testContainer,
+            ]);
+            if (stopped.code !== 0) exitCode = exitCode || 1;
+          }
           const artifacts = await docker([
             'cp',
             `${testContainer}:/app/test-results/e2e/playwright`,
