@@ -48,6 +48,9 @@ services:
   mailpit:
     image: axllent/mailpit:v1.27.4
     # Mailpit's default inbox is disposable; forwarding and relay stay disabled.
+    environment:
+      # Enable runtime SMTP failure injection for tests; triggers start at 0%.
+      MP_ENABLE_CHAOS: 'true'
     healthcheck:
       test: [CMD, /mailpit, readyz]
       interval: 2s
@@ -92,7 +95,10 @@ services:
     build:
       context: ./src/backend
       dockerfile: Dockerfile.test
-    environment: *test-environment
+    environment:
+      <<: *test-environment
+      # Mint expired and wrongly signed credentials without exposing the run secret.
+      TEST_JWT_SECRET: ${TEST_JWT_SECRET:?Supply an ephemeral test JWT secret}
     depends_on:
       backend:
         condition: service_healthy

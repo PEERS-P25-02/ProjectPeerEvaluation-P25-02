@@ -1,0 +1,119 @@
+# Critical Workflow Regression Coverage Gaps
+
+**Status:** Temporary internal gap record. It tracks implementation coverage against the [functional regression matrix](../../../requirements/regression-test-matrix.md); it is not a sponsor approval record or current execution report.
+
+## Scope and interpretation
+
+The target is CW-01 through CW-09, including evaluation reset and relaunch in CW-05. Standalone reminders (OP-33-24) and account-support operations (OP-33-34–36) are outside this targeted gap audit; their existing tests remain required to pass. MFA, automatic team assignment, AI, deadline enforcement, token refresh, and multiple retained evaluation campaigns are not added to the target.
+
+The initial source audit inspected assertions, not only test names, and predates the authentication/authorization integration suite and the new email integration suite. **Present**, **partial**, and **missing** describe source assertions against the matrix outcome; they do not establish successful execution. This refresh is limited to the invitation-related I and L evidence and REG-CW06-02 / REG-CW07-01–04 below; it does not re-audit all 74 matrix targets. The more recent authentication and authorization coverage is summarized in the [authentication and authorization integration record](authentication-authorization-integration.md). The new [email integration record](email-integration.md) documents its test source and verified execution on October 26, 2026. The latest detailed API/database integration results remain those in [Section 4 of the API/database integration record](api-database-integration.md#4-expanded-verification-and-review), dated October 24, 2026; those are historical, not current email-suite results.
+
+Frontend page tests use mocked API boundaries; they establish UI behavior and request handling, not server persistence or cross-layer browser journeys. The integration suite sends HTTP requests to the application and checks MongoDB and isolated Mailpit state. The reviewed main checkout has no browser E2E suite or browser execution command. The policy's [scope and pass rules](../../../requirements/quality-gate-policy.md#1-scope-and-passfail-rules) and [test traceability requirements](../../../requirements/quality-gate-policy.md#4-test-planning-and-traceability) remain authoritative; this inventory does not change matrix expectations.
+
+## Reusable source evidence
+
+| Ref. | Existing test sources | Assertion scope |
+| --- | --- | --- |
+| A | [authentication integration](../../../../../src/backend/tests/integration/authentication.test.js), [authentication unit](../../../../../src/backend/tests/auth.test.js) | Real login with usable token and owned-course access; incorrect, unknown, and missing credentials leave professor data unchanged; middleware rejects absent/invalid credentials. No other-professor resource test. |
+| C | [course integration](../../../../../src/backend/tests/integration/courses.test.js), [course UI](../../../../../src/frontend/tests/CourseManagement.test.jsx) | Create, list/read, edit, deactivate/reactivate, validation and missing-course behavior; UI exercises supported requests and refresh. No cross-owner or system-controlled-field assertion. |
+| R | [roster integration](../../../../../src/backend/tests/integration/roster.test.js), [CSV parser unit](../../../../../src/backend/tests/csvParsing.test.js), [course UI](../../../../../src/frontend/tests/CourseManagement.test.jsx) | Valid multipart import, selected-course relationships and foreign-course preservation, parsing of supported fields/quoted values, student edits and deletes. Missing-file and missing-field checks do not establish response and persisted-state behavior for malformed rows or processing failure after valid rows. |
+| T | [team integration](../../../../../src/backend/tests/integration/teams.test.js), [course UI](../../../../../src/frontend/tests/CourseManagement.test.jsx), [evaluation-management integration](../../../../../src/backend/tests/integration/evaluationManagement.test.js) | Membership changes keep both stored sides/counts aligned; course isolation, invalid/duplicate membership rejection, and selected-team invitation recipients. |
+| E | [evaluation-management integration](../../../../../src/backend/tests/integration/evaluationManagement.test.js), [course UI](../../../../../src/frontend/tests/CourseManagement.test.jsx) | UI launch request/status handling; API invitation tokens/recipients, completion status, selected-course reset and preservation of roster/team/unrelated-course records. Reset and relaunch are not asserted as one lifecycle. |
+| L | [student-evaluation integration](../../../../../src/backend/tests/integration/studentEvaluation.test.js), [evaluation-management integration](../../../../../src/backend/tests/integration/evaluationManagement.test.js), [email integration](../../../../../src/backend/tests/integration/emailIntegration.test.js), [student UI](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) | Assigned tokens resolve to stored evaluator/course/team and eligible peers; the email suite resolves each distinct emailed token to its own student context; unassigned tokens are rejected; form, completion, and submission UI use mocked API responses. Cross-token denial is not added by the email suite; its token/context checks passed in the recorded runs. |
+| I | [invitation integration](../../../../../src/backend/tests/integration/evaluationManagement.test.js), [email integration](../../../../../src/backend/tests/integration/emailIntegration.test.js), [isolated environment record](integration-test-environment.md) | Captured messages are checked for intended recipients, sender/content, individualized token/hash-route links and resolved student context; foreign-course and unselected-team recipients are excluded. Deterministic SMTP rejection, retry, and acceptance-state assertions passed in both full runs and the concurrent focused run. No provider-delivery proof. |
+| S | [student-evaluation integration](../../../../../src/backend/tests/integration/studentEvaluation.test.js), [student UI](../../../../../src/frontend/tests/StudentEvaluation.test.jsx), [backend failure boundaries](../../../../../src/backend/tests/controllerFailureBoundary.test.js) | Valid persisted multi-peer submission, repeat rejection, empty/missing-first-field/short-feedback rejection without writes, and invalid/unassigned token rejection. No self/foreign recipient, duplicate recipient, concurrency, or invalid-later-entry atomicity assertion. |
+| P | [report integration](../../../../../src/backend/tests/integration/reports.test.js), [reports UI](../../../../../src/frontend/tests/Reports.test.jsx) | Stored-data aggregation, grading, CSV contents, team/student reports, course scoping, read-only behavior, and nonexistent-course response; UI rendering and CSV handling use mocked APIs. No cross-owner denial or inconsistent-source-data result assertion. |
+
+## Target-by-target source audit
+
+| Target | Source state | Reusable source | Remaining coverage gap |
+| --- | --- | --- | --- |
+| REG-CW01-01 | Partial | A; [login UI](../../../../../src/frontend/tests/LoginPage.test.jsx) | Valid sign-in, auth state, token, and protected API access are tested at mocked-UI and API layers; no complete browser journey reaches a protected professor function. |
+| REG-CW01-02 | Present | A | Incorrect-password rejection is asserted by real API response and unchanged professor snapshot. |
+| REG-CW01-03 | Present | A | Missing-credential rejection is asserted by real API response and unchanged professor snapshot. |
+| REG-CW01-04 | Partial | A | Middleware unit tests reject absent credentials, but no live protected-route request proves protected data is neither disclosed nor changed. |
+| REG-CW01-05 | Missing | A | No second-professor attempt tests reading or modifying the owner's course or related data. |
+| REG-CW01-06 | Partial | A | Unit middleware assertions reject invalid/expired tokens, but no protected API request asserts denial and unchanged protected data. |
+| REG-CW02-01 | Present | C | Course creation is checked through HTTP response and stored owner association. |
+| REG-CW02-02 | Partial | C | API read/manage and UI request/refresh behavior exist, but the complete owner workflow is not exercised in a browser. |
+| REG-CW02-03 | Partial | C | Supported edit persistence and retained owner/course fields are asserted, but the edit case does not snapshot a separate course to prove it remains unchanged. |
+| REG-CW02-04 | Missing | C | No other-professor attempt verifies privacy and unchanged course state. |
+| REG-CW02-05 | Missing | C | Tests do not submit system-controlled fields and assert they are rejected or ignored without collateral changes. |
+| REG-CW02-06 | Present | C | Deactivation is checked in storage and active/inactive listings; roster and team records remain stored. |
+| REG-CW02-07 | Present | C | Reactivation reuses the original course ID, marks it active, and asserts no duplicate record. |
+| REG-CW03-01 | Present | R | Supported multipart CSV import and resulting student/team/course state are checked. |
+| REG-CW03-02 | Present | R | The live import contains a comma-quoted name and optional group; assertions check parsed name, group, and team association. |
+| REG-CW03-03 | Missing | R | No upload mixes one valid student row with a malformed/incomplete row and asserts the valid-row state, omitted invalid row, reported error, and truthful partial outcome. The existing missing-file case is narrower. |
+| REG-CW03-04 | Present | R | The import case snapshots another course and asserts its data remains unchanged. |
+| REG-CW03-05 | Missing | R | No unauthorized professor upload attempt is tested. |
+| REG-CW03-06 | Missing | R | No processing failure after valid rows checks relationship consistency and truthfully reports partial/failed processing. This target does not require rolling back valid rows. |
+| REG-CW03-07 | Present | R | A details-only edit asserts stored name/email updates while team ID, group label, and team record stay unchanged. |
+| REG-CW03-08 | Present | R | Individual deletion checks the student, incoming/outgoing evaluations, team membership/count, course count, and foreign-course snapshot. |
+| REG-CW03-09 | Present | R | Bulk deletion checks selected records and both evaluation directions, while retaining an unrelated course and ignoring its supplied student ID. |
+| REG-CW03-10 | Present | R | Roster clear asserts selected students, teams, evaluations, and counts are cleared and a foreign course remains unchanged. |
+| REG-CW03-11 | Partial | R | Separate assigned and unassigned student-create assertions verify persisted assignments/counts; neither case reads the resulting roster or checks unrelated-course data. |
+| REG-CW04-01 | Partial | T | Component tests cover creating/assigning through mocked APIs and integration tests verify stored membership; no complete browser organization journey. |
+| REG-CW04-02 | Present | T | Rename/status integration assertions verify team fields, retained members/count, and each student's team reference and label. |
+| REG-CW04-03 | Present | T | Team operations compare an unrelated course's records before and after selected-course changes. |
+| REG-CW04-04 | Present | T | Selected-team invitations are checked against stored team membership and captured recipients. |
+| REG-CW04-05 | Present | T | Deleting an empty team asserts only it is removed; other team, student assignments, and records remain unchanged. |
+| REG-CW04-06 | Present | T | Clear-teams assertions remove selected teams, unset student assignments, retain students/count, and preserve another course. |
+| REG-CW04-07 | Present | T | Move assertions check old/new team memberships/counts and the student's updated assignment. |
+| REG-CW04-08 | Present | T | Removal assertions check selected membership/assignment clears and remaining member stays assigned. |
+| REG-CW04-09 | Present | T | Cross-course student assignment returns not found and asserts no database changes. |
+| REG-CW04-10 | Partial | T | Team creation assertions verify returned IDs, names, empty stored membership, and course count; no subsequent team-list request checks the created team is returned. |
+| REG-CW04-11 | Present | T | Populated-team deletion returns a constraint error and the full fixture snapshot remains unchanged. |
+| REG-CW05-01 | Partial | E, L | The frontend sends a launch request; API tests verify the static rubric and stored-team student context separately. No complete browser journey asserts the launch flow uses both to select eligible students. |
+| REG-CW05-02 | Missing | E | No launch attempt for an empty roster asserts that no evaluation is presented as launched with zero eligible participants. |
+| REG-CW05-03 | Present | E | Course and team invitation integration cases persist tokens for eligible students, capture the intended recipients, and preserve unselected/other-course state. The separate browser setup-to-launch journey remains REG-CW05-01. |
+| REG-CW05-04 | Partial | E, L | Reset clears tokens/responses and preserves roster/team/Course B data, but no post-reset assertion checks pending status or denial of the old assigned link. The integration test explicitly leaves completion-flag lifecycle deferred. |
+| REG-CW05-05 | Partial | E, L, S | Reset and valid token/submission are tested separately; no post-reset fresh access and submission sequence verifies the relaunch lifecycle. |
+| REG-CW05-06 | Missing | E | No other-professor attempt to configure, launch, or reset an owner's evaluation is tested. |
+| REG-CW05-07 | Missing | [CourseManagement component](../../../../../src/frontend/pages/CourseManagement.jsx), [component tests](../../../../../src/frontend/tests/CourseManagement.test.jsx) | No component assertion cancels the reset prompt and verifies that neither the reset nor pending membership mutation request is issued. The cancel handler clears pending state in source, but this is not test evidence. |
+| REG-CW05-08 | Missing | [CourseManagement component](../../../../../src/frontend/pages/CourseManagement.jsx), [component tests](../../../../../src/frontend/tests/CourseManagement.test.jsx) | No component assertion makes reset fail and verifies that no membership mutation request follows. Code inspection found the reset handler catches errors and the confirm handler then continues to the pending action; this is code-inspected and unverified behavior, not a reproduced test failure. |
+| REG-CW05-09 | Partial | E | Status assertions verify per-student states/totals and exclude Course B; separate invitation assertions verify captured recipients and tokens. Review whether these existing cases jointly satisfy the invitation-to-status mapping; do not duplicate tests solely to force one combined case. |
+| REG-CW05-10 | Present | E | The team-scoped evaluation launch request using a Course B team returns 404, leaves the full database snapshot unchanged, and captures no email. |
+| REG-CW06-01 | Partial | L | API tests resolve an assigned token to stored student context and frontend tests render mocked data; the assigned link is not opened in a browser journey. |
+| REG-CW06-02 | Present | L, I | The email integration source sends separate invitations, resolves each emailed token through the real API, and checks its own evaluator/course/team/eligible-peer context. Checks passed in the recorded full and concurrent runs; actual browser navigation is separately tracked in REG-CW06-01. |
+| REG-CW06-03 | Partial | L, S | An unassigned synthetic token is rejected by the real API without student/evaluation writes. A token altered from a known assigned token is not separately tested. |
+| REG-CW06-04 | Missing | L | No assertion attempts to use a token against a different student's or course's context and verifies denial. |
+| REG-CW07-01 | Present | I | Email integration source checks personalized captured content and matching clickable/fallback hash-route links, then resolves each link's token to the intended student context. Checks passed in the recorded full and concurrent runs; browser access is tracked separately under REG-CW06-01. Capture does not establish external provider delivery. |
+| REG-CW07-02 | Present | I | Course and team invitation assertions exclude foreign-course and unselected-team students and verify selected recipients. Checks passed in the recorded full and concurrent runs. |
+| REG-CW07-03 | Present | I | Source asserts deterministic sender- and recipient-stage SMTP rejection, truthful HTTP 502 counts, no acceptance marker for failed sends, successful retry, and preservation of prior acceptance on a rejected resend. Checks passed in the recorded full and concurrent runs; see the [email integration record](email-integration.md). |
+| REG-CW07-04 | Present | I | The test environment source uses a disposable Mailpit inbox with forwarding/relay disabled; email cases inspect captured messages. Checks passed in the recorded full and concurrent runs, and no external provider delivery is claimed. |
+| REG-CW08-01 | Partial | S | API integration persists ratings/feedback and correct evaluator/recipient/course/token associations; UI covers mocked submission, but there is no complete browser student journey. |
+| REG-CW08-02 | Missing | S | No assertion submits the evaluator as a recipient and verifies no self-evaluation is stored. |
+| REG-CW08-03 | Missing | S | No assertion submits a recipient outside the eligible peer set and verifies no response is persisted. |
+| REG-CW08-04 | Missing | S | No assertion includes the same peer more than once in a single request and checks duplicate/inconsistent records are absent. |
+| REG-CW08-05 | Present | S | Repeat submission is rejected and the original stored evaluations/student state remain unchanged. |
+| REG-CW08-06 | Missing | S | Concurrent requests for the same evaluation context are not tested for duplicate or partial persisted responses. |
+| REG-CW08-07 | Missing | S | Invalid first-entry validation exists, but no later invalid entry after a valid entry verifies request-level atomicity. |
+| REG-CW08-08 | Present | S | Unassigned token attempts are rejected on form, submit, and status routes without student/evaluation mutation. |
+| REG-CW08-09 | Present | S | Empty API submission is rejected and the database snapshot remains unchanged. |
+| REG-CW08-10 | Present | S | Missing first-entry professionalism rating is rejected before any write; the component also blocks missing ratings before POST. |
+| REG-CW08-11 | Partial | [model tests](../../../../../src/backend/tests/models.test.js), [rubric unit](../../../../../src/backend/tests/rubric.test.js) | Model validation rejects participation 5 against its configured 1–4 scale, but no API submission assertion verifies rejection and unchanged response/completion state. |
+| REG-CW08-12 | Present | S; [student UI](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) | Short feedback is rejected by the API without writes and the component prevents short feedback from being submitted. |
+| REG-CW08-13 | Present | [student UI](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) | A failed mocked request leaves entered feedback visible, enables retry, resends the same payload, and reaches the completed screen after retry. |
+| REG-CW09-01 | Partial | P | API aggregation is compared with stored evaluation data and UI displays mocked results; no complete owner browser journey reviews results. |
+| REG-CW09-02 | Present | P | CSV API output includes exact expected identities, scores, grades, and no-write assertions; browser download is separately mocked in the frontend component test. |
+| REG-CW09-03 | Missing | P | No other-professor request verifies that reports and exports disclose no owner-course data. |
+| REG-CW09-04 | Missing | P | No case removes an expected response record before reviewing/exporting results and verifies the output neither invents the response nor misattributes values. A present unscored student and nonexistent-course 404 are narrower. |
+| REG-CW09-05 | Present | P | Report cases include unrelated course data and assert course-scoped results exclude it. |
+| REG-CW09-06 | Present | P | Integration tests independently calculate expected mean and curved scores/aggregates, then compare returned course/team results. |
+| REG-CW09-07 | Partial | P; [reports UI](../../../../../src/frontend/tests/Reports.test.jsx) | API CSV assertions check ordinary synthetic values and UI tests a mocked blob download/URL cleanup; no special-character CSV encoding or browser download from actual API is tested. |
+| REG-CW09-08 | Present | P | Student, team, and course-generation API tests each compare their scoped output with seeded Course A response data and assert no source writes. |
+
+## Execution and closure
+
+Use the documented commands and prerequisites in the [API/database integration guide](api-database-integration.md#1-testing-strategy) and [isolated environment guide](integration-test-environment.md#1-testing-strategy). Frontend and backend unit suites use `npm test` and `npm --prefix src/backend test`; the integrated API/database suite uses `npm run test:integration` from the repository root. The source audit did not run them. There is no browser E2E command on the reviewed main source, so browser cases remain planned until an executable suite and evidence are available.
+
+For each target, keep the matrix outcome unchanged, add or identify executable assertions that match it, and retain successful run evidence with its exact source/version and result. Historical October 24 results remain historical and must not be relabeled as current. A documented plan, source-file presence, or adjacent behavior alone does not resolve a gap; resolution requires a matching executable assertion **and** successful execution evidence.
+
+Remove this temporary record and retain links from the sponsor-facing matrix to durable regression tests, RTM mappings, and current results once every matrix target has matching passing evidence. Existing test suites outside this target must continue to pass throughout the work.
+
+The documented password-reset defects [BUG-001/002](../../../known-bugs.md) are
+account-support scope and are not promoted into this target. The invitation URL format defect was reproduced by captured-message assertions
+and repaired; passing results are in the [email integration record](email-integration.md).
+Any evaluation-reset action-sequencing concern found by reading UI code is
+code-inspected and unverified until an executable assertion demonstrates the
+behavior; it is not an observed failure in this audit.

@@ -142,7 +142,14 @@ exports.listStudents = async (req, res, next) => {
 exports.updateStudent = async (req, res, next) => {
   try {
     const { course_id, student_id } = req.params;
-    const updates = req.body;
+    // Keep course, team, and evaluation state server controlled; team_id is derived below.
+    const editableFields = ['student_id', 'name', 'email', 'group_assignment'];
+    const body = req.body || {};
+    const updates = Object.fromEntries(
+      editableFields
+        .filter((field) => Object.hasOwn(body, field))
+        .map((field) => [field, body[field]]),
+    );
     if (!mongoose.Types.ObjectId.isValid(student_id)) {
       const err = new Error('Invalid student ID.');
       err.code = 'VALIDATION_ERROR';
@@ -498,7 +505,7 @@ exports.uploadRoster = async (req, res, next) => {
           // Clear evaluation tokens from all existing students in this course
           await Student.updateMany(
             { course_id: courseObjectId },
-            { $unset: { evaluation_token: 1 } },
+            { $unset: { evaluation_token: 1, invitation_accepted_at: 1 } },
           );
 
           // Clear all evaluation records for this course
@@ -856,7 +863,7 @@ exports.resetEvaluationState = async (req, res, next) => {
     // Clear evaluation tokens from all students in this course
     const tokenUpdateResult = await Student.updateMany(
       { course_id: courseObjectId },
-      { $unset: { evaluation_token: 1 } },
+      { $unset: { evaluation_token: 1, invitation_accepted_at: 1 } },
     );
 
     // Clear all evaluation records for this course

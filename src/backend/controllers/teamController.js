@@ -29,8 +29,13 @@ exports.createTeams = async (req, res, next) => {
       err.status = 400;
       return next(err);
     }
+    // Accept team details only; submitted IDs, members, and counts are server controlled.
     const created = await Team.insertMany(
-      teams.map((t) => ({ ...t, course_id })),
+      teams.map(({ team_name, team_status }) => ({
+        team_name,
+        ...(team_status !== undefined && { team_status }),
+        course_id,
+      })),
     );
 
     // Update course team_count
@@ -52,7 +57,14 @@ exports.createTeams = async (req, res, next) => {
 exports.updateTeam = async (req, res, next) => {
   try {
     const { course_id, team_id } = req.params;
-    const updates = req.body;
+    // Keep team identity and course ownership fixed while allowing supported edits.
+    const editableFields = ['team_name', 'team_status'];
+    const body = req.body || {};
+    const updates = Object.fromEntries(
+      editableFields
+        .filter((field) => Object.hasOwn(body, field))
+        .map((field) => [field, body[field]]),
+    );
     if (!mongoose.Types.ObjectId.isValid(team_id)) {
       const err = new Error('Invalid team ID.');
       err.code = 'VALIDATION_ERROR';

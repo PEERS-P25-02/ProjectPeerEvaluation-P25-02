@@ -174,7 +174,20 @@ exports.getCourse = async (req, res, next) => {
 exports.updateCourse = async (req, res, next) => {
   try {
     const { course_id } = req.params;
-    const updates = req.body;
+    // Only expose editable course details; identity, ownership, and counters stay server controlled.
+    const editableFields = [
+      'course_name',
+      'course_number',
+      'course_section',
+      'semester',
+      'course_status',
+    ];
+    const body = req.body || {};
+    const updates = Object.fromEntries(
+      editableFields
+        .filter((field) => Object.hasOwn(body, field))
+        .map((field) => [field, body[field]]),
+    );
     if (!mongoose.Types.ObjectId.isValid(course_id)) {
       const err = new Error('Invalid course ID.');
       err.code = 'VALIDATION_ERROR';

@@ -74,6 +74,18 @@ exports.sendTeamEvaluations = async (req, res, next) => {
           deadline,
         );
         if (result.success) {
+          // Attach acceptance only to the token included in this email.
+          const acceptedAt = new Date();
+          const updatedStudent = await Student.findOneAndUpdate(
+            { _id: student._id, evaluation_token: student.evaluation_token },
+            { invitation_accepted_at: acceptedAt },
+            { new: true },
+          );
+          if (!updatedStudent) {
+            throw new Error(
+              'Evaluation access changed while sending invitation. Please retry.',
+            );
+          }
           emailsSent++;
         } else {
           failedEmails.push(
@@ -87,8 +99,12 @@ exports.sendTeamEvaluations = async (req, res, next) => {
       }
     }
 
-    res.status(200).json({
-      message: `Evaluation invitations sent to team successfully.`,
+    // Use a non-2xx status for partial failures because the UI treats 2xx as success.
+    res.status(failedEmails.length > 0 ? 502 : 200).json({
+      message:
+        failedEmails.length > 0
+          ? `Evaluation invitations sent to ${emailsSent} of ${students.length} students; ${failedEmails.length} failed.`
+          : `Evaluation invitations sent to team successfully.`,
       emails_sent: emailsSent,
       total_students: students.length,
       failed: failedEmails,
@@ -167,6 +183,18 @@ exports.sendEvaluations = async (req, res, next) => {
         );
 
         if (result.success) {
+          // Attach acceptance only to the token included in this email.
+          const acceptedAt = new Date();
+          const updatedStudent = await Student.findOneAndUpdate(
+            { _id: student._id, evaluation_token: student.evaluation_token },
+            { invitation_accepted_at: acceptedAt },
+            { new: true },
+          );
+          if (!updatedStudent) {
+            throw new Error(
+              'Evaluation access changed while sending invitation. Please retry.',
+            );
+          }
           emailsSent++;
         } else {
           failedEmails.push(
@@ -184,8 +212,12 @@ exports.sendEvaluations = async (req, res, next) => {
       `Evaluation sending completed. Sent: ${emailsSent}/${students.length}, Failed: ${failedEmails.length}`,
     );
 
-    res.status(200).json({
-      message: `Evaluation invitations sent successfully.`,
+    // Use a non-2xx status for partial failures because the UI treats 2xx as success.
+    res.status(failedEmails.length > 0 ? 502 : 200).json({
+      message:
+        failedEmails.length > 0
+          ? `Evaluation invitations sent to ${emailsSent} of ${students.length} students; ${failedEmails.length} failed.`
+          : `Evaluation invitations sent successfully.`,
       emails_sent: emailsSent,
       total_students: students.length,
       failed: failedEmails,
@@ -210,10 +242,10 @@ exports.evaluationStatus = async (req, res, next) => {
     const students = await Student.find({ course_id });
     const total = students.length;
 
-    // Check if evaluations have been sent by looking for students with evaluation tokens
-    // (tokens are only generated when evaluations are actually sent)
-    const hasStudentsWithTokens =
-      students.length > 0 && students.some((s) => s.evaluation_token);
+    // Legacy tokens do not prove an invitation was accepted; only new SMTP markers do.
+    const hasAcceptedInvitations = students.some(
+      (student) => student.evaluation_token && student.invitation_accepted_at,
+    );
 
     // If no students exist, return empty state
     if (total === 0) {
@@ -227,8 +259,8 @@ exports.evaluationStatus = async (req, res, next) => {
       });
     }
 
-    // If students don't have tokens, evaluations haven't been sent
-    if (!hasStudentsWithTokens) {
+    // Keep the existing empty state until at least one invitation is accepted.
+    if (!hasAcceptedInvitations) {
       return res.status(200).json({
         total_count: 0,
         completed_count: 0,
@@ -272,6 +304,7 @@ exports.evaluationStatus = async (req, res, next) => {
           team: student.group_assignment || 'No Team', // Match frontend expectation
           completed: hasCompleted, // Match frontend expectation
           evaluation_token: student.evaluation_token,
+          invitation_accepted_at: student.invitation_accepted_at || null,
           last_activity: lastActivity, // Show actual submission date
         };
       }),
@@ -419,6 +452,7 @@ exports.getEvaluationForm = async (req, res, next) => {
     let teammates = [];
     if (student.team_id) {
       teammates = await Student.find({
+        course_id: student.course_id._id,
         team_id: student.team_id._id,
         _id: { $ne: student._id }, // Exclude self
       }).select('_id name student_id');
@@ -499,6 +533,27 @@ exports.submitEvaluation = async (req, res, next) => {
       evaluations.length === 0
     ) {
       const err = new Error('Evaluations array is required.');
+      err.code = 'VALIDATION_ERROR';
+      err.status = 400;
+      return next(err);
+    }
+
+    // A link authorizes feedback only for the peers shown on its form. Check
+    // every recipient before saving so a later forbidden entry cannot leave writes.
+    const eligiblePeers = await Student.find({
+      course_id: student.course_id._id,
+      ...(student.team_id ? { team_id: student.team_id } : {}),
+      _id: { $ne: student._id },
+    }).select('_id');
+    const eligibleIds = new Set(
+      eligiblePeers.map((peer) => peer._id.toString()),
+    );
+    if (
+      evaluations.some(
+        (entry) => !entry || !eligibleIds.has(String(entry.student_id)),
+      )
+    ) {
+      const err = new Error('Evaluation recipient is not an eligible peer.');
       err.code = 'VALIDATION_ERROR';
       err.status = 400;
       return next(err);

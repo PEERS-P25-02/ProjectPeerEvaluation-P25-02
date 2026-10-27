@@ -71,3 +71,59 @@ Track application defects discovered during development and verification. Record
 ### Recorded Regression Verification — October 24, 2026
 
 The October 24, 2026 recorded verification passed all 73 API/database tests in two fresh isolated runs with cleanup verified. Details, scope, and remaining limits are in the [full integration record](modernization/implementation/testing/api-database-integration.md).
+
+## BUG-009: Course endpoints do not enforce professor ownership
+
+- Status: Fixed and verified by isolated integration regression tests.
+- Previous behavior: An authenticated professor could address another professor's course through course-scoped endpoints. In the baseline authorization run, all 28 foreign-course cases failed to return the required `404 NOT_FOUND` response.
+- Fix: Authenticate the courses router once and verify each `course_id` belongs to the authenticated professor before its route handler runs. Invalid IDs return `400 VALIDATION_ERROR`; absent and foreign courses return the same `404 NOT_FOUND` response.
+- Verification: The original backend failed all 28 cross-professor route checks; the repaired backend passed them in both final full-suite runs with verified cleanup.
+- Evidence: [Authentication and authorization integration record](modernization/implementation/testing/authentication-authorization-integration.md).
+
+## BUG-010: Team reports can return a team from another course
+
+- Status: Fixed and verified by isolated integration regression tests.
+- Previous behavior: The team report looked up a team by ID alone, so a request for an authorized course could return the team document for a team belonging to a different course.
+- Fix: Scope the team lookup by both team ID and the authorized course ID. A team outside that course follows the existing `404 NOT_FOUND` path.
+- Verification: The original endpoint returned HTTP 200 for the foreign-team probe; the repaired endpoint returned 404 in both final full-suite runs.
+- Evidence: [Authentication and authorization integration record](modernization/implementation/testing/authentication-authorization-integration.md).
+
+## BUG-011: Resource update bodies can reassign protected fields
+
+- Status: Fixed and verified by isolated integration regression tests.
+- Previous behavior: Course, student, and team update handlers accepted request bodies without field allowlists, and team creation copied submitted team objects. This allowed requests to attempt reassignment of ownership, identity, relationships, and system-maintained fields, including foreign student references in teams.
+- Fix: Restrict course updates to course name, number, section, semester, and status; student updates to student ID, name, email, and group assignment, deriving `team_id` in the existing assignment flow; team updates to name and status; and team creation to name and optional status with the route's course ID.
+- Verification: The original backend allowed the course-owner and student-course reassignment probes and accepted a submitted team identity. The repaired backend passed protected-field and identity checks in both final full-suite runs.
+- Evidence: [Authentication and authorization integration record](modernization/implementation/testing/authentication-authorization-integration.md).
+
+## BUG-012: Student evaluation submissions accept ineligible recipients
+
+- Status: Fixed and verified by isolated integration regression tests.
+- Previous behavior: Evaluation submissions did not verify that every requested recipient was an eligible peer, allowing attempts involving the token holder, a student in another course, a student on a different team, or a later forbidden recipient in a mixed request.
+- Fix: Validate the complete recipient set against the token holder's eligible peer set before saving any evaluations. Teamless students retain the supported same-course peer eligibility rule.
+- Verification: The original backend failed all five recipient-denial cases. The repaired backend passed those cases, the mixed-recipient no-write check, and the allowed teamless submission in both final full-suite runs.
+- Evidence: [Authentication and authorization integration record](modernization/implementation/testing/authentication-authorization-integration.md).
+
+## BUG-013: Invitation email links omit the frontend hash route
+
+- Status: Fixed and covered by captured-email integration tests.
+- Previous behavior: Invitation emails used `/evaluate/<token>`, while the frontend routes evaluations through `/#/evaluate/<token>`.
+- Fix: Build the invitation URL with the evaluation route in its hash, preserving the configured frontend pathname. The clickable link and fallback text use the same URL.
+- Verification: Both original-backend content cases failed on the missing hash route. The repaired cases check the captured URL and resolve its token to the intended student/course through the real API. Actual browser navigation remains an E2E target.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## BUG-014: Failed invitation sends are reported as successful
+
+- Status: Fixed and covered by real SMTP rejection tests.
+- Previous behavior: Course and team invitation endpoints returned HTTP 200 and a success message even when Mailpit rejected every attempted message; frontend handlers treat successful HTTP responses as successful sends.
+- Fix: Return HTTP 502 when any intended send fails, retaining accepted/failed counts and recipient details. Fully successful batches continue to return HTTP 200.
+- Verification: Four original-backend cases failed when actual Mailpit sender/recipient rejection produced HTTP 200. The repaired cases require truthful failure responses, no captured rejected messages, restored SMTP, and successful retry with retained tokens.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## BUG-015: Generated tokens are mistaken for successful invitation sends
+
+- Status: Fixed and covered by SMTP, status, reset, and roster tests.
+- Previous behavior: Tokens were stored before SMTP was attempted, and their existence made evaluation status claim invitations were sent even after rejection.
+- Fix: Record `invitation_accepted_at` only after SMTP acceptance and only for the token actually emailed. Status requires recorded acceptance; a failed resend preserves prior acceptance. Evaluation reset and roster replacement clear the marker with the token. Existing tokens are not assigned guessed acceptance history.
+- Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).

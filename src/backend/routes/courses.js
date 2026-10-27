@@ -9,14 +9,18 @@ const evaluationController = require('../controllers/evaluationController');
 
 const reportController = require('../controllers/reportController');
 const { authenticateToken } = require('../middleware/auth');
+const { requireCourseOwner } = require('../middleware/courseAuthorization');
+
+router.use(authenticateToken);
+router.param('course_id', requireCourseOwner);
 
 // Course management endpoints
-router.get('/', authenticateToken, courseController.listCourses);
-router.post('/', authenticateToken, courseController.createCourse);
-router.post('/migrate', authenticateToken, courseController.migrateCourses); // Migration endpoint
-router.get('/:course_id', authenticateToken, courseController.getCourse);
-router.put('/:course_id', authenticateToken, courseController.updateCourse);
-router.delete('/:course_id', authenticateToken, courseController.deleteCourse);
+router.get('/', courseController.listCourses);
+router.post('/', courseController.createCourse);
+router.post('/migrate', courseController.migrateCourses); // Migration endpoint
+router.get('/:course_id', courseController.getCourse);
+router.put('/:course_id', courseController.updateCourse);
+router.delete('/:course_id', courseController.deleteCourse);
 
 // Student roster endpoints (subroutes)
 const multer = require('multer');
@@ -27,125 +31,66 @@ router.post(
     console.log('--- /:course_id/roster route hit ---');
     next();
   },
-  authenticateToken,
   upload.single('file'),
   studentController.uploadRoster,
 );
-router.get(
-  '/:course_id/students',
-  authenticateToken,
-  studentController.listStudents,
-);
-router.post(
-  '/:course_id/students',
-  authenticateToken,
-  studentController.addStudent,
-); // Manual add
-router.put(
-  '/:course_id/students/:student_id',
-  authenticateToken,
-  studentController.updateStudent,
-);
+router.get('/:course_id/students', studentController.listStudents);
+router.post('/:course_id/students', studentController.addStudent); // Manual add
+router.put('/:course_id/students/:student_id', studentController.updateStudent);
 router.delete(
   '/:course_id/students/:student_id',
-  authenticateToken,
   studentController.deleteStudent,
 );
 router.post(
   '/:course_id/students/bulk-delete',
-  authenticateToken,
   studentController.bulkDeleteStudents,
 );
-router.delete(
-  '/:course_id/students',
-  authenticateToken,
-  studentController.deleteAllStudents,
-); // Delete ALL students
+router.delete('/:course_id/students', studentController.deleteAllStudents); // Delete ALL students
 
 // Reporting endpoints (subroutes)
-router.get(
-  '/:course_id/reports',
-  authenticateToken,
-  reportController.getCourseReport,
-);
-router.get(
-  '/:course_id/reports/download',
-  authenticateToken,
-  reportController.downloadReport,
-);
+router.get('/:course_id/reports', reportController.getCourseReport);
+router.get('/:course_id/reports/download', reportController.downloadReport);
 router.get(
   '/:course_id/reports/student/:student_id',
-  authenticateToken,
   reportController.getStudentReport,
 );
-router.get(
-  '/:course_id/reports/team/:team_id',
-  authenticateToken,
-  reportController.getTeamReport,
-);
-router.post(
-  '/:course_id/reports/generate',
-  authenticateToken,
-  reportController.generateReport,
-);
+router.get('/:course_id/reports/team/:team_id', reportController.getTeamReport);
+router.post('/:course_id/reports/generate', reportController.generateReport);
 // Evaluation endpoints (subroutes)
 router.post(
   '/:course_id/evaluations/send',
-  authenticateToken,
   evaluationController.sendEvaluations,
 );
 // Send evaluations to a specific team
 router.post(
   '/:course_id/teams/:team_id/evaluations/send',
-  authenticateToken,
   evaluationController.sendTeamEvaluations,
 );
 router.get(
   '/:course_id/evaluations/status',
-  authenticateToken,
   evaluationController.evaluationStatus,
 );
 router.post(
   '/:course_id/evaluations/remind',
-  authenticateToken,
   evaluationController.remindEvaluations,
 );
 router.delete(
   '/:course_id/evaluations/reset',
-  authenticateToken,
   studentController.resetEvaluationState,
 );
 // Team management endpoints (subroutes)
-router.get('/:course_id/teams', authenticateToken, teamController.listTeams);
-router.post('/:course_id/teams', authenticateToken, teamController.createTeams);
-router.put(
-  '/:course_id/teams/:team_id',
-  authenticateToken,
-  teamController.updateTeam,
-);
-router.delete(
-  '/:course_id/teams/:team_id',
-  authenticateToken,
-  teamController.deleteTeam,
-);
-router.delete(
-  '/:course_id/teams',
-  authenticateToken,
-  teamController.clearAllTeams,
-); // Clear all teams
-router.post(
-  '/:course_id/teams/auto-assign',
-  authenticateToken,
-  teamController.autoAssignTeams,
-);
+router.get('/:course_id/teams', teamController.listTeams);
+router.post('/:course_id/teams', teamController.createTeams);
+router.put('/:course_id/teams/:team_id', teamController.updateTeam);
+router.delete('/:course_id/teams/:team_id', teamController.deleteTeam);
+router.delete('/:course_id/teams', teamController.clearAllTeams); // Clear all teams
+router.post('/:course_id/teams/auto-assign', teamController.autoAssignTeams);
 router.post(
   '/:course_id/teams/:team_id/students/:student_id',
-  authenticateToken,
   teamController.addStudentToTeam,
 );
 router.delete(
   '/:course_id/teams/:team_id/students/:student_id',
-  authenticateToken,
   teamController.removeStudentFromTeam,
 );
 

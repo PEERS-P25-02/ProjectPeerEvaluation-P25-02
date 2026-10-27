@@ -67,7 +67,9 @@ async function sendEvaluationInvitation(
   frontendUrl = 'http://localhost:3000',
   deadline,
 ) {
-  const evaluationUrl = `${frontendUrl}/evaluate/${evaluationToken}`;
+  const evaluationUrl = new URL(frontendUrl);
+  // The frontend uses HashRouter, so place the evaluation route in the URL hash.
+  evaluationUrl.hash = `/evaluate/${encodeURIComponent(evaluationToken)}`;
 
   const subject = `Peer Evaluation for ${course.course_name} - ${course.course_number}`;
 
@@ -93,7 +95,7 @@ async function sendEvaluationInvitation(
           <p>Please click the link below to access your personalized evaluation form:</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${evaluationUrl}" 
+            <a href="${evaluationUrl.toString()}"
                style="background-color: #2c5aa0; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
               Complete Peer Evaluation
             </a>
@@ -115,7 +117,7 @@ async function sendEvaluationInvitation(
           <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
           <p style="font-size: 12px; color: #888;">
             This is an automated message. If you cannot click the link above, copy and paste this URL into your browser:<br>
-            ${evaluationUrl}
+            ${evaluationUrl.toString()}
           </p>
         </div>
       </body>

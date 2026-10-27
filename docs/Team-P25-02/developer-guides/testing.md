@@ -2,6 +2,10 @@
 
 Run the commands below from the repository root unless a command specifies a package path. One-shot commands return a nonzero exit status when a test fails.
 
+## Functional regression targets
+
+Plan functional regression checks against the [PEERS Functional Regression Test Matrix](../requirements/regression-test-matrix.md). Its stable IDs and expected outcomes define the target for CW-01 through CW-09; they do not claim current coverage or test results. Keep expected outcomes aligned with the validated requirements and critical workflows. Record implemented test mappings and run evidence in the [RTM](../requirements/traceability/README.md) and relevant implementation records. A coverage gap is not a reason to weaken a matrix outcome.
+
 ## Unit tests
 
 Run package-specific suites independently:
@@ -57,6 +61,8 @@ These project documents describe existing test implementations, evidence, and li
 - [Backend unit testing implementation](../modernization/implementation/testing/backend-unit-testing.md)
 - [CI build, lint, and unit verification](../modernization/implementation/continuous-integration.md)
 - [Integration test environment](../modernization/implementation/testing/integration-test-environment.md)
+- [Evaluation invitation email integration](../modernization/implementation/testing/email-integration.md)
 - [API and database integration](../modernization/implementation/testing/api-database-integration.md)
+- [Authentication and authorization integration](../modernization/implementation/testing/authentication-authorization-integration.md)
 - [API/database operation inventory](../modernization/implementation/testing/api-database-operation-inventory.md)
 - [ESLint migration notes](../modernization/implementation/tooling/eslint-and-formatting.md)

@@ -105,7 +105,10 @@ describe('Roster API and database integration', () => {
     const unchanged = await foreignSnapshot(foreign);
     await Student.updateMany(
       { course_id: course._id },
-      { evaluation_token: 'prior-roster-token' },
+      {
+        evaluation_token: 'prior-roster-token',
+        invitation_accepted_at: new Date('2026-01-01T00:00:00.000Z'),
+      },
     );
     await evaluation(course, students[0], students[1], 'prior-roster-token');
     const form = new FormData();
@@ -163,6 +166,12 @@ describe('Roster API and database integration', () => {
       await Student.countDocuments({
         course_id: course._id,
         evaluation_token: { $ne: null },
+      }),
+    ).toBe(0);
+    expect(
+      await Student.countDocuments({
+        course_id: course._id,
+        invitation_accepted_at: { $exists: true },
       }),
     ).toBe(0);
     expect(await Evaluation.countDocuments({ course_id: course._id })).toBe(0);
