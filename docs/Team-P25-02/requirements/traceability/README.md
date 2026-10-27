@@ -42,3 +42,5 @@ SWE 4724 Software Eng Capstone W01 (87351) Team P25-02
 1. [Summary](01-summary.md)
 2. [RTM](02-rtm.md)
 3. [Instructions](03-instructions.md)
+
+The [functional regression test matrix](../regression-test-matrix.md) is the stable scenario target catalog for CW-01 through CW-09. Use the RTM as the requirement index and add actual test mappings and evidence here as they are established; the scenario catalog itself does not report coverage or results.
