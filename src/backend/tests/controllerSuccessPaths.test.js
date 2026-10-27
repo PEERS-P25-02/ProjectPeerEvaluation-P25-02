@@ -622,6 +622,9 @@ describe('evaluation controller success paths', () => {
         total_count: 1,
         completed_count: 1,
         evaluations_sent: true,
+        invitation_status: 'complete',
+        invitations_accepted_count: 1,
+        invitations_pending_count: 0,
       }),
     );
   });

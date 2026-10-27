@@ -153,6 +153,9 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
     expect(legacyStatus.body).toMatchObject({
       total_count: 0,
       evaluations_sent: false,
+      invitation_status: 'not_sent',
+      invitations_accepted_count: 0,
+      invitations_pending_count: 2,
     });
     const result = await request('POST', '/evaluations/send', {});
     expect(result.status).toBe(200);
@@ -256,6 +259,9 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
       pending_count: 1,
       completion_rate: 50,
       evaluations_sent: true,
+      invitation_status: 'complete',
+      invitations_accepted_count: 2,
+      invitations_pending_count: 0,
     });
     expect(result.body.students).toHaveLength(2);
     expect(
@@ -384,6 +390,9 @@ describe('evaluation management API and MongoDB/SMTP interactions', () => {
     expect(status.body).toMatchObject({
       total_count: 0,
       evaluations_sent: false,
+      invitation_status: 'not_sent',
+      invitations_accepted_count: 0,
+      invitations_pending_count: 2,
     });
     const foreignAfter = await snapshot();
     expect(

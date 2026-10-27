@@ -682,12 +682,20 @@ describe('CourseManagement', () => {
 
   it('shows course completion progress and each student status by team', async () => {
     const user = userEvent.setup();
-    mockManagedCourse({ evaluationStatus: sentEvaluationStatus });
+    mockManagedCourse({
+      evaluationStatus: {
+        ...sentEvaluationStatus,
+        invitation_status: 'complete',
+      },
+    });
     renderCourseManagement();
     const dialog = await openEvaluationStatus(user);
     expect(
       await within(dialog).findByText('Progress: 1/2 evaluations completed'),
     ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText(/Invitations are partially sent/),
+    ).not.toBeInTheDocument();
     expect(within(dialog).getByText('Team Alpha')).toBeInTheDocument();
     // Each status must remain attached to its own student rather than merely appear somewhere in the dialog.
     const completedStudent =
@@ -699,6 +707,72 @@ describe('CourseManagement', () => {
     expect(api.get).toHaveBeenCalledWith(
       '/courses/course-1/evaluations/status',
     );
+  });
+
+  it('shows partial invitation counts and retains student completion status', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      evaluationStatus: {
+        ...sentEvaluationStatus,
+        evaluations_sent: false,
+        invitation_status: 'partial',
+        invitations_accepted_count: 1,
+        invitations_pending_count: 1,
+        students: [
+          {
+            ...sentEvaluationStatus.students[0],
+            invitation_accepted_at: '2026-10-20T12:00:00.000Z',
+          },
+          {
+            ...sentEvaluationStatus.students[1],
+            invitation_accepted_at: null,
+          },
+        ],
+      },
+    });
+    renderCourseManagement();
+    const dialog = await openEvaluationStatus(user);
+
+    expect(
+      await within(dialog).findByText(
+        /partially sent: 1\/2 recorded as sent\. 1 have no recorded send\./,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Progress: 1/2 evaluations completed'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('Invitation sent')).toBeInTheDocument();
+    expect(within(dialog).getByText('No send recorded')).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('No Sent Invitations Recorded'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('requires evaluation reset before changing teams after partial acceptance', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      students: [{ ...rosterStudent }],
+      teams: [{ _id: 'team-1', team_name: 'Team Alpha', student_count: 0 }],
+      evaluationStatus: {
+        evaluations_sent: false,
+        invitation_status: 'partial',
+      },
+    });
+    renderCourseManagement();
+    const teams = await openTeams(user);
+    const teamRow = (await within(teams).findByText('Team Alpha')).closest(
+      'tr',
+    );
+    await user.click(within(teamRow).getByTitle('Manage Students'));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Manage Students in Team Alpha',
+    });
+    await user.click(await within(dialog).findByTitle('Add to team'));
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Evaluations Already Sent' }),
+    ).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('requests reminders for the selected course and refreshes its status', async () => {

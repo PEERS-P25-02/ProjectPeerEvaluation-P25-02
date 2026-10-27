@@ -96,7 +96,13 @@ async function splitFixtureTeam() {
     students: [selected._id],
     student_count: 1,
   });
-  return { selected, unselected };
+  return { selected, unselected, secondTeam };
+}
+
+async function sendTeamInvitation(teamId) {
+  return request('POST', `/teams/${teamId}/evaluations/send`, {
+    deadline: '2026-12-01',
+  });
 }
 
 function invitationEndpoint(scope) {
@@ -219,6 +225,83 @@ describe('evaluation invitation SMTP integration', () => {
     expect(await foreignSnapshot(other)).toEqual(otherBefore);
   });
 
+  it('tracks partial delivery through a failed recipient and completes after retrying the remaining team', async () => {
+    const { selected, unselected, secondTeam } = await splitFixtureTeam();
+    const firstSend = await sendTeamInvitation(state.fixture.team.id);
+    expect(firstSend.status).toBe(200);
+    await capturedMessages(1);
+    const partialStatus = await request('GET', '/evaluations/status');
+    expect(partialStatus.body).toMatchObject({
+      evaluations_sent: false,
+      invitation_status: 'partial',
+      invitations_accepted_count: 1,
+      invitations_pending_count: 1,
+    });
+    expect(partialStatus.body.students).toHaveLength(2);
+
+    const originalChaos = await chaosConfiguration();
+    const rejectedChaos = {
+      ...originalChaos,
+      Recipient: {
+        ...originalChaos.Recipient,
+        ErrorCode: 451,
+        Probability: 100,
+      },
+    };
+    let failedSend;
+    let restoreError;
+    try {
+      const configured = await setChaos(rejectedChaos);
+      expect(configured).toBeGreaterThanOrEqual(200);
+      expect(configured).toBeLessThan(300);
+      failedSend = await sendTeamInvitation(secondTeam._id);
+    } finally {
+      try {
+        const restored = await setChaos(originalChaos);
+        expect(restored).toBeGreaterThanOrEqual(200);
+        expect(restored).toBeLessThan(300);
+        expect(await chaosConfiguration()).toEqual(originalChaos);
+      } catch (error) {
+        restoreError = error;
+      }
+    }
+    if (restoreError) throw restoreError;
+    expect(failedSend.status).toBe(502);
+    const inboxAfterFailure = await mailpitRequest(
+      process.env,
+      '/api/v1/messages',
+    );
+    expect((await inboxAfterFailure.json()).messages).toHaveLength(1);
+    const stillPartial = await request('GET', '/evaluations/status');
+    expect(stillPartial.body).toMatchObject({
+      evaluations_sent: false,
+      invitation_status: 'partial',
+      invitations_accepted_count: 1,
+      invitations_pending_count: 1,
+    });
+    expect(stillPartial.body.students).toHaveLength(2);
+
+    const completedSend = await sendTeamInvitation(secondTeam._id);
+    expect(completedSend.status).toBe(200);
+    const deliveredMessages = await capturedMessages(2);
+    expect(
+      deliveredMessages.map(({ message }) => message.To[0].Address).sort(),
+    ).toEqual([selected.email, unselected.email].sort());
+    const completeStatus = await request('GET', '/evaluations/status');
+    expect(completeStatus.body).toMatchObject({
+      evaluations_sent: true,
+      invitation_status: 'complete',
+      invitations_accepted_count: 2,
+      invitations_pending_count: 0,
+    });
+    expect(completeStatus.body.students).toHaveLength(2);
+    expect([selected.email, unselected.email]).toEqual(
+      expect.arrayContaining(
+        completeStatus.body.students.map(({ email }) => email),
+      ),
+    );
+  });
+
   it.each([
     ['course', 'Sender'],
     ['course', 'Recipient'],
@@ -322,6 +405,11 @@ describe('evaluation invitation SMTP integration', () => {
       const statusAfterFailure = await request('GET', '/evaluations/status');
       expect(statusAfterFailure.status).toBe(200);
       expect(statusAfterFailure.body.evaluations_sent).toBe(false);
+      expect(statusAfterFailure.body.invitation_status).toBe('not_sent');
+      expect(statusAfterFailure.body.invitations_accepted_count).toBe(0);
+      expect(statusAfterFailure.body.invitations_pending_count).toBe(
+        state.fixture.students.length,
+      );
       const tokensAfterFailure = new Map(
         afterFailure.map((student) => [
           String(student._id),
@@ -371,7 +459,16 @@ describe('evaluation invitation SMTP integration', () => {
       }
       const statusAfterRetry = await request('GET', '/evaluations/status');
       expect(statusAfterRetry.status).toBe(200);
-      expect(statusAfterRetry.body.evaluations_sent).toBe(true);
+      expect(statusAfterRetry.body.evaluations_sent).toBe(scope === 'course');
+      expect(statusAfterRetry.body.invitation_status).toBe(
+        scope === 'course' ? 'complete' : 'partial',
+      );
+      expect(statusAfterRetry.body.invitations_accepted_count).toBe(
+        targeted.length,
+      );
+      expect(statusAfterRetry.body.invitations_pending_count).toBe(
+        state.fixture.students.length - targeted.length,
+      );
       const statusByEmail = new Map(
         statusAfterRetry.body.students.map((student) => [
           student.email,
@@ -419,6 +516,7 @@ describe('evaluation invitation SMTP integration', () => {
     }
     const statusBefore = await request('GET', '/evaluations/status');
     expect(statusBefore.body.evaluations_sent).toBe(true);
+    expect(statusBefore.body.invitation_status).toBe('complete');
 
     const originalChaos = await chaosConfiguration();
     const rejectedChaos = {
@@ -462,6 +560,7 @@ describe('evaluation invitation SMTP integration', () => {
     const statusAfter = await request('GET', '/evaluations/status');
     expect(statusAfter.status).toBe(200);
     expect(statusAfter.body.evaluations_sent).toBe(true);
+    expect(statusAfter.body.invitation_status).toBe('complete');
     for (const student of acceptedBefore) {
       const status = statusAfter.body.students.find(
         (entry) => entry.email === student.email,

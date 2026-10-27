@@ -275,6 +275,9 @@ describe('evaluation and reporting boundary cases', () => {
       expect.objectContaining({
         total_count: 0,
         evaluations_sent: false,
+        invitation_status: 'not_sent',
+        invitations_accepted_count: 0,
+        invitations_pending_count: 0,
       }),
     );
 

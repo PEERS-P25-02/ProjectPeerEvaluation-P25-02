@@ -1072,7 +1072,13 @@ function CourseManagement() {
       const evalStatusResp = await api.get(
         `/courses/${teamsCourse._id}/evaluations/status`,
       );
-      if (evalStatusResp.data && evalStatusResp.data.evaluations_sent) {
+      if (
+        evalStatusResp.data &&
+        (evalStatusResp.data.invitation_status === 'partial' ||
+          evalStatusResp.data.invitation_status === 'complete' ||
+          (!evalStatusResp.data.invitation_status &&
+            evalStatusResp.data.evaluations_sent))
+      ) {
         setPendingEvalResetCourseId(teamsCourse._id);
         setPendingTeamAction({
           type: 'add',
@@ -1130,7 +1136,13 @@ function CourseManagement() {
       const evalStatusResp = await api.get(
         `/courses/${teamsCourse._id}/evaluations/status`,
       );
-      if (evalStatusResp.data && evalStatusResp.data.evaluations_sent) {
+      if (
+        evalStatusResp.data &&
+        (evalStatusResp.data.invitation_status === 'partial' ||
+          evalStatusResp.data.invitation_status === 'complete' ||
+          (!evalStatusResp.data.invitation_status &&
+            evalStatusResp.data.evaluations_sent))
+      ) {
         setPendingEvalResetCourseId(teamsCourse._id);
         setPendingTeamAction({
           type: 'remove',
@@ -3314,7 +3326,9 @@ function CourseManagement() {
           ) : evaluationStatus ? (
             <Box>
               {/* Check if evaluations have been sent */}
-              {!evaluationStatus.evaluations_sent ? (
+              {evaluationStatus.invitation_status === 'not_sent' ||
+              (!evaluationStatus.invitation_status &&
+                !evaluationStatus.evaluations_sent) ? (
                 <Alert severity="info" sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="h6" gutterBottom>
                     No Sent Invitations Recorded
@@ -3356,6 +3370,15 @@ function CourseManagement() {
                 </Alert>
               ) : (
                 <>
+                  {evaluationStatus.invitation_status === 'partial' && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Invitations are partially sent:{' '}
+                      {evaluationStatus.invitations_accepted_count}/
+                      {evaluationStatus.total_count} recorded as sent.{' '}
+                      {evaluationStatus.invitations_pending_count} have no
+                      recorded send.
+                    </Alert>
+                  )}
                   <Box
                     sx={{
                       display: 'flex',
@@ -3546,6 +3569,28 @@ function CourseManagement() {
                                           </Typography>
                                         </Box>
                                         <Box sx={{ textAlign: 'right' }}>
+                                          {student.invitation_accepted_at !=
+                                            null && (
+                                            <Typography
+                                              variant="caption"
+                                              color="text.secondary"
+                                              sx={{ display: 'block' }}
+                                            >
+                                              Invitation sent
+                                            </Typography>
+                                          )}
+                                          {student.invitation_accepted_at ===
+                                            null &&
+                                            evaluationStatus.invitation_status ===
+                                              'partial' && (
+                                              <Typography
+                                                variant="caption"
+                                                color="warning.main"
+                                                sx={{ display: 'block' }}
+                                              >
+                                                No send recorded
+                                              </Typography>
+                                            )}
                                           <Chip
                                             label={
                                               student.completed
@@ -3636,7 +3681,9 @@ function CourseManagement() {
             </Box>
           ) : testEvaluationData ? (
             <Box>
-              {!testEvaluationData.evaluations_sent ? (
+              {testEvaluationData.invitation_status === 'not_sent' ||
+              (!testEvaluationData.invitation_status &&
+                !testEvaluationData.evaluations_sent) ? (
                 <Alert severity="info" sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="h6" gutterBottom>
                     No Sent Invitations Recorded
@@ -3649,6 +3696,15 @@ function CourseManagement() {
                 </Alert>
               ) : (
                 <>
+                  {testEvaluationData.invitation_status === 'partial' && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Invitations are partially sent:{' '}
+                      {testEvaluationData.invitations_accepted_count}/
+                      {testEvaluationData.total_count} recorded as sent.{' '}
+                      {testEvaluationData.invitations_pending_count} have no
+                      recorded send.
+                    </Alert>
+                  )}
                   <Alert severity="info" sx={{ mb: 2 }}>
                     This allows you to test the student evaluation form using
                     real student data from your course.

@@ -127,3 +127,11 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Fix: Record `invitation_accepted_at` only after SMTP acceptance and only for the token actually emailed. Status requires recorded acceptance; a failed resend preserves prior acceptance. Evaluation reset and roster replacement clear the marker with the token. Existing tokens are not assigned guessed acceptance history.
 - Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
 - Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## BUG-016: Partially accepted invitation batches appear complete
+
+- Status: Fixed and verified; follow-up results are recorded in the email integration record.
+- Previous behavior: One student's SMTP acceptance made the course-level `evaluations_sent` flag true, while students without acceptance appeared alongside invited students as pending submissions.
+- Fix: Expose not-sent, partial, and complete invitation states and accepted/outstanding counts. Set the legacy sent flag only for complete acceptance. Show partial status and per-student acceptance separately from submission progress, while retaining reset protection for partially sent evaluations.
+- Regression: Accept one team's invitation, reject the remaining team, then retry successfully; status must progress from partial, remain partial on rejection, and finally become complete.
+- Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).

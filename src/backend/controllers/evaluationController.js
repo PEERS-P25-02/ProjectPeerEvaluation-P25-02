@@ -242,10 +242,17 @@ exports.evaluationStatus = async (req, res, next) => {
     const students = await Student.find({ course_id });
     const total = students.length;
 
-    // Legacy tokens do not prove an invitation was accepted; only new SMTP markers do.
-    const hasAcceptedInvitations = students.some(
+    // Legacy tokens do not prove acceptance; count only persisted SMTP markers.
+    const acceptedCount = students.filter(
       (student) => student.evaluation_token && student.invitation_accepted_at,
-    );
+    ).length;
+    const pendingInvitationCount = total - acceptedCount;
+    const invitationStatus =
+      acceptedCount === 0
+        ? 'not_sent'
+        : acceptedCount === total
+          ? 'complete'
+          : 'partial';
 
     // If no students exist, return empty state
     if (total === 0) {
@@ -255,18 +262,24 @@ exports.evaluationStatus = async (req, res, next) => {
         pending_count: 0,
         completion_rate: 0,
         evaluations_sent: false,
+        invitation_status: 'not_sent',
+        invitations_accepted_count: 0,
+        invitations_pending_count: 0,
         students: [],
       });
     }
 
     // Keep the existing empty state until at least one invitation is accepted.
-    if (!hasAcceptedInvitations) {
+    if (acceptedCount === 0) {
       return res.status(200).json({
         total_count: 0,
         completed_count: 0,
         pending_count: 0,
         completion_rate: 0,
         evaluations_sent: false,
+        invitation_status: 'not_sent',
+        invitations_accepted_count: acceptedCount,
+        invitations_pending_count: pendingInvitationCount,
         students: [],
       });
     }
@@ -315,7 +328,10 @@ exports.evaluationStatus = async (req, res, next) => {
       completed_count: completed, // Match frontend expectation
       pending_count: pending,
       completion_rate: total > 0 ? Math.round((completed / total) * 100) : 0,
-      evaluations_sent: true, // Evaluations have been sent
+      evaluations_sent: invitationStatus === 'complete',
+      invitation_status: invitationStatus,
+      invitations_accepted_count: acceptedCount,
+      invitations_pending_count: pendingInvitationCount,
       students: studentStatus,
     });
   } catch (err) {

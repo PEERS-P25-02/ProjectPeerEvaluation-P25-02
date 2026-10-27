@@ -85,6 +85,31 @@ resend. Reset/import clear acceptance with the old tokens. Existing tokens
 without a recorded acceptance are not backfilled with guessed delivery history;
 they remain valid access credentials and a successful resend records acceptance.
 
+Course status distinguishes `invitation_status: not_sent`, `partial`, and
+`complete`, with `invitations_accepted_count` and `invitations_pending_count`.
+`evaluations_sent` is true only when every current roster student has recorded
+acceptance. Partial status retains student/completion rows, and the UI shows the
+accepted and outstanding invitation counts separately from submission progress.
+Students without acceptance are labeled accordingly. Team changes still require
+evaluation reset when invitations are partially sent. These counts describe
+recorded SMTP acceptance; a missing marker does not prove a specific failure or
+external delivery outcome.
+
+The partial-send regression starts with two single-student teams, sends one
+team's invitation, and expects partial status with one accepted and one
+outstanding. It then rejects the remaining team's SMTP attempt and expects
+partial status to persist; after restoring SMTP, sending that team must produce
+complete status. Component tests verify partial counts and distinct student
+labels and the reset guard for partial invitations; existing status rendering
+remains covered.
+
+Follow-up verification on October 27, 2026 passed all 177 integration tests in
+12 files with exit 0 and verified cleanup, all 64 backend unit tests, and all
+65 frontend tests. Lint, formatting, and the production build passed; the
+existing large-chunk build warning remains. The initial integration attempt
+found a test inbox-count mistake, corrected to assert that the rejected send
+adds no message and the two accepted sends leave exactly two messages.
+
 Both invitation endpoints return HTTP 502 when any intended send fails, with
 the accepted count and failed-recipient details retained in the response.
 Full success retains HTTP 200. The integration suite deterministically rejects
