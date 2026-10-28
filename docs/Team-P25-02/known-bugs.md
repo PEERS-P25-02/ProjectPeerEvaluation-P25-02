@@ -163,4 +163,12 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Fix: Clear `evaluation_completed` to false with the selected course's tokens and invitation-acceptance marker during reset.
 - Verification: Reproduced in the October 28, 2026 PR #134 baseline at `9d05881` (184 passed, 10 failed; cleanup verified). `priorityLifecycle.test.js` checks actual submission/reset, old-link denial, complete student state, and roster/team/other-course preservation. Its snapshot now allows the submission transaction's evaluator version increment. The repaired combined source passed the focused 24-case and full 200-case integration runs with cleanup verified; see the [priority integration record](modernization/implementation/testing/api-database-integration.md#current-combined-follow-up).
 
-BUG-016 is reserved for PR #127 invitation aggregate status; BUG-017 is reserved for the separate, unmerged PR #136 reset-confirmation UI work. That UI repair and its coverage are not included here. All reproductions use synthetic records; no real recipients or student data were used.
+## BUG-017: Team membership changes continue after a required evaluation reset fails
+
+- Status: Fixed in source; focused component regressions and the full frontend suite passed October 28, 2026.
+- Previous behavior: After invitations had been sent, confirming a team addition or removal requested an evaluation reset. The reset helper caught API errors and resolved normally, so the confirmation handler still issued the queued membership request.
+- Fix: Return an explicit success/failure result from the reset helper. On failure, clear the queued action and stop; preserve the reset error and membership. Successful resets still precede the selected membership request, and Cancel clears the queued action without either request.
+- Reproduction: Mocked component tests against the original page observed queued add/remove requests after reset rejection. This is frontend request-sequencing evidence, not live API/database fault injection.
+- Evidence: [Reset-sequencing cases and verification](modernization/implementation/testing/frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes), [failure/add and success-ordering tests](../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx), and [cancel/removal component tests](../../src/frontend/tests/CourseManagement.test.jsx). Targets: REG-CW05-07/08.
+
+BUG-016 remains reserved for PR #127 invitation aggregate status. All reproductions use synthetic records; no real recipients or student data were used.

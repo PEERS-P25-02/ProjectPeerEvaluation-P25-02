@@ -222,7 +222,11 @@ function CourseManagement() {
       );
       setStudents(response.data);
       // Re-apply current search filters
-      handleStudentSearchChange('student_id', studentSearch.student_id);
+      handleStudentSearchChange(
+        'student_id',
+        studentSearch.student_id,
+        response.data,
+      );
     } catch (error) {
       setAlert({ severity: 'error', message: 'Failed to update student' });
     }
@@ -271,7 +275,11 @@ function CourseManagement() {
       );
       setStudents(response.data);
       // Re-apply current search filters
-      handleStudentSearchChange('student_id', studentSearch.student_id);
+      handleStudentSearchChange(
+        'student_id',
+        studentSearch.student_id,
+        response.data,
+      );
     } catch (error) {
       setAlert({
         severity: 'error',
@@ -311,8 +319,12 @@ function CourseManagement() {
         `/courses/${studentsCourse._id || studentsCourse.id}/students`,
       );
       setStudents(studentsResponse.data);
-      // Re-apply current search filters
-      handleStudentSearchChange('student_id', studentSearch.student_id);
+      // Re-apply current search filters to the refreshed roster.
+      handleStudentSearchChange(
+        'student_id',
+        studentSearch.student_id,
+        studentsResponse.data,
+      );
 
       // Reset form
       setCsvFile(null);
@@ -782,12 +794,16 @@ function CourseManagement() {
   };
 
   // Handle search input changes
-  const handleStudentSearchChange = (field, value) => {
+  const handleStudentSearchChange = (
+    field,
+    value,
+    sourceStudents = students,
+  ) => {
     const newSearch = { ...studentSearch, [field]: value };
     setStudentSearch(newSearch);
 
     // Filter immediately as user types
-    let filtered = students.filter((student) => {
+    let filtered = sourceStudents.filter((student) => {
       const matchesId =
         newSearch.student_id === '' ||
         student.student_id
@@ -838,12 +854,12 @@ function CourseManagement() {
   };
 
   // Handle team search input changes
-  const handleTeamSearchChange = (field, value) => {
+  const handleTeamSearchChange = (field, value, sourceTeams = teams) => {
     const newSearch = { ...teamSearch, [field]: value };
     setTeamSearch(newSearch);
 
     // Filter immediately as user types
-    let filtered = teams.filter((team) => {
+    let filtered = sourceTeams.filter((team) => {
       const matchesName =
         newSearch.team_name === '' ||
         team.team_name
@@ -922,9 +938,10 @@ function CourseManagement() {
       });
 
       // Remove the deleted team from the local state
-      setTeams((prevTeams) => prevTeams.filter((team) => team._id !== teamId));
-      // Re-apply current search filters
-      handleTeamSearchChange('team_name', teamSearch.team_name);
+      const updatedTeams = teams.filter((team) => team._id !== teamId);
+      setTeams(updatedTeams);
+      // Filter the updated list rather than the previous render's state.
+      handleTeamSearchChange('team_name', teamSearch.team_name, updatedTeams);
 
       // Refresh the course list to update team count
       fetchCoursesWithCounts();
@@ -966,13 +983,12 @@ function CourseManagement() {
       });
 
       // Update the team in the local state
-      setTeams((prevTeams) =>
-        prevTeams.map((team) =>
-          team._id === teamToEdit._id ? { ...team, ...editTeamData } : team,
-        ),
+      const updatedTeams = teams.map((team) =>
+        team._id === teamToEdit._id ? { ...team, ...editTeamData } : team,
       );
-      // Re-apply current search filters
-      handleTeamSearchChange('team_name', teamSearch.team_name);
+      setTeams(updatedTeams);
+      // Keep displayed results in sync with the saved team details.
+      handleTeamSearchChange('team_name', teamSearch.team_name, updatedTeams);
 
       // If team name was changed, refresh students list to show updated team assignments
       if (
@@ -1018,8 +1034,12 @@ function CourseManagement() {
       // Refresh teams list
       const teamsResponse = await api.get(`/courses/${teamsCourse._id}/teams`);
       setTeams(teamsResponse.data);
-      // Re-apply current search filters
-      handleTeamSearchChange('team_name', teamSearch.team_name);
+      // Re-apply current search filters to the refreshed teams.
+      handleTeamSearchChange(
+        'team_name',
+        teamSearch.team_name,
+        teamsResponse.data,
+      );
 
       // Close the dialog and reset form
       setCreateTeamDialogOpen(false);
@@ -1190,7 +1210,15 @@ function CourseManagement() {
       return;
     }
     setShowEvalResetDialog(false);
-    await handleResetEvaluationState(pendingEvalResetCourseId);
+    const resetSucceeded = await handleResetEvaluationState(
+      pendingEvalResetCourseId,
+    );
+    if (!resetSucceeded) {
+      // Keep team membership unchanged when its required evaluation reset fails.
+      setPendingEvalResetCourseId(null);
+      setPendingTeamAction(null);
+      return;
+    }
     // After reset, perform the pending action with stored team/course
     if (pendingTeamAction.type === 'add') {
       await doAddStudentToTeam(
@@ -1500,6 +1528,7 @@ function CourseManagement() {
         const course = { _id: courseId, id: courseId };
         handleViewEvaluationStatus(course);
       }, 1000);
+      return true;
     } catch (error) {
       console.error('Reset evaluation state error:', error);
       const errorMessage =
@@ -1508,6 +1537,7 @@ function CourseManagement() {
         severity: 'error',
         message: `❌ ${errorMessage}`,
       });
+      return false;
     } finally {
       setResettingEvaluations(false);
     }
