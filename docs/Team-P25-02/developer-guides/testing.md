@@ -27,7 +27,7 @@ npm --prefix src/backend run test:coverage
 npm run test:all:coverage
 ```
 
-Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server or browser. CI uploads coverage as workflow artifacts. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred; implementing browser E2E does not by itself combine coverage reports.
+Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server or browser. CI uploads coverage as workflow artifacts. Frontend coverage explicitly includes unimported frontend application sources and the entry point and also writes JSON/JSON-summary reports. See the [priority unit/component follow-up](../modernization/implementation/testing/priority-unit-coverage.md) for the proposed backend function-scope diagnostic, updated tests, measured results, and remaining 70% scope-review work. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred; implementing browser E2E does not by itself combine coverage reports.
 
 ## Isolated backend integration environment
 
@@ -48,7 +48,7 @@ npm run test:integration -- authentication.test.js authenticationAccess.test.js 
 npm run test:integration -- emailIntegration.test.js evaluationManagement.test.js
 ```
 
-These tests do not start the frontend or establish complete browser journeys, external email delivery, or exhaustive failure handling. Integration execution is not yet part of the CI workflow. Use the [regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md) to distinguish existing assertions from incomplete and missing scenarios; keep the stable regression matrix's expected outcomes unchanged.
+These tests do not start the frontend or establish complete browser journeys, external email delivery, or exhaustive failure handling. The CI workflow has an Integration Tests job that invokes this command and uploads `test-results/integration/` after the test step runs or fails. Its first hosted PR #138 attempt (run 40735605439) failed during MongoDB startup, but cleanup was verified and the result artifact uploaded. The job now uses Ubuntu 22.04; the compatibility rerun is pending. Use the [regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md) to distinguish existing assertions from incomplete and missing scenarios; keep the stable regression matrix's expected outcomes unchanged.
 
 ## End-to-end browser tests
 
@@ -59,6 +59,8 @@ npm run test:e2e
 ```
 
 The runner builds a disposable frontend/backend/MongoDB/Mailpit stack, seeds guarded synthetic fixtures, runs Playwright sequentially, preserves logs and failure artifacts, and verifies cleanup. It does not read the development `.env` or publish ports. See the [end-to-end implementation record](../modernization/implementation/testing/end-to-end-testing.md) for prerequisites, cases, historical results, and coverage limits.
+
+The CI workflow has an End-to-End Tests job that invokes this command and uploads `test-results/e2e/` after the test step runs or fails. Its first hosted PR #138 attempt (run 40735605439) failed during MongoDB startup, but cleanup was verified and the result artifact uploaded. The job now uses Ubuntu 22.04; the compatibility rerun is pending. Regression Checks reports the unit, integration, and E2E job outcomes and fails if any did not succeed; it does not rerun tests. Regression Checks behavior and required-check configuration have not been verified. These checks do not establish complete functional regression-matrix coverage; see the [coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
 
 ## Linting and formatting
 

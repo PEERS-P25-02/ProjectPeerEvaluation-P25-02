@@ -34,7 +34,9 @@ export default defineConfig({
     // Write terminal, HTML, and LCOV coverage reports.
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
+      include: ['src/frontend/**/*.{js,jsx}', 'src/index.jsx'],
+      exclude: ['**/tests/**', '**/test/**'],
+      reporter: ['text', 'html', 'lcov', 'json', 'json-summary'],
       reportsDirectory: './coverage',
     },
   },

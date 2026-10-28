@@ -818,4 +818,409 @@ describe('CourseManagement', () => {
       await screen.findByText('Reminder sent to 1 incomplete student'),
     ).toBeInTheDocument();
   });
+
+  it('does not send invitations when the backend health check fails', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse();
+    const originalGet = api.get.getMockImplementation();
+    api.get.mockImplementation((url) =>
+      url === '/health'
+        ? Promise.reject(new Error('Offline'))
+        : originalGet(url),
+    );
+    renderCourseManagement();
+    const dialog = await openEvaluationStatus(user);
+    await user.click(
+      await within(dialog).findByRole('button', {
+        name: 'Send Evaluations Now',
+      }),
+    );
+    expect(api.post).not.toHaveBeenCalled();
+    expect(
+      within(dialog).getByRole('button', { name: 'Send Evaluations Now' }),
+    ).toBeEnabled();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(
+      await screen.findByText(/Cannot connect to backend server/),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    [{ code: 'ECONNABORTED' }, /Email sending is taking longer than expected/],
+    [{ response: { status: 500 } }, /Server error - check backend logs/],
+    [
+      { response: { status: 401 } },
+      /Authentication failed - please log in again/,
+    ],
+    [
+      {
+        response: {
+          status: 502,
+          data: { message: 'Only one invitation was accepted' },
+        },
+      },
+      /Only one invitation was accepted/,
+    ],
+    [
+      {
+        response: {
+          status: 400,
+          data: { error: { message: 'No eligible recipients' } },
+        },
+      },
+      /No eligible recipients/,
+    ],
+  ])(
+    'retains launch state and displays the invitation error %j',
+    async (error, message) => {
+      const user = userEvent.setup();
+      mockManagedCourse();
+      api.post.mockRejectedValueOnce(error);
+      renderCourseManagement();
+      const dialog = await openEvaluationStatus(user);
+      await user.click(
+        await within(dialog).findByRole('button', {
+          name: 'Send Evaluations Now',
+        }),
+      );
+      expect(api.post).toHaveBeenCalledExactlyOnceWith(
+        '/courses/course-1/evaluations/send',
+      );
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole('button', { name: 'Send Evaluations Now' }),
+        ).toBeEnabled(),
+      );
+      expect(
+        within(dialog).getByText('No Sent Invitations Recorded'),
+      ).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(screen.queryByText(/✅.*Emails sent/)).not.toBeInTheDocument();
+    },
+  );
+
+  it('re-enables team invitations after a failed send without claiming success', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      teams: [{ _id: 'team-1', team_name: 'Team Alpha', student_count: 2 }],
+    });
+    api.post.mockRejectedValueOnce({
+      userMessage: 'SMTP rejected the invitations',
+    });
+    renderCourseManagement();
+    const dialog = await openTeams(user);
+    const row = (await within(dialog).findByText('Team Alpha')).closest('tr');
+    await user.click(within(row).getByTitle('Send Evaluations to Team'));
+    await waitFor(() =>
+      expect(within(row).getByTitle('Send Evaluations to Team')).toBeEnabled(),
+    );
+    expect(api.post).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/teams/team-1/evaluations/send',
+      {},
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(
+      await screen.findByText('SMTP rejected the invitations'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Evaluation invitations sent to team "Team Alpha".'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps completion status when resetting evaluations fails', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({ evaluationStatus: sentEvaluationStatus });
+    api.delete.mockRejectedValueOnce({
+      response: { data: { message: 'Reset was rejected' } },
+    });
+    renderCourseManagement();
+    const dialog = await openEvaluationStatus(user);
+    await user.click(
+      await within(dialog).findByRole('button', {
+        name: 'Reset Evaluation State',
+      }),
+    );
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/evaluations/reset',
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: 'Reset Evaluation State' }),
+      ).toBeEnabled(),
+    );
+    expect(
+      within(dialog).getByText('Progress: 1/2 evaluations completed'),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(await screen.findByText(/Reset was rejected/)).toBeInTheDocument();
+  });
+
+  it('clears evaluation status after a successful reset and shows server counts', async () => {
+    const user = userEvent.setup();
+    const data = mockManagedCourse({ evaluationStatus: sentEvaluationStatus });
+    api.delete.mockImplementationOnce(async () => {
+      data.evaluationStatus = { evaluations_sent: false };
+      return {
+        data: {
+          message: 'Evaluation state reset',
+          tokens_cleared: 2,
+          evaluations_deleted: 1,
+        },
+      };
+    });
+    renderCourseManagement();
+    const dialog = await openEvaluationStatus(user);
+    await user.click(
+      await within(dialog).findByRole('button', {
+        name: 'Reset Evaluation State',
+      }),
+    );
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/evaluations/reset',
+    );
+    expect(
+      await screen.findByText(
+        'No Sent Invitations Recorded',
+        {},
+        { timeout: 3000 },
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(
+      await screen.findByText(/Cleared 2 tokens and 1 evaluations/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the refreshed student edit immediately after saving', async () => {
+    const user = userEvent.setup();
+    const data = mockManagedCourse({ students: [{ ...rosterStudent }] });
+    api.put.mockImplementationOnce(async (_url, payload) => {
+      data.students = [{ ...data.students[0], ...payload }];
+      return { data: {} };
+    });
+    renderCourseManagement();
+    const roster = await openStudents(user);
+    await user.click(
+      within(
+        await within(roster).findByRole('row', { name: /S001/ }),
+      ).getByTitle('Edit Student'),
+    );
+    const edit = await screen.findByRole('dialog', { name: 'Edit Student' });
+    const name = within(edit).getByRole('textbox', { name: 'Name' });
+    await user.clear(name);
+    await user.type(name, 'Updated Student');
+    await user.click(within(edit).getByRole('button', { name: 'Save' }));
+    expect(api.put).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/students/student-1',
+      {
+        student_id: 'S001',
+        name: 'Updated Student',
+        email: rosterStudent.email,
+        group_assignment: '',
+      },
+    );
+    expect(
+      await within(roster).findByText('Updated Student'),
+    ).toBeInTheDocument();
+    expect(
+      within(roster).queryByText('Synthetic Student'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('removes the deleted student from the displayed roster after confirmation', async () => {
+    const user = userEvent.setup();
+    const data = mockManagedCourse({ students: [{ ...rosterStudent }] });
+    const confirm = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    api.delete.mockImplementationOnce(async () => {
+      data.students = [];
+      return { data: {} };
+    });
+    renderCourseManagement();
+    const roster = await openStudents(user);
+    const remove = within(
+      await within(roster).findByRole('row', { name: /S001/ }),
+    ).getByTitle('Delete Student');
+    await user.click(remove);
+    expect(api.delete).not.toHaveBeenCalled();
+    await user.click(remove);
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/students/student-1',
+    );
+    expect(
+      await within(roster).findByText('No students found for this course.'),
+    ).toBeInTheDocument();
+    expect(
+      within(roster).queryByText('Synthetic Student'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows an edited team name immediately after saving', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      teams: [
+        {
+          _id: 'team-1',
+          team_name: 'Team Alpha',
+          team_status: 'Active',
+          student_count: 1,
+        },
+      ],
+    });
+    api.put.mockResolvedValueOnce({ data: {} });
+    renderCourseManagement();
+    const teams = await openTeams(user);
+    await user.click(
+      within(
+        (await within(teams).findByText('Team Alpha')).closest('tr'),
+      ).getByTitle('Edit Team'),
+    );
+    const edit = await screen.findByRole('dialog', { name: 'Edit Team' });
+    const name = within(edit).getByRole('textbox', { name: 'Team Name' });
+    await user.clear(name);
+    await user.type(name, 'Team Beta');
+    await user.click(
+      within(edit).getByRole('button', { name: 'Save Changes' }),
+    );
+    expect(api.put).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/teams/team-1',
+      { team_name: 'Team Beta', team_status: 'Active' },
+    );
+    expect(await within(teams).findByText('Team Beta')).toBeInTheDocument();
+    expect(within(teams).queryByText('Team Alpha')).not.toBeInTheDocument();
+  });
+
+  it('clears all teams only after confirmation and displays an empty list', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      teams: [{ _id: 'team-1', team_name: 'Team Alpha', student_count: 1 }],
+    });
+    vi.spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    api.delete.mockResolvedValueOnce({
+      data: { message: 'All teams cleared' },
+    });
+    renderCourseManagement();
+    const teams = await openTeams(user);
+    const clear = await within(teams).findByRole('button', {
+      name: 'Clear All Teams',
+    });
+    await user.click(clear);
+    expect(api.delete).not.toHaveBeenCalled();
+    await user.click(clear);
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/teams',
+    );
+    await waitFor(() =>
+      expect(within(teams).queryByText('Team Alpha')).not.toBeInTheDocument(),
+    );
+    expect(clear).toBeDisabled();
+  });
+
+  it('requires typed confirmation before deleting all students and clears the roster', async () => {
+    const user = userEvent.setup();
+    const data = mockManagedCourse({ students: [{ ...rosterStudent }] });
+    api.delete.mockImplementationOnce(async () => {
+      data.students = [];
+      return {
+        data: {
+          message: 'Roster removed',
+          deleted_students: 1,
+          deleted_teams: 0,
+        },
+      };
+    });
+    renderCourseManagement();
+    const roster = await openStudents(user);
+    await user.click(
+      await within(roster).findByRole('button', {
+        name: 'Delete All Students',
+      }),
+    );
+    const confirmation = await screen.findByRole('dialog', {
+      name: 'Delete All Students',
+    });
+    const remove = within(confirmation).getByRole('button', {
+      name: 'Delete All Students',
+    });
+    await user.click(remove);
+    expect(api.delete).not.toHaveBeenCalled();
+    await user.type(
+      within(confirmation).getByPlaceholderText('Type DELETE ALL to confirm'),
+      'DELETE ALL',
+    );
+    await user.click(remove);
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/students',
+    );
+    expect(
+      await within(roster).findByText('No students found for this course.'),
+    ).toBeInTheDocument();
+  });
+
+  it('filters the student roster by name and restores the list when search is cleared', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      students: [
+        { ...rosterStudent },
+        {
+          ...rosterStudent,
+          _id: 'student-2',
+          student_id: 'S002',
+          name: 'Another Student',
+          email: 'another@example.invalid',
+        },
+      ],
+    });
+    renderCourseManagement();
+    const roster = await openStudents(user);
+    await within(roster).findByText('Synthetic Student');
+    await user.click(
+      within(roster).getByRole('button', { name: 'Show Search' }),
+    );
+    await user.type(
+      within(roster).getByPlaceholderText('Search by name...'),
+      'synthetic',
+    );
+    expect(within(roster).getByText('Synthetic Student')).toBeInTheDocument();
+    expect(
+      within(roster).queryByText('Another Student'),
+    ).not.toBeInTheDocument();
+    await user.click(within(roster).getByRole('button', { name: 'Search' }));
+    await user.click(
+      within(roster).getByRole('button', { name: 'Clear Search' }),
+    );
+    expect(
+      await within(roster).findByText('Another Student'),
+    ).toBeInTheDocument();
+  });
+
+  it('removes the deleted team from the displayed list after confirmation', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      teams: [{ _id: 'team-1', team_name: 'Team Alpha', student_count: 0 }],
+    });
+    vi.spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    api.delete.mockResolvedValueOnce({ data: {} });
+    renderCourseManagement();
+    const teams = await openTeams(user);
+    const row = (await within(teams).findByText('Team Alpha')).closest('tr');
+    const remove = within(row).getByTitle('Delete Team');
+    await user.click(remove);
+    expect(api.delete).not.toHaveBeenCalled();
+    await user.click(remove);
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/teams/team-1',
+    );
+    await waitFor(() =>
+      expect(within(teams).queryByText('Team Alpha')).not.toBeInTheDocument(),
+    );
+  });
 });
