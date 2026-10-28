@@ -2,6 +2,8 @@
 
 The recorded October 26, 2026 local integration results are two full runs passing 176 tests in 12 files with cleanup verified. This is historical execution evidence for the documented application and test sources; no tests were run for this documentation update. It is not browser E2E, hosted integration CI, external email delivery, or code-coverage evidence. See the [API/database integration record](../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review), [authentication and authorization record](../../modernization/implementation/testing/authentication-authorization-integration.md), and [email integration record](../../modernization/implementation/testing/email-integration.md).
 
+On October 28, 2026, CI-46 local verification ran `npm run test:integration` (176/176 tests in 12 files; cleanup true) and `npm run test:e2e` (13/13 tests; cleanup true) on the issue branch. Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files record exit code 0 and `cleanupVerified: true`. The first hosted PR #138 run (40735605439) failed during MongoDB startup in both service-backed jobs; cleanup was verified and both artifacts uploaded. The jobs now use Ubuntu 22.04, and that compatibility outcome is pending. Hosted success, required-check enforcement, external email delivery, and code-coverage evidence are not established. No hosted controlled failure of Regression Checks is recorded. See the [CI verification record](../../modernization/implementation/continuous-integration.md).
+
 <table>
 <tr>
 <td>Requirement ID</td>
@@ -86,12 +88,12 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>Client</td>
 <td>Evaluation Management / Distribution</td>
 <td><a href="../../../../src/backend/models/Evaluation.js">Evaluation model</a>; <a href="../../../../src/backend/controllers/evaluationController.js">Evaluation controller</a></td>
-<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-21 through OP-33-25; REG-CW05-03; REG-CW05-06; REG-CW05-10</td>
+<td>UNIT-BE-009; UNIT-BE-011; UNIT-BE-012; UNIT-BE-013; UNIT-BE-014; UNIT-BE-015; OP-33-21 through OP-33-25; REG-CW05-03; REG-CW05-06; REG-CW05-07; REG-CW05-08; REG-CW05-10</td>
 <td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
-<td></td>
-<td>Eight evaluation-management cases cover invitations, completion status, reminders, and reset using persisted state and captured SMTP. The browser suite exercises instructor launch and reset/relaunch using captured invitations; reset-prompt details remain outside the asserted journey. Cross-professor access and foreign-team invitation denial are covered. SMTP acceptance is not external delivery. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a>; <a href="../../modernization/implementation/testing/frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes">CourseManagement component cases</a></td>
+<td><a href="../../known-bugs.md#bug-017-team-membership-changes-continue-after-a-required-evaluation-reset-fails">BUG-017</a></td>
+<td>Eight evaluation-management integration cases cover invitations, completion status, reminders, and reset using persisted state and captured SMTP. CourseManagement component cases cover canceling a queued membership action at reset confirmation and stopping addition/removal after reset failure (REG-CW05-07/08), with deferred-reset cases asserting success before either membership request. The browser suite exercises instructor launch and reset/relaunch using captured invitations. Cross-professor access and foreign-team invitation denial are covered. SMTP acceptance is not external delivery. See the <a href="../../modernization/implementation/testing/frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes">frontend component record</a>, <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-06</td>
@@ -236,12 +238,12 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>Client</td>
 <td>CI Automated Test Execution</td>
 <td><a href="../../../../.github/workflows/ci.yml">CI workflow</a>; <a href="../../../../src/backend/tests/integration">API/database integration suites</a></td>
-<td>UNIT-CI-001; UNIT-CI-002; CI-45-03 through CI-45-06</td>
+<td>UNIT-CI-001; UNIT-CI-002; CI-45-03 through CI-45-06; CI-46-01 through CI-46-04</td>
 <td>CI Validation</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Local integration results</a></td>
 <td></td>
-<td>Hosted unit tests and local service-backed integration tests are implemented; the hosted workflow has no integration-test job, so FR-15 remains In Progress. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
+<td>Integration Tests and Regression Checks are configured; local integration passed 176/176 tests in 12 files with cleanup true. The first hosted integration attempt failed during MongoDB startup, with cleanup verified and artifact uploaded; Ubuntu 22.04 compatibility is pending. Controlled-failure behavior and required-check enforcement remain unverified, so FR-15 remains In Progress. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
 </tr>
 <tr>
 <td>FR-16</td>

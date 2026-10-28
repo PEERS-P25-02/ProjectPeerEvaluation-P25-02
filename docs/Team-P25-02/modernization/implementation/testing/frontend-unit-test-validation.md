@@ -1,6 +1,6 @@
 # Frontend Unit Test Validation
 
-**Status:** The recorded frontend suite grew from 29 to 63 tests across eight files. Test counts and coverage values below are dated snapshots.
+**Status:** The latest recorded frontend suite has 68 tests across nine files. Test counts and coverage values below are dated snapshots.
 
 ## Goal
 
@@ -18,6 +18,7 @@ The goal of this work is to test useful frontend behavior in PEERS using Vitest 
 | `TeamAssignment.test.jsx` | Displaying the current Team Assignment page. |
 | `Reports.test.jsx` | Loading the Reports page, showing only active courses, and handling course-loading errors. |
 | `CourseManagement.test.jsx` | Loading active courses, displaying refreshed course information, showing an empty-course message, and handling loading errors. |
+| `CourseManagement.resetSequencing.test.jsx` | Failed required reset blocks a queued addition; successful reset must finish before queued additions and removals. |
 
 The original initial-route test from `App.test.jsx` was merged into `LoginPage.test.jsx`. The separate `App.test.jsx` file is no longer maintained.
 
@@ -77,6 +78,8 @@ The original initial-route test from `App.test.jsx` was merged into `LoginPage.t
 - Updated course information is loaded with `getCourseById`.
 - A message appears when no active courses are found.
 - An error message appears when courses cannot be loaded.
+- Canceling the evaluation-reset prompt for a queued team add issues neither the reset nor membership request and retains the original team/available-student counts (REG-CW05-07).
+- If the required reset fails for a queued team removal, no membership request follows and the original membership remains visible (REG-CW05-08).
 
 ## Test Tools
 
@@ -267,3 +270,69 @@ The October 22 priority-workflow validation snapshot used Node 24.21.0 and npm 1
 | Frontend production build | Passed; existing bundle-size warning remains. |
 
 The earlier 57-test V8 measurement is preserved as historical evidence; no new coverage percentage or threshold is introduced by this follow-up.
+
+### October 28 Reset-Prompt Regression Follow-up
+
+The CourseManagement component suite now covers REG-CW05-07 and REG-CW05-08. The reset confirmation handler stops the queued team action when the reset request fails; cancel continues to clear the pending action without issuing either request.
+
+| Check | Result |
+| --- | --- |
+| Focused CourseManagement command (`npm test -- --run src/frontend/tests/CourseManagement.test.jsx`) | Passed; the package script runs the full frontend suite: 8 files, 65 tests. |
+| Full frontend suite (`npm test`) | 8 files, 65 tests passed. |
+| Repository lint (`npm run lint`) | Passed with no ESLint errors. |
+| Formatting (`npm run format:check`) | Passed. |
+| Frontend production build (`npm run build`) | Passed; existing large-chunk warning remains. |
+
+The reset-failure component test confirms only the reset request is issued; the queued removal request does not follow. No backend, database, SMTP, or browser service was started for these mocked component checks. The PR's shared external Test Document remains deferred and was not updated.
+
+
+## October 28 Follow-up: Required Reset Before Team Changes
+
+### Strategy and planned cases
+
+Use Vitest, React Testing Library, and jsdom with synthetic course/team/student
+fixtures and mocked API responses. The unit-test tooling prerequisite is already
+implemented. Exercise the reset confirmation through the rendered team-membership
+UI in
+[`CourseManagement.resetSequencing.test.jsx`](../../../../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx).
+This isolates the required ordering at the frontend API boundary; it does not
+establish MongoDB persistence or browser/API end-to-end behavior.
+
+| Target | Steps | Expected result |
+| --- | --- | --- |
+| REG-CW05-08, add | Begin a membership change after invitations have been sent, confirm the required reset, and reject the reset request. | Show the reset error, retain membership, and issue no membership mutation request. |
+| Successful reset sequencing, add and remove | Begin a queued membership change, keep the reset request pending, then resolve it successfully. | No membership mutation before reset succeeds; the selected membership request follows successful reset. |
+
+Run the focused regression from the repository root:
+
+```bash
+node_modules/.bin/vitest run src/frontend/tests/CourseManagement.resetSequencing.test.jsx
+```
+
+Then run `npm test`, `npm run lint`, `npm run format:check`, `npm run build`,
+and `git diff --check`. No application services are needed for these checks.
+
+### Verification
+
+On Node 24.21.0 and npm 11.19.0, the original page failed the queued add
+and remove rejection checks because membership requests followed the failed reset.
+After the fix, the distinct failed-add and pending-reset add/remove cases passed.
+The existing CourseManagement tests supply the cancel and failed-removal assertions;
+they are reused rather than duplicated in the new test file.
+
+| Check | Result |
+| --- | --- |
+| Focused command above | 1 file, 3 tests passed. |
+| `npm test` | 9 files, 68 tests passed. |
+| `npm run lint` | Passed with no ESLint diagnostics. |
+| `npm run format:check` | Passed. |
+| `npm run build` | Passed; existing large-chunk warning remains. |
+| `git diff --check` | Passed. |
+
+The initial lint attempt used an older dependency directory and failed on missing
+imports; the final run used the existing complete dependency installation.
+The new test's initial formatting difference was corrected before the final checks.
+No dependency manifests or lockfiles changed. No application services were started,
+and no live reset failure was injected. Integration and browser suites were not rerun.
+This follow-up adds no code-coverage percentage or numerical gate.
+The separate shared SWE4724 Test Document remains deferred and was not updated.
