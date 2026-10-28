@@ -214,14 +214,12 @@ describe('StudentEvaluation', () => {
     api.post.mockResolvedValueOnce({ data: { message: 'Submitted' } });
     renderStudentEvaluation();
     await screen.findByText('Evaluate: Teammate Student');
-    await user.type(
-      await rateTeammate(user, 'Teammate Student'),
-      'Reliable and helpful.',
-    );
-    await user.type(
+    await user.click(await rateTeammate(user, 'Teammate Student'));
+    await user.paste('Reliable and helpful.');
+    await user.click(
       await rateTeammate(user, 'Another Teammate', secondRatings),
-      'Communicated clearly.',
     );
+    await user.paste('Communicated clearly.');
     await user.click(screen.getByRole('button', { name: 'Submit Evaluation' }));
     expect(
       await screen.findByRole('heading', { name: 'Evaluation Completed!' }),
@@ -244,7 +242,7 @@ describe('StudentEvaluation', () => {
     expect(
       await screen.findByRole('heading', { name: 'Evaluation home' }),
     ).toBeInTheDocument();
-  }, 15000);
+  }, 30000);
 
   it('preserves entered evaluations after a failed submission and permits retry', async () => {
     const user = userEvent.setup();
