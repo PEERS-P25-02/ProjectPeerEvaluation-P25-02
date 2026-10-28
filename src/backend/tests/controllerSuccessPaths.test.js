@@ -60,7 +60,7 @@ const response = () => ({
   send: vi.fn(),
 });
 
-it('escapes commas and quotes in downloaded report fields', async () => {
+it('escapes CSV fields and leaves missing report scores blank', async () => {
   vi.spyOn(reportController, 'getCourseReport').mockImplementation(
     async (_req, res) => {
       res.json({
@@ -76,6 +76,13 @@ it('escapes commas and quotes in downloaded report fields', async () => {
             evaluationsReceived: 1,
             improvement: 0,
           },
+          {
+            student_id: 'S2',
+            name: 'New Student',
+            email: 'new@example.invalid',
+            letterGrade: 'No evaluations',
+            evaluationsReceived: 0,
+          },
         ],
       });
     },
@@ -88,6 +95,11 @@ it('escapes commas and quotes in downloaded report fields', async () => {
   );
   expect(res.send).toHaveBeenCalledWith(
     expect.stringContaining('S1,"Lee, ""Sam""",lee@example.invalid'),
+  );
+  expect(res.send).toHaveBeenCalledWith(
+    expect.stringContaining(
+      'S2,New Student,new@example.invalid,No Team,,,No evaluations,0,0',
+    ),
   );
 });
 beforeEach(() => {

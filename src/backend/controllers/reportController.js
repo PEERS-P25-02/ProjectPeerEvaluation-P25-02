@@ -507,9 +507,9 @@ exports.downloadReport = async (req, res, next) => {
           student.improvement || 0,
         ]);
 
-        // Quote fields containing CSV delimiters and double embedded quotes.
+        // Keep absent scores empty and quote CSV delimiters and embedded quotes.
         const csvField = (value) => {
-          const field = String(value);
+          const field = String(value ?? '');
           return /[",\r\n]/.test(field)
             ? `"${field.replaceAll('"', '""')}"`
             : field;
