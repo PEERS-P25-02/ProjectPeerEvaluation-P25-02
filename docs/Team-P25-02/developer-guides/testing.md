@@ -27,7 +27,7 @@ npm --prefix src/backend run test:coverage
 npm run test:all:coverage
 ```
 
-Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server or browser. CI uploads coverage as workflow artifacts. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred; implementing browser E2E does not by itself combine coverage reports.
+Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server or browser. CI uploads coverage as workflow artifacts. Frontend coverage explicitly includes unimported frontend application sources and the entry point and also writes JSON/JSON-summary reports. See the [priority unit/component follow-up](../modernization/implementation/testing/priority-unit-coverage.md) for the proposed backend function-scope diagnostic, updated tests, measured results, and remaining 70% scope-review work. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred; implementing browser E2E does not by itself combine coverage reports.
 
 ## Isolated backend integration environment
 
