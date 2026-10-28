@@ -121,6 +121,7 @@ Run these commands from the repository root.
 | `npm --prefix src/backend test` | Run the backend Vitest suite once and exit. |
 | `npm --prefix src/backend run test:watch` | Run the backend Vitest suite in watch mode for local development. |
 | `npm run test:all` | Run the frontend and backend Vitest suites together once and exit; convenient for local validation. |
+| `npm run test:e2e` | Build and run the isolated Playwright browser suite with Compose; requires Docker Compose v2 and an available Chromium image. |
 | `npm run test:coverage` | Run frontend tests and generate V8 coverage reports under `coverage/`. |
 | `npm --prefix src/backend run test:coverage` | Run backend tests and generate V8 coverage reports under `src/backend/coverage/`. |
 | `npm run test:all:coverage` | Run frontend and backend coverage commands sequentially; no minimum threshold is enforced. |
