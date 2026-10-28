@@ -1,0 +1,100 @@
+{
+  "status": "Proposed business-logic scope for review; not a complete frontend/backend workflow measurement",
+  "modules": [
+    {
+      "file": "controllers/authController.js",
+      "exports": ["login", "register", "logout"],
+      "excludedExports": [
+        "refreshToken",
+        "verifyMfa",
+        "resetPassword",
+        "updatePassword"
+      ],
+      "workflows": ["CW-01"]
+    },
+    {
+      "file": "controllers/courseController.js",
+      "exports": [
+        "listCourses",
+        "createCourse",
+        "getCourse",
+        "updateCourse",
+        "deleteCourse"
+      ],
+      "excludedExports": ["migrateCourses"],
+      "workflows": ["CW-02"]
+    },
+    {
+      "file": "controllers/studentController.js",
+      "exports": [
+        "addStudent",
+        "listStudents",
+        "updateStudent",
+        "deleteStudent",
+        "bulkDeleteStudents",
+        "uploadRoster",
+        "deleteAllStudents",
+        "resetEvaluationState"
+      ],
+      "excludedExports": [],
+      "workflows": ["CW-03", "CW-04", "CW-05"]
+    },
+    {
+      "file": "controllers/teamController.js",
+      "exports": [
+        "listTeams",
+        "createTeams",
+        "updateTeam",
+        "deleteTeam",
+        "clearAllTeams",
+        "addStudentToTeam",
+        "removeStudentFromTeam"
+      ],
+      "excludedExports": ["autoAssignTeams"],
+      "workflows": ["CW-04"]
+    },
+    {
+      "file": "controllers/evaluationController.js",
+      "exports": [
+        "sendTeamEvaluations",
+        "sendEvaluations",
+        "evaluationStatus",
+        "getEvaluationForm",
+        "submitEvaluation",
+        "evaluationTokenStatus"
+      ],
+      "excludedExports": ["remindEvaluations"],
+      "workflows": ["CW-05", "CW-06", "CW-07", "CW-08"]
+    },
+    {
+      "file": "controllers/reportController.js",
+      "exports": [
+        "getCourseReport",
+        "downloadReport",
+        "getStudentReport",
+        "getTeamReport",
+        "generateReport"
+      ],
+      "helpers": ["calculateMeanScore", "applyCurvedGrading", "getLetterGrade"],
+      "excludedExports": [],
+      "workflows": ["CW-09"]
+    },
+    {
+      "file": "middleware/courseAuthorization.js",
+      "exports": ["requireCourseOwner"],
+      "excludedExports": [],
+      "workflows": ["CW-01"]
+    },
+    {
+      "file": "middleware/auth.js",
+      "helpers": ["authenticateToken"],
+      "workflows": ["CW-01"]
+    },
+    {
+      "file": "utils/emailUtils.js",
+      "helpers": ["sendEvaluationInvitation"],
+      "workflows": ["CW-07"]
+    }
+  ],
+  "excludedControllers": ["aiController.js", "professorController.js"]
+}
