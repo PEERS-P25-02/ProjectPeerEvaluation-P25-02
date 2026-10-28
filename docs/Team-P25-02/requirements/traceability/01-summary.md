@@ -69,4 +69,4 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 </table>
 
-The status counts reflect the maintained statuses in the current RTM; they are not an exhaustive fresh audit of every project requirement. FR-01 through FR-10 and FR-16 remain In Progress because relevant integration evidence exists while documented workflow, security, browser, or requirement-alignment gaps remain. FR-15 is In Progress because local integration testing is implemented but the hosted CI workflow has no integration-test job. No requirement is marked Verified by this update.
+The status counts reflect the maintained statuses in the current RTM; they are not an exhaustive fresh audit of every project requirement. FR-01 through FR-10 and FR-16 remain In Progress because relevant integration evidence exists while documented workflow, security, browser, or requirement-alignment gaps remain. FR-15 remains In Progress: integration CI is configured and local integration results are recorded, but hosted execution and required-check enforcement have not been verified. No requirement is marked Verified by this update.
