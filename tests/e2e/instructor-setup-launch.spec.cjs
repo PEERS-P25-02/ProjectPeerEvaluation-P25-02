@@ -5,6 +5,19 @@ const {
   launchFromEvaluationStatus,
 } = require('./helpers/journeys.cjs');
 
+// Keep the public form's sponsor rubric contract local to the E2E test image.
+const expectedRubric = {
+  title: 'Group Member Evaluation Rubric',
+  criteria: [
+    ['professionalism', '1-5'],
+    ['communication', '1-5'],
+    ['work_ethic', '1-5'],
+    ['content_knowledge_skills', '1-5'],
+    ['overall_contribution', '1-5'],
+    ['participation', '1-4'],
+  ],
+};
+
 test('instructor creates a course, uploads a roster, organizes teams, and launches evaluations', async ({
   page,
   fixture,
@@ -37,6 +50,7 @@ test('instructor creates a course, uploads a roster, organizes teams, and launch
     (course) => course.course_name === courseName,
   );
   expect(createdCourse).toBeTruthy();
+  const originalCourseId = createdCourse._id;
   const course = {
     ...createdCourse,
     id: createdCourse._id,
@@ -45,6 +59,36 @@ test('instructor creates a course, uploads a roster, organizes teams, and launch
     scenario: 'unlaunched',
     links: [],
   };
+
+  const changedCourseFields = {
+    course_number: 'E2E 5101',
+    course_section: '03',
+    semester: 'Synthetic Edited Term',
+  };
+  await courseRow.getByTitle('Edit Course').click();
+  const editDialog = page.getByRole('dialog', { name: 'Edit Course' });
+  for (const [label, value] of [
+    ['Course Number', changedCourseFields.course_number],
+    ['Course Section', changedCourseFields.course_section],
+    ['Semester', changedCourseFields.semester],
+  ]) {
+    await editDialog.getByLabel(label).fill(value);
+  }
+  await editDialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(editDialog).toBeHidden();
+  const savedCourse = await api(
+    fixture.context,
+    'GET',
+    '/api/courses',
+    undefined,
+    fixture.accounts.owner.token,
+  ).then((courses) =>
+    courses.find(({ course_name }) => course_name === courseName),
+  );
+  expect(savedCourse._id).toBe(originalCourseId);
+  expect(savedCourse).toMatchObject(changedCourseFields);
+  expect(String(savedCourse.professor_id)).toBe(fixture.accounts.owner.id);
+  Object.assign(course, changedCourseFields);
 
   await courseRow.getByTitle('Manage Students').click();
   const studentsDialog = page.getByRole('dialog', {
@@ -157,6 +201,20 @@ test('instructor creates a course, uploads a roster, organizes teams, and launch
   expect(ownedCourses.map(({ course_name }) => course_name)).toContain(
     courseName,
   );
+  const reloadedCourse = ownedCourses.find(
+    ({ course_name }) => course_name === courseName,
+  );
+  expect(reloadedCourse._id).toBe(originalCourseId);
+  expect(reloadedCourse).toMatchObject(changedCourseFields);
+  expect(String(reloadedCourse.professor_id)).toBe(fixture.accounts.owner.id);
+  const editedCourseInDatabase = await fixture.context.db
+    .collection('courses')
+    .findOne({ course_name: courseName });
+  expect(String(editedCourseInDatabase._id)).toBe(String(originalCourseId));
+  expect(String(editedCourseInDatabase.professor_id)).toBe(
+    fixture.accounts.owner.id,
+  );
+  expect(editedCourseInDatabase).toMatchObject(changedCourseFields);
   const otherCourses = await api(
     fixture.context,
     'GET',
@@ -170,6 +228,18 @@ test('instructor creates a course, uploads a roster, organizes teams, and launch
   await expect(
     page.getByRole('row').filter({ hasText: courseName }),
   ).toBeVisible();
+  const reloadedCourseRow = page
+    .getByRole('row')
+    .filter({ hasText: courseName });
+  for (const [index, value] of [
+    [1, changedCourseFields.course_number],
+    [2, changedCourseFields.course_section],
+    [3, changedCourseFields.semester],
+  ]) {
+    await expect(reloadedCourseRow.getByRole('cell').nth(index)).toHaveText(
+      value,
+    );
+  }
   await courseRow.getByTitle('Manage Students').click();
   const reloadedRosterDialog = page.getByRole('dialog', {
     name: new RegExp(`Manage Students for.*${courseName}`),
@@ -237,4 +307,66 @@ test('instructor creates a course, uploads a roster, organizes teams, and launch
   await launchFromEvaluationStatus(dialog);
   await fixture.captureInvitations(course, priorMessageIds);
   expect(course.links).toHaveLength(4);
+
+  const invitedStudents = await fixture.context.db
+    .collection('students')
+    .find({ course_id: editedCourseInDatabase._id })
+    .toArray();
+  const otherCourseInDatabase = await fixture.context.db
+    .collection('courses')
+    .findOne({ course_name: fixture.otherCourse.course_name });
+  const otherCourseStudents = await fixture.context.db
+    .collection('students')
+    .find({ course_id: otherCourseInDatabase._id })
+    .toArray();
+  const studentById = new Map(
+    invitedStudents.map((student) => [student.student_id, student]),
+  );
+  const teamById = new Map(
+    (
+      await fixture.context.db
+        .collection('teams')
+        .find({ course_id: editedCourseInDatabase._id })
+        .toArray()
+    ).map((team) => [String(team._id), team]),
+  );
+  for (const link of course.links) {
+    const evaluator = studentById.get(link.form.evaluator.student_id);
+    expect(evaluator).toBeTruthy();
+    expect(link.form.course).toEqual({
+      name: course.course_name,
+      number: changedCourseFields.course_number,
+      section: changedCourseFields.course_section,
+      semester: changedCourseFields.semester,
+    });
+    expect(link.form.evaluator.name).toBe(evaluator.name);
+    expect(link.form.evaluator.team).toBe(
+      teamById.get(String(evaluator.team_id)).team_name,
+    );
+    expect(link.form.rubric.title).toBe(expectedRubric.title);
+    expect(
+      link.form.rubric.criteria.map(({ id, scale }) => [id, scale]),
+    ).toEqual(expectedRubric.criteria);
+    const expectedPeers = invitedStudents
+      .filter(
+        (student) =>
+          String(student.team_id) === String(evaluator.team_id) &&
+          String(student._id) !== String(evaluator._id),
+      )
+      .map(({ student_id }) => student_id)
+      .sort();
+    expect(
+      link.form.teammates.map(({ student_id }) => student_id).sort(),
+    ).toEqual(expectedPeers);
+    expect(evaluator.evaluation_token).toBe(link.token);
+    expect(String(evaluator.course_id)).toBe(
+      String(editedCourseInDatabase._id),
+    );
+    expect(evaluator.team_id).toBeTruthy();
+  }
+  expect(invitedStudents).toHaveLength(4);
+  expect(otherCourseStudents).toHaveLength(fixture.otherCourse.students.length);
+  expect(
+    otherCourseStudents.every(({ evaluation_token }) => !evaluation_token),
+  ).toBe(true);
 });

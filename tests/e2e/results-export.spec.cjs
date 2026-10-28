@@ -161,6 +161,14 @@ test('instructor reviews independently checked scores and exports quoted CSV fie
     page.getByRole('heading', { name: '📊 Evaluation Reports' }),
   ).toBeVisible();
   await expect(page.getByText(specialName, { exact: true })).toBeVisible();
+  for (const [name, expectedScore] of expectedScores) {
+    const reportRow = page
+      .getByRole('cell', { name, exact: true })
+      .locator('..');
+    await expect(reportRow.getByRole('cell').nth(4)).toHaveText(
+      `${expectedScore}%`,
+    );
+  }
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download CSV' }).click();
   const download = await downloadPromise;
