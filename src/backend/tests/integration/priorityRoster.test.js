@@ -165,7 +165,10 @@ describe('Priority course and roster regressions', () => {
       }),
     ).toBe(1);
     expect([...result.body.students].sort()).toEqual(['PART001', 'PART002']);
-    expect.soft(result.body.errors.length).toBeGreaterThan(0);
+    expect(result.body.errors).toEqual([
+      'Some students could not be added (possible duplicates or DB error).',
+    ]);
+    expect(result.body.message).toContain('Roster processed with some errors.');
   });
 
   it('REG-CW03-11 reads assigned and unassigned manual additions with consistent counts and another course intact', async () => {

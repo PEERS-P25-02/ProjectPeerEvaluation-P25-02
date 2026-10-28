@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Course = require('../models/Course');
 const Team = require('../models/Team');
@@ -559,10 +560,19 @@ exports.submitEvaluation = async (req, res, next) => {
       return next(err);
     }
 
-    // Process each evaluation
-    const savedEvaluations = [];
+    // Validate the entire batch, including schema bounds, before any writes.
+    const recipientIds = new Set();
+    const preparedEvaluations = [];
     for (const evalData of evaluations) {
-      // Validate required fields
+      const recipientId = String(evalData.student_id);
+      if (recipientIds.has(recipientId)) {
+        const err = new Error('Each peer may only be evaluated once.');
+        err.code = 'VALIDATION_ERROR';
+        err.status = 400;
+        return next(err);
+      }
+      recipientIds.add(recipientId);
+
       const requiredRatings = [
         'professionalism',
         'communication',
@@ -582,7 +592,7 @@ exports.submitEvaluation = async (req, res, next) => {
       }
 
       if (
-        !evalData.overall_feedback ||
+        typeof evalData.overall_feedback !== 'string' ||
         evalData.overall_feedback.trim().length < 10
       ) {
         const err = new Error(
@@ -593,7 +603,6 @@ exports.submitEvaluation = async (req, res, next) => {
         return next(err);
       }
 
-      // Create evaluation
       const evaluation = new Evaluation({
         course_id: student.course_id._id,
         student_id: evalData.student_id,
@@ -609,19 +618,54 @@ exports.submitEvaluation = async (req, res, next) => {
         overall_feedback: evalData.overall_feedback.trim(),
         evaluation_token: token,
       });
-
-      await evaluation.save();
-      savedEvaluations.push(evaluation);
+      const validationError = evaluation.validateSync();
+      if (validationError) {
+        validationError.code = 'VALIDATION_ERROR';
+        validationError.status = 400;
+        return next(validationError);
+      }
+      preparedEvaluations.push(evaluation.toObject());
     }
 
-    // Mark student as having completed evaluation
-    await Student.findByIdAndUpdate(student._id, {
-      evaluation_completed: true,
+    await mongoose.connection.transaction(async (session) => {
+      // A forced write serializes submissions for this evaluator, including when
+      // a stale completion flag is already true. Conflicts retry the transaction
+      // and recheck existing rows before any evaluation is inserted.
+      const claimedStudent = await Student.findOneAndUpdate(
+        { _id: student._id, evaluation_token: token },
+        { $set: { evaluation_completed: true }, $inc: { __v: 1 } },
+        { session, new: true },
+      );
+      if (!claimedStudent) {
+        const err = new Error(
+          'This evaluation has been cancelled or is no longer available.',
+        );
+        err.code = 'EVALUATION_CANCELLED';
+        err.status = 404;
+        throw err;
+      }
+
+      const completedEvaluation = await Evaluation.findOne({
+        course_id: student.course_id._id,
+        evaluator_id: student._id,
+      }).session(session);
+      if (completedEvaluation) {
+        const err = new Error('Evaluation already completed.');
+        err.code = 'ALREADY_COMPLETED';
+        err.status = 409;
+        throw err;
+      }
+
+      // Recreate documents on retries; rows and the completion flag commit or
+      // roll back together, including failures in a later save.
+      for (const evaluation of preparedEvaluations) {
+        await new Evaluation(evaluation).save({ session });
+      }
     });
 
     res.status(201).json({
       message: 'Evaluation submitted successfully.',
-      evaluations_count: savedEvaluations.length,
+      evaluations_count: preparedEvaluations.length,
       submitted_at: new Date(),
     });
   } catch (err) {

@@ -68,7 +68,7 @@ Track application defects discovered during development and verification. Record
 - Regression cases: OP-33-29 and OP-33-33 verify mean, curved, and generate-alias reports, exact team membership, and independently calculated averages of 87.5 and 90.63.
 - Verification: Three report assertions failed in an earlier selected run and passed after the repair.
 
-## BUG-009: CSV report export splits names containing commas or quotes
+## BUG-021: CSV report export splits names containing commas or quotes
 
 - Status: Fixed in source; focused backend and browser export regressions passed October 28, 2026.
 - Previous behavior: The report exporter joined raw fields with commas, so a name such as `Lee, "Sam"` produced extra CSV columns and unescaped quotes.
@@ -135,17 +135,32 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
 - Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
 
-## Priority integration failures observed October 28, 2026
+## BUG-018: Evaluation submissions can persist partial or duplicate responses
 
-These open defects are reproduced by active regression tests in the
-[priority integration record](modernization/implementation/testing/api-database-integration.md#5-priority-workflow-regression-follow-up).
-Application repairs are separate from this test-only follow-up.
+- Status: Fixed and verified in the combined PR #134 follow-up on October 28, 2026.
+- Reproduce: Submit the same eligible recipient twice; submit a valid peer followed by a missing rating or short feedback; or send simultaneous requests with distinct feedback for the same evaluator. Submit participation 0/5, professionalism 6, or communication 0 to exercise invalid-scale responses.
+- Expected: Reject duplicate/invalid entries with HTTP 400 `VALIDATION_ERROR` and no response/completion writes. Concurrent valid requests retain one complete coherent response set and reject competing submissions.
+- Previous behavior: Duplicate recipients persisted twice; two concurrent requests could both succeed; later missing-rating/short-feedback rejection left the first response stored; invalid-scale inputs returned HTTP 500 `SERVER_ERROR` despite unchanged state. Race scheduling is nondeterministic, so a passing rerun alone does not prove race prevention.
+- Fix: Validate every entry and reject duplicate recipients before writing. Commit all response records and the evaluator's completion update in one MongoDB transaction; a forced Student version write serializes submissions for the same evaluator, and a transaction-local completion check rejects subsequent submissions. No unique index or historical-data migration is added.
+- Regression cases: REG-CW08-04/06/07/11 now reuse `submissionIntegrity.test.js`, including distinct participation-0 and communication-0 cases. The suite also checks rollback after a later database write failure and corrected retries with independently queried stored state.
+- Historical verification: PR #134 at `9d05881` reproduced these failures in its 184-pass/10-failure run. Separately, all 12 original PR #137 regressions failed against the original controller; PR #137 at `649dc6f` passed the focused 12-case and full 188-case integration runs with cleanup verified, 79 backend unit tests, and 13 browser checks. The combined follow-up subsequently passed 24 focused checks, all 200 integration checks, and 13 browser checks with cleanup verified; the consolidated submission suite includes both added boundary cases. See the [submission integrity record](modernization/implementation/testing/api-database-integration.md#5-submission-integrity) and [current follow-up](modernization/implementation/testing/api-database-integration.md#current-combined-follow-up).
 
-- REG-CW03-06: Upload valid new rows followed by a duplicate new student ID. MongoDB rejects the duplicate while valid rows and relationships persist, but the API returns an empty errors array. Expected: disclose the processing failure/partial outcome.
-- REG-CW05-04: Submit using an assigned token, then reset the course evaluation. Tokens/responses clear and old access is denied, but the stored student's completion flag stays true. Expected: reset completion to pending while preserving roster, teams and unrelated data.
-- REG-CW08-04: Submit the same eligible recipient twice. Both responses persist. Expected: reject or deduplicate the recipient.
-- REG-CW08-06: Dispatch two same-context submissions together with distinct feedback. Both succeed and store duplicate recipient records. Expected: one complete response set and rejection of the competing submission. Scheduling is nondeterministic; a passing rerun alone does not prove race prevention.
-- REG-CW08-07: Submit a valid peer entry followed by one missing a required rating or containing short feedback. The API rejects the request after saving the first response. Expected: no response or completion writes.
-- REG-CW08-11: Submit participation 0/5, professionalism 6 or communication 0. Persistence remains unchanged, but the API returns 500 SERVER_ERROR. Expected: a validation rejection (400 VALIDATION_ERROR).
+## BUG-019: CSV processing failures omit partial-import errors
 
-Synthetic reproduction only; no real recipients or student data were used.
+- Status: Fixed and verified in the combined PR #134 follow-up on October 28, 2026.
+- Reproduce: Upload valid new rows followed by a duplicate new student ID through the real multipart roster endpoint (REG-CW03-06).
+- Expected: Disclose the processing failure/partial outcome while preserving valid rows with consistent relationships and counts.
+- Observed behavior: MongoDB rejects the duplicate while valid rows and relationships persist, but the API returns an empty errors array.
+- Fix: Retain an explicit processing-error entry when unordered `insertMany` reports a database write failure, even when valid rows were inserted and processing continues.
+- Verification: Reproduced in the October 28, 2026 PR #134 baseline at `9d05881` (184 passed, 10 failed; cleanup verified). The strengthened `priorityRoster.test.js` assertion checks both accepted IDs, the exact processing error, stored relationships/counts, and partial-result wording. The repaired combined source passed the focused 24-case and full 200-case integration runs with cleanup verified; see the [priority integration record](modernization/implementation/testing/api-database-integration.md#current-combined-follow-up).
+
+## BUG-020: Evaluation reset retains completed student flags
+
+- Status: Fixed and verified in the combined PR #134 follow-up on October 28, 2026.
+- Reproduce: Submit using an assigned token, then reset the course evaluation (REG-CW05-04).
+- Expected: Reset completion to pending, remove tokens/responses, deny old access, and preserve roster, teams, and unrelated data.
+- Observed behavior: Tokens/responses clear and old access is denied, but the stored student's completion flag stays true.
+- Fix: Clear `evaluation_completed` to false with the selected course's tokens and invitation-acceptance marker during reset.
+- Verification: Reproduced in the October 28, 2026 PR #134 baseline at `9d05881` (184 passed, 10 failed; cleanup verified). `priorityLifecycle.test.js` checks actual submission/reset, old-link denial, complete student state, and roster/team/other-course preservation. Its snapshot now allows the submission transaction's evaluator version increment. The repaired combined source passed the focused 24-case and full 200-case integration runs with cleanup verified; see the [priority integration record](modernization/implementation/testing/api-database-integration.md#current-combined-follow-up).
+
+BUG-016 is reserved for PR #127 invitation aggregate status; BUG-017 is reserved for the separate, unmerged PR #136 reset-confirmation UI work. That UI repair and its coverage are not included here. All reproductions use synthetic records; no real recipients or student data were used.

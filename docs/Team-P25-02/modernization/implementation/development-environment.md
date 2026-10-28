@@ -1,6 +1,6 @@
 # Milestone 2: Development Environment Implementation
 
-**Updated:** October 20, 2026
+**Updated:** October 28, 2026
 **Status:** In progress
 
 ## Purpose and Scope
@@ -23,7 +23,7 @@ Unit-test tooling, commands, test cases, and recorded results are documented sep
 | Configuration template | `.env.example` documents MongoDB, JWT, frontend URL, and SMTP settings. |
 | Local configuration | The backend and maintenance scripts load the root `.env` independently of the working directory; process environment variables take precedence. `.env` and `.env.*` are ignored, while example files remain tracked. |
 | Setup automation | `npm run setup:env` adds missing settings and generates a missing or placeholder JWT secret while preserving existing root configuration. |
-| Compose stack | Frontend, backend, MongoDB, and Mailpit use production application builds, health checks, startup ordering, localhost ports, and persistent MongoDB storage. |
+| Compose stack | Frontend, backend, MongoDB, and Mailpit use production application builds, health checks, startup ordering, localhost ports, and persistent MongoDB storage; the single-node `peers-rs` replica set supports submission transactions and waits for a writable primary. |
 | Local email | SMTP configuration supports unauthenticated Mailpit through explicit `SMTP_AUTH_REQUIRED=false`. |
 
 Implementation artifacts: [frontend package](../../../../package.json), [backend package](../../../../src/backend/package.json), [Vite configuration](../../../../vite.config.mjs), [environment template](../../../../.env.example), and [ignore rules](../../../../.gitignore).
@@ -52,7 +52,7 @@ Run commands from the repository root.
 
 Setup runs `npm install` in each package, then prepares the root `.env` from `.env.example`. It preserves configured root values, adds missing settings, and generates a random JWT secret when missing or set to a recognized placeholder. It does not start supporting services. Maintain the separate package lockfiles and use package-specific `npm ci` commands when validating clean, reproducible installations.
 
-For native execution, the root `.env` defaults to MongoDB at `localhost:27017`, Mailpit at `localhost:1025`, and `FRONTEND_URL=http://localhost:3000`. MongoDB and Mailpit must already be reachable. The inherited authentication code still permits a hard-coded fallback when JWT_SECRET is absent; setup generates a secret and Compose rejects a missing or empty secret. See [Getting Started](../../getting-started.md) for setup commands and addresses, and the [local development guide](../../developer-guides/local-development.md) for configuration details.
+For native execution, the root `.env` defaults to MongoDB at `localhost:27017`, Mailpit at `localhost:1025`, and `FRONTEND_URL=http://localhost:3000`. MongoDB and Mailpit must already be reachable. Submission transactions require a replica set or sharded MongoDB deployment; a standalone server is insufficient. The native URI template includes `directConnection=true` for the supplied Compose service because it advertises `mongodb:27017`. Setup preserves existing URIs, so add that option manually when connecting through its published localhost port. The inherited authentication code still permits a hard-coded fallback when JWT_SECRET is absent; setup generates a secret and Compose rejects a missing or empty secret. See [Getting Started](../../getting-started.md) for setup commands and addresses, and the [local development guide](../../developer-guides/local-development.md) for configuration details.
 
 Use the development server for local API checks. Production builds and previews default to the hosted backend unless `VITE_API_BASE_URL` is supplied at build time.
 
@@ -71,7 +71,7 @@ Open the frontend at http://localhost:3000 and Mailpit at http://localhost:8025.
 
 The backend imports the optional root `.env` and overrides native database and SMTP settings with container addresses: `mongodb://mongodb:27017/peer-eval` and `mailpit:1025`. SMTP provider presets and credentials are cleared so local email stays in Mailpit. The backend uses `NODE_ENV=production` and `PORT=5000`; `FRONTEND_URL` stays browser-reachable for email links.
 
-MongoDB and Mailpit must be healthy before backend startup. The frontend waits for `/api/health`, which returns HTTP 200 when MongoDB is connected and 503 otherwise. Compose builds the frontend with `VITE_API_BASE_URL=/api` and mounts `nginx/compose.conf` to proxy browser API requests to `backend:5000`. Published ports bind to localhost, and a named volume persists MongoDB data.
+MongoDB and Mailpit must be healthy before backend startup. The development, integration-test, and browser-test Compose stacks initialize the single-node `peers-rs` replica set if needed and wait for `db.hello().isWritablePrimary`. Development keeps the existing named volume; test stacks use disposable storage. The frontend waits for `/api/health`, which returns HTTP 200 when MongoDB is connected and 503 otherwise. Compose builds the frontend with `VITE_API_BASE_URL=/api` and mounts `nginx/compose.conf` to proxy browser API requests to `backend:5000`. Published ports bind to localhost, and a named volume persists MongoDB data.
 
 CI can supply an ephemeral `JWT_SECRET` through the job environment and invoke `docker compose -p peers-ci up --build --wait --wait-timeout 120` directly without a root `.env`. Use an isolated runner because host ports are fixed, and always run `docker compose -p peers-ci down --volumes`, including after failure. Automated CI jobs that exercise this stack remain separate work.
 

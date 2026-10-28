@@ -251,10 +251,11 @@ describe('priority evaluation lifecycle regressions', () => {
     expect(saved[0].evaluator_id.toString()).toBe(evaluator.id);
     expect(saved[0].student_id.toString()).toBe(state.fixture.students[1].id);
     const after = await snapshot();
+    // Submission increments the evaluator version to serialize concurrent requests.
     expect(after.Student).toEqual(
       before.Student.map((student) =>
         student._id === evaluator.id
-          ? { ...student, evaluation_completed: true }
+          ? { ...student, evaluation_completed: true, __v: student.__v + 1 }
           : student,
       ),
     );

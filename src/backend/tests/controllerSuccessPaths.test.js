@@ -598,7 +598,14 @@ describe('evaluation controller success paths', () => {
       select: vi.fn().mockResolvedValue([{ _id: recipientId }]),
     };
     studentFindSpy.mockReturnValue(eligiblePeersQuery);
-    vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
+    const session = {};
+    vi.spyOn(mongoose.connection, 'transaction').mockImplementation(
+      async (callback) => callback(session),
+    );
+    vi.spyOn(Student, 'findOneAndUpdate').mockResolvedValue(student);
+    vi.spyOn(Evaluation, 'findOne')
+      .mockResolvedValueOnce(null)
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
     const ratings = {
       professionalism: 4,
       communication: 4,
@@ -628,15 +635,17 @@ describe('evaluation controller success paths', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ evaluations_count: 1 }),
     );
-    expect(Student.findByIdAndUpdate).toHaveBeenCalledWith(student._id, {
-      evaluation_completed: true,
-    });
+    expect(Student.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: student._id, evaluation_token: 'token' },
+      { $set: { evaluation_completed: true }, $inc: { __v: 1 } },
+      { session, new: true },
+    );
     expect(Student.find).toHaveBeenLastCalledWith({
       course_id: courseId,
       _id: { $ne: student._id },
     });
     expect(eligiblePeersQuery.select).toHaveBeenCalledWith('_id');
-    expect(saveSpy).toHaveBeenCalledOnce();
+    expect(saveSpy).toHaveBeenCalledExactlyOnceWith({ session });
     // Check the document being saved while keeping MongoDB mocked.
     expect(saveSpy.mock.instances[0].toObject()).toMatchObject({
       course_id: courseId,

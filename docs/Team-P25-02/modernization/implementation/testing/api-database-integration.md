@@ -1,11 +1,12 @@
 # Backend API and Database Integration Tests
 
 The integration suite covers all [36 inventoried operations](api-database-operation-inventory.md)
-through actual HTTP requests and MongoDB persistence. The October 26 recorded
-suite contains 12 files and 176 tests: the original 73, 96 authentication and
-authorization cases, and seven email integration cases. The implementation
-contains the integration environment, eleven application suites, and four
-application repairs described in this record. The detailed course and database
+through actual HTTP requests and MongoDB persistence. The October 26, 2026 recorded
+suite contained 12 files and 176 tests: the original 73, 96 authentication and
+authorization cases, and seven email integration cases. That snapshot contained
+the integration environment, eleven application suites, and four application
+repairs described in this record. The submission integrity extension is recorded in Section 5; priority regressions
+and the combined follow-up are recorded in Section 6. The detailed course and database
 verification below preserves the October 24, 2026 snapshot; later full-suite
 and focused email results are recorded separately below and in
 [email integration](email-integration.md).
@@ -31,8 +32,9 @@ Docker with Compose v2.24+, and Linux container support. Docker must be running.
 The [integration environment guide](integration-test-environment.md#1-testing-strategy) describes
 the exact run-only settings, destination guards, readiness checks, diagnostics,
 and cleanup. No developer `.env`, Atlas account, or Mailtrap credentials are
-needed. Image builds need network access. No dependencies or configuration
-changes are introduced by this suite.
+needed. Image builds need network access. The original suite introduced no
+dependencies or configuration changes. The submission integrity extension
+requires transaction-capable MongoDB; see Section 5.
 
 From the repository root, run the complete environment and application checks:
 
@@ -298,13 +300,14 @@ performed for the expanded backend change.
   shape, and deterministic rejection/retry behavior, not provider delivery or
   browser navigation. Known account-recovery defects remain separate concerns.
 - Self/foreign recipients are addressed in the access-control record above.
-  Duplicate recipients, later-entry rating/feedback failures, concurrency,
-  token uniqueness/security, deadline enforcement and database outages remain
-  unverified integrity concerns. Rejecting an invalid first entry does not prove
-  submission atomicity.
+  Submission duplicate-recipient, later-entry validation, concurrency, and
+  database write rollback assertions are added in Section 5, with execution
+  verification recorded there separately. Token uniqueness/security, deadline
+  enforcement, and arbitrary database outages remain outside those cases.
 - Evaluation reset clears tokens/records and is tested to invalidate the old
-  student capability. Cached completion flags and the complete reset/relaunch
-  lifecycle remain verification gaps. The status endpoint still reports `evaluations_sent: true`
+  student capability. Section 6 adds a real submission/reset lifecycle assertion
+  and records the cached-completion defect and its follow-up; the full UI
+  reset-confirmation sequence remains separate work. The status endpoint still reports `evaluations_sent: true`
   when at least one student has recorded SMTP acceptance; partial-roster
   acceptance and its aggregate status are not fully covered. Token existence
   does not establish successful SMTP delivery.
@@ -318,47 +321,145 @@ performed for the expanded backend change.
   separate shared SWE4724 Test Document remain separate work. No requirement text
   or historical implementation assessment is rewritten to match current code.
 
-## 5. Priority workflow regression follow-up
+## 5. Submission Integrity
+
+The [submission integrity suite](../../../../../src/backend/tests/integration/submissionIntegrity.test.js)
+extends OP-33-27 through real HTTP requests and independent MongoDB queries.
+It uses the existing isolated fixture lifecycle and synthetic records. The
+controller validates the complete batch before writes and rejects duplicate
+recipients. A MongoDB transaction commits response records and evaluator
+completion together; a forced Student version update serializes submissions
+for the same evaluator before the transaction-local completion check. Existing
+completion records remain authoritative for repeat rejection. No unique index
+or migration is introduced, and existing duplicate data is not repaired.
+
+MongoDB must be a replica set or sharded deployment. The supplied local,
+integration, and browser-test Compose stacks initialize a single-node replica
+set automatically and wait for its writable primary. Existing named volumes
+are retained without data deletion. A native backend using the Compose
+published MongoDB port needs `directConnection=true` because the replica set
+advertises the Compose hostname `mongodb`.
+
+| Target / case | Steps | Expected result |
+| --- | --- | --- |
+| REG-CW08-04 | Submit the same eligible recipient twice, then correct the request. | HTTP 400 `VALIDATION_ERROR`, unchanged students/evaluations; corrected retry stores the complete two-peer submission with HTTP 201. |
+| REG-CW08-07 / REG-CW08-11 | Place a valid peer first and an invalid rating or feedback entry second. Cases include missing, below/above-bound, participation-bound, nonnumeric string and null ratings, and short/non-string feedback. | HTTP 400 `VALIDATION_ERROR`, unchanged response and completion state; corrected retry succeeds with exact stored values. |
+| REG-CW08-06 | Send eight concurrent two-peer requests with distinct request/recipient feedback markers and ratings, with false and stale-true initial completion flags. | Exactly one HTTP 201 and seven HTTP 409 `ALREADY_COMPLETED`; exactly two response records from one winning request and only its evaluator completion/version update. |
+| REG-CW08-07 / database rollback | Temporarily add a disposable collection validator rejecting the second recipient, submit two otherwise-valid entries, restore the validator, then retry. | HTTP 500 and unchanged students/evaluations after rejection; corrected retry returns HTTP 201 and stores both responses. Validator restoration runs even on failure. |
+
+### Historical PR #137 execution results
+
+The original implementation failed 12 original integrity assertions in an
+isolated baseline run; cleanup was verified. Duplicate recipients were accepted
+with HTTP 201; later missing-rating/short-feedback rejection left the first
+response stored; out-of-range, nonnumeric/null rating and feedback-type errors
+returned HTTP 500. Concurrent submissions with a stale-true completion flag
+produced six successes instead of one, and a later database validator failure
+also left the first response stored.
+
+Repaired-source verification on October 28, 2026, recorded on PR #137
+at `649dc6f` before integration with PR #134:
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:integration -- submissionIntegrity.test.js` | 12/12 passed; exit 0; cleanup verified. |
+| `npm run test:integration` | 188/188 passed across 13 files; exit 0; cleanup verified. |
+| `npm --prefix src/backend test` | 79/79 passed across 11 files. |
+| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; cleanup verified. |
+| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
+
+This historical browser run verifies existing journeys against the replica-set stack; the
+new integrity cases execute at the API/database layer. Earlier dated run records
+above remain historical. The separate shared SWE4724 Test Document is
+unavailable/deferred; this repository update does not claim to update it.
+
+The cases establish bounded submission integrity assertions. They do not
+establish general database-outage handling, token uniqueness/security, deadline
+enforcement, historical duplicate cleanup, or every concurrent reset/relaunch
+interaction. No requirement text or requirement-wide status is changed.
+
+## 6. Priority workflow regression follow-up
 
 These cases use the existing guarded API/MongoDB/Mailpit environment, synthetic
-fixtures, sequential isolation and independent database reads. No application
-repair, numerical coverage gate or approved matrix outcome changes here.
+fixtures, sequential isolation and independent database reads. The original
+PR #134 test-only snapshot and its failures are retained below; source repairs
+and consolidated test mappings are a separate follow-up. No numerical coverage
+gate or approved matrix outcome changes here.
 
 | Test source | Matrix cases and expected outcomes |
 | --- | --- |
 | [Priority roster](../../../../../src/backend/tests/integration/priorityRoster.test.js) | REG-CW02-03 edit preserves another owner's course; REG-CW03-03 mixed rows disclose errors and persist only valid records; REG-CW03-06 real duplicate-key failure discloses partial processing with consistent relationships/counts; REG-CW03-11 assigned/unassigned manual additions read back consistently and preserve the unrelated course; REG-CW04-10 named empty team lists with matching stored counts. |
 | [Priority lifecycle](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) | REG-CW05-02 empty roster does not launch; REG-CW05-04 submission/reset clears completion, tokens and responses, revokes old access and preserves roster/teams/other course; REG-CW06-03 altered known-good token denied without writes; REG-CW06-04 token constrains recipient and saved identity/course despite supplied foreign context; REG-CW09-04 deleted response stays absent in report/CSV while a retained reverse response stays attributed correctly. |
-| [Priority submission](../../../../../src/backend/tests/integration/prioritySubmission.test.js) | REG-CW08-04 duplicate recipient rejected or deduplicated; REG-CW08-06 concurrent submissions retain one complete response set; REG-CW08-07 later missing rating and short feedback each leave no earlier writes; REG-CW08-11 four invalid scale boundaries return validation errors without response/completion changes. |
+| [Submission integrity](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) | REG-CW08-04 duplicate recipient rejected with HTTP 400 and no writes; REG-CW08-06 concurrent submissions retain one complete response set; REG-CW08-07 later missing rating and short feedback each leave no earlier writes; REG-CW08-11 professionalism 0/6, participation 0/5, and communication 0 return validation errors without response/completion changes. |
 
 Run focused cases with the same cleanup safeguards:
 
 ```bash
-npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js prioritySubmission.test.js
+npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js
 ```
 
-The first focused run on October 28, 2026 ran 18 tests: six passed and twelve
+### Historical PR #134 execution results
+
+At `9d05881`, the original three-file extension included the now-consolidated
+`prioritySubmission.test.js`. The first focused run on October 28, 2026 ran 18 tests: six passed and twelve
 failed, exit 1 with verified cleanup. Review corrected two overstrict test
 oracles (partial-result wording and no-response report schema) and strengthened
 fixtures; that initial run is superseded by the full run below.
 
-Final full run on October 28, 2026: `npm run test:integration` ran 194 tests
+Final baseline full run on October 28, 2026 (before repairs): `npm run test:integration` ran 194 tests
 in 15 files: **184 passed, 10 failed**, exit 1, cleanup verified true
 (run ID `155d058f8d739ea3`). All 176 pre-existing tests passed; the 18 added
 cases produced eight passes and ten failures. Failures cover undisclosed CSV
 processing errors, retained reset completion, duplicate/concurrent submissions,
 two later-entry partial writes, and four invalid-scale server errors. See
-[known defects](../../../known-bugs.md#priority-integration-failures-observed-october-28-2026).
+[BUG-018](../../../known-bugs.md#bug-018-evaluation-submissions-can-persist-partial-or-duplicate-responses),
+[BUG-019](../../../known-bugs.md#bug-019-csv-processing-failures-omit-partial-import-errors), and
+[BUG-020](../../../known-bugs.md#bug-020-evaluation-reset-retains-completed-student-flags).
 The intermediate full run had 183 passes/11 failures before the remaining
 partial-result wording assertion was corrected. No failure is skipped or marked
-as expected; these regressions block a claim of complete verified behavior.
+as expected. Those failures are historical reproduction evidence; source fixes
+alone do not establish complete verified behavior.
 
 Backend unit tests: `npm --prefix src/backend test`, 65/65 passed. Root
 `npm run lint`, `npm run format:check`, and `git diff --check` passed.
 The first lint attempt used an incomplete reused dependency directory and failed
 module resolution; a clean lockfile install in this worktree resolved it.
-No frontend source changed; no browser or production-build rerun was performed.
+In that baseline follow-up, no frontend source changed and no browser or
+production-build rerun was performed.
 
 Partial-invitation aggregate status has separate implementation/evidence on an
 unmerged branch; this follow-up neither duplicates that repair nor claims its
 results on this baseline. The external shared Test Document remains deferred
 and was not updated. Existing historical runs above remain dated evidence.
+
+### Current combined follow-up
+
+The follow-up imports PR #137's batch validation, transaction, and replica-set
+configuration; repairs CSV partial-error disclosure (BUG-019) and reset
+completion (BUG-020); and reuses `submissionIntegrity.test.js` for the overlapping
+CW-08 targets instead of retaining duplicate tests. Separate participation-0 and
+communication-0 assertions preserve all four original invalid-scale probes.
+The lifecycle snapshot permits the evaluator version increment introduced by
+the successful submission transaction. All regression assertions remain active.
+
+October 28, 2026 combined follow-up verification:
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js` | 24/24 passed across 3 files; exit 0; run `63648dd86c861ec2`; cleanup verified true. |
+| `npm --prefix src/backend test` | 79/79 passed. |
+| `npm run test:integration` | 200/200 passed across 15 files; exit 0; run `ec91818f4cb97e1e`; cleanup verified true. |
+| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; run `e969367672baa346`; cleanup verified true. |
+| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
+
+These runs tested the PR #134 working tree combining `9d05881` and PR #137
+`649dc6f`, with the CSV/reset repairs and consolidated tests described above.
+The current 200-test result independently verifies that combined source; the
+historical 184/10 and 188/188 results above remain evidence for their separate
+snapshots. Logs and `result.json` are retained under ignored
+`test-results/integration/<run-id>/` and `test-results/e2e/<run-id>/`.
+The browser runner rebuilt the application images; no separate native frontend
+build or frontend unit-suite rerun was performed. Hosted execution is not
+established by these local results.
+Remaining source gaps stay listed in the [coverage gap inventory](regression-coverage-gaps.md);
+BUG-017 and its frontend reset-confirmation coverage remain separate unmerged work.
