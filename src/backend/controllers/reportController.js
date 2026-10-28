@@ -507,9 +507,16 @@ exports.downloadReport = async (req, res, next) => {
           student.improvement || 0,
         ]);
 
+        // Quote fields containing CSV delimiters and double embedded quotes.
+        const csvField = (value) => {
+          const field = String(value);
+          return /[",\r\n]/.test(field)
+            ? `"${field.replaceAll('"', '""')}"`
+            : field;
+        };
         const csvContent = [
-          csvHeaders.join(','),
-          ...csvRows.map((row) => row.join(',')),
+          csvHeaders.map(csvField).join(','),
+          ...csvRows.map((row) => row.map(csvField).join(',')),
         ].join('\n');
 
         // Send CSV file

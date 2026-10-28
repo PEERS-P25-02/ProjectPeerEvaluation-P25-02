@@ -129,29 +129,21 @@ async function seedBaseline(context) {
   };
 }
 
-async function inviteCourse(context, course) {
-  if (course.scenario !== 'unlaunched')
-    throw new Error('Course has already been invited');
-  const before = await (
+async function mailpitMessageIds(context) {
+  const inbox = await (
     await mailpitRequest(context, '/api/v1/messages')
   ).json();
-  const result = await api(
-    context,
-    'POST',
-    `/api/courses/${course.id}/evaluations/send`,
-    {},
-    course.account.token,
-  );
-  if (result.emails_sent !== course.students.length || result.failed.length)
-    throw new Error('Fixture invitations failed');
+  return inbox.messages.map((message) => message.ID);
+}
+
+async function captureCourseInvitations(context, course, priorMessageIds = []) {
+  const prior = new Set(priorMessageIds);
   let messages;
   for (let attempt = 0; attempt < 50; attempt++) {
     const inbox = await (
       await mailpitRequest(context, '/api/v1/messages')
     ).json();
-    messages = inbox.messages.filter(
-      (message) => !before.messages.some((old) => old.ID === message.ID),
-    );
+    messages = inbox.messages.filter((message) => !prior.has(message.ID));
     if (messages.length === course.students.length) break;
     await setTimeout(100);
   }
@@ -202,6 +194,22 @@ async function inviteCourse(context, course) {
   return course;
 }
 
+async function inviteCourse(context, course) {
+  if (course.scenario !== 'unlaunched')
+    throw new Error('Course has already been invited');
+  const priorMessageIds = await mailpitMessageIds(context);
+  const result = await api(
+    context,
+    'POST',
+    `/api/courses/${course.id}/evaluations/send`,
+    {},
+    course.account.token,
+  );
+  if (result.emails_sent !== course.students.length || result.failed.length)
+    throw new Error('Fixture invitations failed');
+  return captureCourseInvitations(context, course, priorMessageIds);
+}
+
 async function submitCourse(context, course, count = course.students.length) {
   if (!Number.isInteger(count) || count < 1 || count > course.students.length)
     throw new Error('Invalid fixture submission count');
@@ -246,6 +254,9 @@ async function withFixture(environment, use, prepare = seedBaseline) {
       ...manifest,
       context,
       invite: (course) => inviteCourse(context, course),
+      mailpitMessageIds: () => mailpitMessageIds(context),
+      captureInvitations: (course, priorMessageIds) =>
+        captureCourseInvitations(context, course, priorMessageIds),
       submit: (course, count) => submitCourse(context, course, count),
     });
   } finally {
@@ -271,5 +282,7 @@ module.exports = {
   seedBaseline,
   inviteCourse,
   submitCourse,
+  mailpitMessageIds,
+  captureCourseInvitations,
   withFixture,
 };

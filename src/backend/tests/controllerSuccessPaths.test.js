@@ -59,6 +59,37 @@ const response = () => ({
   setHeader: vi.fn(),
   send: vi.fn(),
 });
+
+it('escapes commas and quotes in downloaded report fields', async () => {
+  vi.spyOn(reportController, 'getCourseReport').mockImplementation(
+    async (_req, res) => {
+      res.json({
+        students: [
+          {
+            student_id: 'S1',
+            name: 'Lee, "Sam"',
+            email: 'lee@example.invalid',
+            team_id: { team_name: 'Team A' },
+            originalScore: 80,
+            finalScore: 80,
+            letterGrade: 'B',
+            evaluationsReceived: 1,
+            improvement: 0,
+          },
+        ],
+      });
+    },
+  );
+  const res = response();
+  await reportController.downloadReport(
+    { params: { course_id: id().toString() }, query: {} },
+    res,
+    vi.fn(),
+  );
+  expect(res.send).toHaveBeenCalledWith(
+    expect.stringContaining('S1,"Lee, ""Sam""",lee@example.invalid'),
+  );
+});
 beforeEach(() => {
   invitationSpy.mockResolvedValue({ success: true });
   reminderSpy.mockResolvedValue({ success: true });
