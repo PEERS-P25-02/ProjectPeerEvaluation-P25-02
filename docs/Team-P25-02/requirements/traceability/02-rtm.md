@@ -31,7 +31,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/unit-testing.md#initial-test-results">Initial recorded results</a>; <a href="../../modernization/implementation/testing/frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Four persisted-login and eight account-support integration cases are recorded. Credential-boundary and protected-route assertions are covered by the authentication/authorization suite. Browser login and navigation remain unverified; see the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Four persisted-login and eight account-support integration cases are recorded. Credential-boundary and protected-route assertions are covered by the authentication/authorization suite. Browser owner login and course access are exercised by the E2E fixture journey; see the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-02</td>
@@ -46,7 +46,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md">API/database cases and results</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Seven course integration cases cover create, read/filter, update, deactivate/reactivate, and rejected writes. Authorization tests cover cross-professor boundaries. Complete browser workflows and partial targets remain open; see the <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Seven course integration cases cover create, read/filter, update, deactivate/reactivate, and rejected writes. The instructor browser journey creates a course and verifies its list visibility after reload; it does not cover all management actions in one browser workflow. Authorization tests cover cross-professor boundaries. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a> for selected browser evidence and remaining partial targets.</td>
 </tr>
 <tr>
 <td>FR-03</td>
@@ -61,7 +61,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Twelve roster cases cover multipart import, persistence/relationships, edits, deletes, clearing, and rejected writes. A foreign-professor upload denial is covered. Malformed-row outcomes and processing failure after valid rows remain gaps (REG-CW03-03 and REG-CW03-06); manual student creation is partial (REG-CW03-11). See the <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Twelve roster cases cover multipart import, persistence/relationships, edits, deletes, clearing, and rejected writes. The instructor browser journey uploads a synthetic roster and verifies persisted team organization after reload. A foreign-professor upload denial is covered. Malformed-row outcomes and processing failure after valid rows remain gaps (REG-CW03-03 and REG-CW03-06); manual student creation is partial (REG-CW03-11). See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-04</td>
@@ -76,7 +76,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Thirteen team integration cases cover CRUD, membership changes, counts, constraints, and course isolation. Cross-course child-resource denial is covered by authorization tests. Complete browser organization flow and partial targets remain open; see the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Thirteen team integration cases cover CRUD, membership changes, counts, constraints, and course isolation. The instructor browser journey reorganizes uploaded students into teams and verifies persisted assignments after reload; other team operations remain integration-tested, not part of that browser journey. Cross-course child-resource denial is covered by authorization tests. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-05</td>
@@ -91,7 +91,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Eight evaluation-management cases cover invitations, completion status, reminders, and reset using persisted state and captured SMTP. Cross-professor access and foreign-team invitation denial are covered. Reset/relaunch lifecycle and reset-prompt behavior remain gaps or partial; SMTP acceptance is not external delivery. See the <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Eight evaluation-management cases cover invitations, completion status, reminders, and reset using persisted state and captured SMTP. The browser suite exercises instructor launch and reset/relaunch using captured invitations; reset-prompt details remain outside the asserted journey. Cross-professor access and foreign-team invitation denial are covered. SMTP acceptance is not external delivery. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-06</td>
@@ -106,7 +106,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Student-evaluation and email cases check assigned-token association, API context, captured personalized links, and intended recipients. Link resolution uses the real API but does not establish browser navigation. Cross-token denial and token security remain unverified; see the <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Student-evaluation and email cases check assigned-token association, API context, captured personalized links, and intended recipients. Browser tests follow captured invitations and verify assigned-student submission and persisted responses. Cross-token denial and broader token security remain unverified; see the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/email-integration.md">email integration record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-07</td>
@@ -136,7 +136,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Ten student-evaluation integration cases cover form context, submission/persistence, completion, repeat submission, and invalid requests. Authorization tests also reject self, foreign-course, and different-team recipients before writes. Browser journey, duplicate recipients, concurrency, and later-entry validation remain gaps; partial recipient-atomicity coverage is REG-CW08-07. See the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Ten student-evaluation integration cases cover form context, submission/persistence, completion, repeat submission, and invalid requests. Browser coverage checks one assigned invitation submission, stored response values, repeat rejection, and invalid links. Authorization tests also reject self, foreign-course, and different-team recipients before writes. Duplicate recipients, concurrency, and later-entry validation remain gaps; partial recipient-atomicity coverage is REG-CW08-07. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-09</td>
@@ -151,7 +151,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/api-database-integration.md">API/database cases and results</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>The API/database suite covers all 36 inventoried operations through HTTP requests and independently queried MongoDB state. Authentication/authorization and email cases add persisted ownership, token, and acceptance-state checks. Browser E2E and exhaustive atomicity are not established; see the <a href="../../modernization/implementation/testing/api-database-integration.md">API/database record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>The API/database suite covers all 36 inventoried operations through HTTP requests and independently queried MongoDB state. Authentication/authorization and email cases add persisted ownership, token, and acceptance-state checks. Selected browser journeys verify visible and persisted workflow outcomes; exhaustive atomicity remains unestablished. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/api-database-integration.md">API/database record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-10</td>
@@ -166,7 +166,7 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
-<td>Seven report integration cases cover mean/curved reports, CSV content, individual/team selection, the generate alias, and no-write behavior. Authorization tests check foreign-professor report access. Complete browser review, CSV edge cases, and grading-boundary sweeps remain gaps; see the <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
+<td>Seven report integration cases cover mean/curved reports, CSV content, individual/team selection, the generate alias, and no-write behavior. A browser journey reviews stored results and independently checked scores and downloads CSV; it does not cover every report action or CSV edge case. Authorization tests check foreign-professor report access. Grading-boundary sweeps remain open; see the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-11</td>
@@ -265,13 +265,13 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>High</td>
 <td>Client</td>
 <td>Playwright / End-to-End Testing</td>
-<td></td>
-<td></td>
+<td><a href="../../../../playwright.config.cjs">Playwright configuration</a>; <a href="../../../../scripts/runE2ETests.cjs">isolated E2E runner</a>; <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E implementation record</a></td>
+<td>E2E-40-01; E2E-41-01 through E2E-41-02; E2E-42-01 through E2E-42-04; REG-CW01-01; REG-CW02-01; REG-CW03-01; REG-CW04-01; REG-CW05-03 through REG-CW05-05; REG-CW06-01; REG-CW08-01; REG-CW09-01/02/07</td>
 <td>End-to-End Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../../modernization/implementation/testing/end-to-end-testing.md#3-test-results">Recorded local E2E results</a>; <a href="../../../../tests/e2e">Playwright browser specs</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Selected isolated browser smoke, fixture, instructor, student, reset/relaunch, and results journeys are implemented and have historical local passing evidence. The implementation record documents four selected workflows; this does not mean every mapped workflow is a single test or that the full regression matrix is complete. Hosted E2E CI and remaining matrix gaps are open. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-18</td>
