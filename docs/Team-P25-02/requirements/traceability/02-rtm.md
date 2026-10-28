@@ -2,6 +2,8 @@
 
 The recorded October 26, 2026 local integration results are two full runs passing 176 tests in 12 files with cleanup verified. This is historical execution evidence for the documented application and test sources; no tests were run for this documentation update. It is not browser E2E, hosted integration CI, external email delivery, or code-coverage evidence. See the [API/database integration record](../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review), [authentication and authorization record](../../modernization/implementation/testing/authentication-authorization-integration.md), and [email integration record](../../modernization/implementation/testing/email-integration.md).
 
+On October 28, 2026, CI-46 local verification ran `npm run test:integration` (176/176 tests in 12 files; cleanup true) and `npm run test:e2e` (13/13 tests; cleanup true) on the issue branch. Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files record exit code 0 and `cleanupVerified: true`. These local results do not establish hosted workflow success, required-check enforcement, artifact upload, external email delivery, or code-coverage evidence. No hosted controlled failure of Regression Checks is recorded. See the [CI verification record](../../modernization/implementation/continuous-integration.md).
+
 <table>
 <tr>
 <td>Requirement ID</td>
@@ -236,12 +238,12 @@ The recorded October 26, 2026 local integration results are two full runs passin
 <td>Client</td>
 <td>CI Automated Test Execution</td>
 <td><a href="../../../../.github/workflows/ci.yml">CI workflow</a>; <a href="../../../../src/backend/tests/integration">API/database integration suites</a></td>
-<td>UNIT-CI-001; UNIT-CI-002; CI-45-03 through CI-45-06</td>
+<td>UNIT-CI-001; UNIT-CI-002; CI-45-03 through CI-45-06; CI-46-01 through CI-46-04</td>
 <td>CI Validation</td>
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Local integration results</a></td>
 <td></td>
-<td>Hosted unit tests and local service-backed integration tests are implemented; the hosted workflow has no integration-test job, so FR-15 remains In Progress. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
+<td>Integration Tests and Regression Checks are configured; local integration passed 176/176 tests in 12 files with cleanup true. Hosted execution, artifact upload, controlled-failure behavior, and required-check enforcement remain unverified, so FR-15 remains In Progress. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
 </tr>
 <tr>
 <td>FR-16</td>
