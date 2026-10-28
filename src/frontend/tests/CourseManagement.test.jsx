@@ -576,6 +576,94 @@ describe('CourseManagement', () => {
     );
   });
 
+  it('cancels a queued team add when evaluation reset is declined', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      students: [{ ...rosterStudent }],
+      teams: [
+        {
+          _id: 'team-1',
+          team_name: 'Team Alpha',
+          team_status: 'Active',
+          student_count: 0,
+        },
+      ],
+      evaluationStatus: { evaluations_sent: true },
+    });
+    renderCourseManagement();
+    const teams = await openTeams(user);
+    const teamRow = (await within(teams).findByText('Team Alpha')).closest(
+      'tr',
+    );
+    await user.click(within(teamRow).getByTitle('Manage Students'));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Manage Students in Team Alpha',
+    });
+    await user.click(await within(dialog).findByTitle('Add to team'));
+
+    const resetDialog = await screen.findByRole('dialog', {
+      name: 'Evaluations Already Sent',
+    });
+    await user.click(
+      within(resetDialog).getByRole('button', { name: 'Cancel' }),
+    );
+
+    await waitFor(() => expect(resetDialog).not.toBeInTheDocument());
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(
+      within(dialog).getByText('Students in Team (0)'),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Available Students (1)'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not remove a team member when the required evaluation reset fails', async () => {
+    const user = userEvent.setup();
+    mockManagedCourse({
+      students: [
+        { ...rosterStudent, team_id: 'team-1', group_assignment: 'Team Alpha' },
+      ],
+      teams: [{ _id: 'team-1', team_name: 'Team Alpha', student_count: 1 }],
+      evaluationStatus: { evaluations_sent: true },
+    });
+    api.delete.mockRejectedValueOnce({
+      response: { data: { message: 'Reset failed' } },
+    });
+    renderCourseManagement();
+    const teams = await openTeams(user);
+    const teamRow = (await within(teams).findByText('Team Alpha')).closest(
+      'tr',
+    );
+    await user.click(within(teamRow).getByTitle('Manage Students'));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Manage Students in Team Alpha',
+    });
+    await user.click(await within(dialog).findByTitle('Remove from team'));
+
+    const resetDialog = await screen.findByRole('dialog', {
+      name: 'Evaluations Already Sent',
+    });
+    await user.click(
+      within(resetDialog).getByRole('button', { name: 'Continue' }),
+    );
+
+    expect(await screen.findByText(/Reset failed/)).toBeInTheDocument();
+    expect(api.delete).toHaveBeenCalledExactlyOnceWith(
+      '/courses/course-1/evaluations/reset',
+    );
+    expect(api.get).not.toHaveBeenCalledWith(
+      '/courses/course-1/teams/team-1/students/student-1',
+    );
+    expect(
+      within(dialog).getByText('Students in Team (1)'),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Available Students (0)'),
+    ).toBeInTheDocument();
+  });
+
   it('removes a student from the selected team and refreshes membership', async () => {
     const user = userEvent.setup();
     const data = mockManagedCourse({
