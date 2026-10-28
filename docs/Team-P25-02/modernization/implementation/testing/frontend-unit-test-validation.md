@@ -18,6 +18,7 @@ The goal of this work is to test useful frontend behavior in PEERS using Vitest 
 | `TeamAssignment.test.jsx` | Displaying the current Team Assignment page. |
 | `Reports.test.jsx` | Loading the Reports page, showing only active courses, and handling course-loading errors. |
 | `CourseManagement.test.jsx` | Loading active courses, displaying refreshed course information, showing an empty-course message, and handling loading errors. |
+| `CourseManagement.resetSequencing.test.jsx` | Failed required reset blocks a queued addition; successful reset must finish before queued additions and removals. |
 
 The original initial-route test from `App.test.jsx` was merged into `LoginPage.test.jsx`. The separate `App.test.jsx` file is no longer maintained.
 
