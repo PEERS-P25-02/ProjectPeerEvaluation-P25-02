@@ -68,6 +68,13 @@ Track application defects discovered during development and verification. Record
 - Regression cases: OP-33-29 and OP-33-33 verify mean, curved, and generate-alias reports, exact team membership, and independently calculated averages of 87.5 and 90.63.
 - Verification: Three report assertions failed in an earlier selected run and passed after the repair.
 
+## BUG-009: CSV report export splits names containing commas or quotes
+
+- Status: Fixed in source; focused backend and browser export regressions passed October 28, 2026.
+- Previous behavior: The report exporter joined raw fields with commas, so a name such as `Lee, "Sam"` produced extra CSV columns and unescaped quotes.
+- Fix: Quote fields containing commas, quotes, or line breaks and double embedded quotes in `reportController.downloadReport`.
+- Verification: A focused regression in `controllerSuccessPaths.test.js` failed before the fix with the raw row and passed after it. The results journey also downloaded and parsed the CSV in Chromium, confirming the special name and independently calculated scores.
+
 ### Recorded Regression Verification — October 24, 2026
 
 The October 24, 2026 recorded verification passed all 73 API/database tests in two fresh isolated runs with cleanup verified. Details, scope, and remaining limits are in the [full integration record](modernization/implementation/testing/api-database-integration.md).
