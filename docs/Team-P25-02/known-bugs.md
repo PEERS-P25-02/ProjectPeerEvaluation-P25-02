@@ -134,3 +134,18 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Fix: Record `invitation_accepted_at` only after SMTP acceptance and only for the token actually emailed. Status requires recorded acceptance; a failed resend preserves prior acceptance. Evaluation reset and roster replacement clear the marker with the token. Existing tokens are not assigned guessed acceptance history.
 - Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
 - Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## Priority integration failures observed October 28, 2026
+
+These open defects are reproduced by active regression tests in the
+[priority integration record](modernization/implementation/testing/api-database-integration.md#5-priority-workflow-regression-follow-up).
+Application repairs are separate from this test-only follow-up.
+
+- REG-CW03-06: Upload valid new rows followed by a duplicate new student ID. MongoDB rejects the duplicate while valid rows and relationships persist, but the API returns an empty errors array. Expected: disclose the processing failure/partial outcome.
+- REG-CW05-04: Submit using an assigned token, then reset the course evaluation. Tokens/responses clear and old access is denied, but the stored student's completion flag stays true. Expected: reset completion to pending while preserving roster, teams and unrelated data.
+- REG-CW08-04: Submit the same eligible recipient twice. Both responses persist. Expected: reject or deduplicate the recipient.
+- REG-CW08-06: Dispatch two same-context submissions together with distinct feedback. Both succeed and store duplicate recipient records. Expected: one complete response set and rejection of the competing submission. Scheduling is nondeterministic; a passing rerun alone does not prove race prevention.
+- REG-CW08-07: Submit a valid peer entry followed by one missing a required rating or containing short feedback. The API rejects the request after saving the first response. Expected: no response or completion writes.
+- REG-CW08-11: Submit participation 0/5, professionalism 6 or communication 0. Persistence remains unchanged, but the API returns 500 SERVER_ERROR. Expected: a validation rejection (400 VALIDATION_ERROR).
+
+Synthetic reproduction only; no real recipients or student data were used.

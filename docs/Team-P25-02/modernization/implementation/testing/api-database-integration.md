@@ -1,7 +1,7 @@
 # Backend API and Database Integration Tests
 
 The integration suite covers all [36 inventoried operations](api-database-operation-inventory.md)
-through actual HTTP requests and MongoDB persistence. The current recorded
+through actual HTTP requests and MongoDB persistence. The October 26 recorded
 suite contains 12 files and 176 tests: the original 73, 96 authentication and
 authorization cases, and seven email integration cases. The implementation
 contains the integration environment, eleven application suites, and four
@@ -317,3 +317,48 @@ performed for the expanded backend change.
 - Browser navigation/end-to-end behavior, service-backed CI, and the unavailable
   separate shared SWE4724 Test Document remain separate work. No requirement text
   or historical implementation assessment is rewritten to match current code.
+
+## 5. Priority workflow regression follow-up
+
+These cases use the existing guarded API/MongoDB/Mailpit environment, synthetic
+fixtures, sequential isolation and independent database reads. No application
+repair, numerical coverage gate or approved matrix outcome changes here.
+
+| Test source | Matrix cases and expected outcomes |
+| --- | --- |
+| [Priority roster](../../../../../src/backend/tests/integration/priorityRoster.test.js) | REG-CW02-03 edit preserves another owner's course; REG-CW03-03 mixed rows disclose errors and persist only valid records; REG-CW03-06 real duplicate-key failure discloses partial processing with consistent relationships/counts; REG-CW03-11 assigned/unassigned manual additions read back consistently and preserve the unrelated course; REG-CW04-10 named empty team lists with matching stored counts. |
+| [Priority lifecycle](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) | REG-CW05-02 empty roster does not launch; REG-CW05-04 submission/reset clears completion, tokens and responses, revokes old access and preserves roster/teams/other course; REG-CW06-03 altered known-good token denied without writes; REG-CW06-04 token constrains recipient and saved identity/course despite supplied foreign context; REG-CW09-04 deleted response stays absent in report/CSV while a retained reverse response stays attributed correctly. |
+| [Priority submission](../../../../../src/backend/tests/integration/prioritySubmission.test.js) | REG-CW08-04 duplicate recipient rejected or deduplicated; REG-CW08-06 concurrent submissions retain one complete response set; REG-CW08-07 later missing rating and short feedback each leave no earlier writes; REG-CW08-11 four invalid scale boundaries return validation errors without response/completion changes. |
+
+Run focused cases with the same cleanup safeguards:
+
+```bash
+npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js prioritySubmission.test.js
+```
+
+The first focused run on October 28, 2026 ran 18 tests: six passed and twelve
+failed, exit 1 with verified cleanup. Review corrected two overstrict test
+oracles (partial-result wording and no-response report schema) and strengthened
+fixtures; that initial run is superseded by the full run below.
+
+Final full run on October 28, 2026: `npm run test:integration` ran 194 tests
+in 15 files: **184 passed, 10 failed**, exit 1, cleanup verified true
+(run ID `155d058f8d739ea3`). All 176 pre-existing tests passed; the 18 added
+cases produced eight passes and ten failures. Failures cover undisclosed CSV
+processing errors, retained reset completion, duplicate/concurrent submissions,
+two later-entry partial writes, and four invalid-scale server errors. See
+[known defects](../../../known-bugs.md#priority-integration-failures-observed-october-28-2026).
+The intermediate full run had 183 passes/11 failures before the remaining
+partial-result wording assertion was corrected. No failure is skipped or marked
+as expected; these regressions block a claim of complete verified behavior.
+
+Backend unit tests: `npm --prefix src/backend test`, 65/65 passed. Root
+`npm run lint`, `npm run format:check`, and `git diff --check` passed.
+The first lint attempt used an incomplete reused dependency directory and failed
+module resolution; a clean lockfile install in this worktree resolved it.
+No frontend source changed; no browser or production-build rerun was performed.
+
+Partial-invitation aggregate status has separate implementation/evidence on an
+unmerged branch; this follow-up neither duplicates that repair nor claims its
+results on this baseline. The external shared Test Document remains deferred
+and was not updated. Existing historical runs above remain dated evidence.
