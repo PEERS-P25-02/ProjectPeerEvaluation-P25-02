@@ -8,7 +8,7 @@ The workflow has nine jobs: Frontend Build; Lint and Formatting; Unit Tests; Int
 
 Run commands from the repository root. CI uses `npm ci` for lockfile-based installs; [Getting Started](../getting-started.md) describes the recommended local setup.
 
-The two service-backed test commands require Docker and Docker Compose to be installed and Docker to be running. They use isolated generated settings and do not require cloud credentials. Hosted results for the three new jobs and repository required-check configuration have not been verified. The integration and E2E suites are selected regression checks, not complete coverage of the [functional regression matrix](../requirements/regression-test-matrix.md); see the [coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
+The two service-backed test commands require Docker and Docker Compose to be installed and Docker to be running. They use isolated generated settings and do not require cloud credentials. The first hosted PR #138 run (40735605439) failed during MongoDB startup in Integration Tests and End-to-End Tests; cleanup was verified and result artifacts uploaded. Both jobs now use Ubuntu 22.04, and the compatibility rerun is pending. Regression Checks behavior and repository required-check configuration have not been verified. The integration and E2E suites are selected regression checks, not complete coverage of the [functional regression matrix](../requirements/regression-test-matrix.md); see the [coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
 
 ```bash
 npm ci
@@ -24,7 +24,7 @@ npm run test:coverage
 npm --prefix src/backend run test:coverage
 ```
 
-Inspect the GitHub Actions tab for job logs and uploaded coverage, integration, and E2E artifacts. Pull requests also display check results. The last recorded main-branch ruleset review found eight old required check names; current ruleset settings have not been rechecked. Hosted results for the three new jobs remain unverified.
+Inspect the GitHub Actions tab for job logs and uploaded coverage, integration, and E2E artifacts. Pull requests also display check results. The last recorded main-branch ruleset review found eight old required check names; current ruleset settings have not been rechecked. The first hosted PR #138 integration and E2E attempts failed at MongoDB startup; both uploaded artifacts after verified cleanup. Their Ubuntu 22.04 compatibility rerun is pending.
 
 ## Optional Compose stack check in CI
 
