@@ -68,7 +68,7 @@ Track application defects discovered during development and verification. Record
 - Regression cases: OP-33-29 and OP-33-33 verify mean, curved, and generate-alias reports, exact team membership, and independently calculated averages of 87.5 and 90.63.
 - Verification: Three report assertions failed in an earlier selected run and passed after the repair.
 
-## BUG-009: CSV report export splits names containing commas or quotes
+## BUG-021: CSV report export splits names containing commas or quotes
 
 - Status: Fixed in source; focused backend and browser export regressions passed October 28, 2026.
 - Previous behavior: The report exporter joined raw fields with commas, so a name such as `Lee, "Sam"` produced extra CSV columns and unescaped quotes.
@@ -135,7 +135,7 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
 - Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
 
-## BUG-017: Evaluation submissions can persist partial or duplicate responses
+## BUG-018: Evaluation submissions can persist partial or duplicate responses
 
 - Status: Fixed and verified by isolated API/database regressions on October 28, 2026.
 - Previous behavior: Entries were validated and saved one at a time, so an invalid later entry could leave an earlier response stored. Duplicate recipients in one request and simultaneous submissions could also create duplicate or inconsistent responses.

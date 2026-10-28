@@ -36,7 +36,7 @@ The implementation was verified locally on the issue #42 worktree based on the t
 
 The same implementation handoff records passing frontend tests (63), backend tests (65), lint, formatting, frontend build, focused CSV export regression, and whitespace checks. The build emitted the existing large-chunk warning. These are historical results from that implementation work, not reruns for this documentation change. Hosted E2E CI has not been demonstrated.
 
-The related CSV export defect (quoted delimiter, quote, and newline handling) was fixed and documented as BUG-009 in the known-bugs record. The browser journeys do not close all 74 regression-matrix targets. Remaining areas include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, inconsistent report source data, and other partial/missing matrix assertions. See the [regression coverage gaps](regression-coverage-gaps.md).
+The related CSV export defect (quoted delimiter, quote, and newline handling) was fixed and documented as BUG-021 in the known-bugs record. The browser journeys do not close all 74 regression-matrix targets. Remaining areas include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, inconsistent report source data, and other partial/missing matrix assertions. See the [regression coverage gaps](regression-coverage-gaps.md).
 
 ## Source Links
 
