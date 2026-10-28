@@ -77,6 +77,8 @@ The original initial-route test from `App.test.jsx` was merged into `LoginPage.t
 - Updated course information is loaded with `getCourseById`.
 - A message appears when no active courses are found.
 - An error message appears when courses cannot be loaded.
+- Canceling the evaluation-reset prompt for a queued team add issues neither the reset nor membership request and retains the original team/available-student counts (REG-CW05-07).
+- If the required reset fails for a queued team removal, no membership request follows and the original membership remains visible (REG-CW05-08).
 
 ## Test Tools
 
@@ -267,3 +269,17 @@ The October 22 priority-workflow validation snapshot used Node 24.21.0 and npm 1
 | Frontend production build | Passed; existing bundle-size warning remains. |
 
 The earlier 57-test V8 measurement is preserved as historical evidence; no new coverage percentage or threshold is introduced by this follow-up.
+
+### October 28 Reset-Prompt Regression Follow-up
+
+The CourseManagement component suite now covers a canceled queued addition (REG-CW05-07) and a failed required reset before removal (REG-CW05-08). The reset confirmation handler stops the queued team action when the reset request fails; cancel continues to clear the pending action without issuing either request. The defect is tracked as [BUG-017](../../../known-bugs.md#bug-017-team-membership-changes-continue-after-a-required-evaluation-reset-fails).
+
+| Check | Result |
+| --- | --- |
+| Focused CourseManagement command (`npm test -- --run src/frontend/tests/CourseManagement.test.jsx`) | Passed; the package script runs the full frontend suite: 8 files, 65 tests. |
+| Full frontend suite (`npm test`) | 8 files, 65 tests passed. |
+| Repository lint (`npm run lint`) | Passed with no ESLint errors. |
+| Formatting (`npm run format:check`) | Passed. |
+| Frontend production build (`npm run build`) | Passed; existing large-chunk warning remains. |
+
+The reset-failure component test confirms only the reset request is issued; the queued removal request does not follow. Failed-add and successful-reset ordering assertions remain separate follow-up scope. No backend, database, SMTP, or browser service was started for these mocked component checks. The PR's shared external Test Document remains deferred and was not updated.

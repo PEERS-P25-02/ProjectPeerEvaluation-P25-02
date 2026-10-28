@@ -68,7 +68,7 @@ Track application defects discovered during development and verification. Record
 - Regression cases: OP-33-29 and OP-33-33 verify mean, curved, and generate-alias reports, exact team membership, and independently calculated averages of 87.5 and 90.63.
 - Verification: Three report assertions failed in an earlier selected run and passed after the repair.
 
-## BUG-009: CSV report export splits names containing commas or quotes
+## BUG-021: CSV report export splits names containing commas or quotes
 
 - Status: Fixed in source; focused backend and browser export regressions passed October 28, 2026.
 - Previous behavior: The report exporter joined raw fields with commas, so a name such as `Lee, "Sam"` produced extra CSV columns and unescaped quotes.
@@ -134,3 +134,11 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Fix: Record `invitation_accepted_at` only after SMTP acceptance and only for the token actually emailed. Status requires recorded acceptance; a failed resend preserves prior acceptance. Evaluation reset and roster replacement clear the marker with the token. Existing tokens are not assigned guessed acceptance history.
 - Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
 - Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
+
+## BUG-017: Team membership changes continue after a required evaluation reset fails
+
+- Status: Fixed in source; the canceled-add and failed-removal component regressions and full frontend suite passed October 28, 2026.
+- Previous behavior: After invitations had been sent, confirming a team addition or removal requested an evaluation reset. The reset helper caught API errors and resolved normally, so the confirmation handler still issued the queued membership request.
+- Fix: Return an explicit success/failure result from the reset helper. On failure, clear the queued action and stop; preserve the reset error and membership. Successful resets still precede the selected membership request, and Cancel clears the queued action without either request.
+- Verification: This branch covers a canceled queued addition and a failed required reset before removal (REG-CW05-07/08). The mocked component assertions verify no requests on cancellation and only the reset request on failure, with membership counts unchanged. Failed-add and successful-reset ordering assertions remain separate follow-up scope; these checks do not establish live API/database fault handling.
+- Evidence: [Reset-prompt cases and verification](modernization/implementation/testing/frontend-unit-test-validation.md#october-28-reset-prompt-regression-follow-up) and [cancel/removal component tests](../../src/frontend/tests/CourseManagement.test.jsx).

@@ -1210,7 +1210,15 @@ function CourseManagement() {
       return;
     }
     setShowEvalResetDialog(false);
-    await handleResetEvaluationState(pendingEvalResetCourseId);
+    const resetSucceeded = await handleResetEvaluationState(
+      pendingEvalResetCourseId,
+    );
+    if (!resetSucceeded) {
+      // Keep team membership unchanged when its required evaluation reset fails.
+      setPendingEvalResetCourseId(null);
+      setPendingTeamAction(null);
+      return;
+    }
     // After reset, perform the pending action with stored team/course
     if (pendingTeamAction.type === 'add') {
       await doAddStudentToTeam(
@@ -1520,6 +1528,7 @@ function CourseManagement() {
         const course = { _id: courseId, id: courseId };
         handleViewEvaluationStatus(course);
       }, 1000);
+      return true;
     } catch (error) {
       console.error('Reset evaluation state error:', error);
       const errorMessage =
@@ -1528,6 +1537,7 @@ function CourseManagement() {
         severity: 'error',
         message: `❌ ${errorMessage}`,
       });
+      return false;
     } finally {
       setResettingEvaluations(false);
     }
