@@ -33,7 +33,15 @@ Expected healthy services are `frontend`, `backend`, `mongodb`, and
 `docker:up` generates or preserves the local JWT secret, builds the
 application images, waits for health checks, and configures the backend with
 the Compose service hostnames `mongodb` and `mailpit`. Mail is captured
-locally by Mailpit; forwarding and relay stay disabled.
+locally by Mailpit; forwarding and relay stay disabled. MongoDB runs as the
+single-node `peers-rs` replica set required by submission transactions. Its
+health check initializes the set when necessary and waits for a writable
+primary before backend startup. Normal down/up preserves the named volume.
+The integration and browser-test Compose stacks use the same replica-set
+configuration with disposable storage. A native backend connecting through
+this stack’s published MongoDB port needs `directConnection=true` because
+the replica set advertises `mongodb:27017`; see the
+[local development guide](../../../developer-guides/local-development.md).
 
 ## Verification
 
