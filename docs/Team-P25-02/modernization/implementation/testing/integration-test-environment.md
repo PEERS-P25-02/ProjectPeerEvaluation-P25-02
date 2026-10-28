@@ -23,8 +23,12 @@ and dependency installation require network access during the build.
 
 The [standalone Compose file](../../../../../compose.test.yml) defines MongoDB 8.0,
 Mailpit 1.27.4, the actual Express backend, and the Vitest runner. The service
-versions match the development stack. MongoDB and Mailpit health checks gate
-backend startup; the backend health check includes MongoDB connectivity.
+versions match the development stack. MongoDB runs with `--replSet peers-rs`;
+its health check initializes the single-node set when necessary and requires
+`db.hello().isWritablePrimary` before reporting healthy. Submission transactions
+require a replica set or sharded deployment. The development and browser-test
+Compose stacks use the same replica-set readiness check. MongoDB and Mailpit
+health checks gate backend startup; the backend health check includes MongoDB connectivity.
 The runner starts after backend readiness. Startup waits at most 120 seconds
 after the image build; individual tests and fixture hooks have 15-second limits.
 
@@ -127,7 +131,9 @@ changes recorded 63 frontend and 62 backend tests passing, four environment
 checks passing, lint/format/whitespace checks passing, and a successful frontend
 build with an existing bundle-size warning. These are historical results; they
 do not establish a current hosted CI result or a fresh test run after subsequent
-changes.
+changes. Replica-set stack execution is separately recorded in
+[submission integrity](api-database-integration.md#5-submission-integrity);
+the October 22/23 environment results above remain historical.
 
 ### Remaining verification and scope limits
 

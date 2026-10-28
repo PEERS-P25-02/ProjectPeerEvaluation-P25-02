@@ -135,6 +135,13 @@ The October 24, 2026 recorded verification passed all 73 API/database tests in t
 - Verification: Failure/retry cases assert false status before acceptance and true status with stored timestamps after acceptance. A failed resend preserves the original timestamps/messages. Existing fixture tests check legacy tokens, reset/import clearing, and unrelated-course preservation; unit tests check a failed token-matched acknowledgment update.
 - Evidence: [Email integration record](modernization/implementation/testing/email-integration.md).
 
+## BUG-018: Evaluation submissions can persist partial or duplicate responses
+
+- Status: Fixed and verified by isolated API/database regressions on October 28, 2026.
+- Previous behavior: Entries were validated and saved one at a time, so an invalid later entry could leave an earlier response stored. Duplicate recipients in one request and simultaneous submissions could also create duplicate or inconsistent responses.
+- Fix: Validate every entry and reject duplicate recipients before writing. Commit all response records and the evaluator's completion update in one MongoDB transaction; a forced Student version write serializes submissions for the same evaluator, and a transaction-local completion check rejects subsequent submissions. No unique index or historical-data migration is added.
+- Regression cases: `submissionIntegrity.test.js` covers duplicate recipients, invalid later ratings/feedback, concurrent multi-peer requests, and rollback after a later database write failure, with corrected retries and independently queried stored state.
+- Verification: All 12 new regressions failed against the original controller. The repair passed the focused 12-case and full 188-case integration runs with verified cleanup, 79 backend unit tests, and 13 browser checks. See the [submission integrity record](modernization/implementation/testing/api-database-integration.md#5-submission-integrity). Existing stored duplicates are not repaired by this change.
 
 ## BUG-017: Team membership changes continue after a required evaluation reset fails
 

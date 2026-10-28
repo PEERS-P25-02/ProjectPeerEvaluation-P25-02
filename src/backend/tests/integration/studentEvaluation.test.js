@@ -207,7 +207,7 @@ describe('public student evaluation API and database interactions', () => {
     // Comparing all students detects accidental completion of recipients too.
     const expected = before.map((student) =>
       student._id.toString() === state.fixture.students[0].id
-        ? { ...student, evaluation_completed: true }
+        ? { ...student, evaluation_completed: true, __v: student.__v + 1 }
         : student,
     );
     expect(await Student.find().sort('_id').lean()).toEqual(expected);
