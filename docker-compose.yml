@@ -6,6 +6,8 @@
 services:
   mongodb:
     image: mongo:8.0
+    # Transactions keep peer responses and completion atomic; wait for a primary.
+    command: [mongod, --replSet, peers-rs, --bind_ip_all]
     # Named storage keeps local database records between Compose restarts.
     ports:
       - "127.0.0.1:27017:27017"
@@ -17,7 +19,7 @@ services:
         - mongosh
         - --quiet
         - --eval
-        - "quit(db.adminCommand({ ping: 1 }).ok === 1 ? 0 : 1)"
+        - 'try { rs.status(); } catch (e) { if (e.codeName !== "NotYetInitialized") throw e; rs.initiate({_id: "peers-rs", members: [{_id: 0, host: "mongodb:27017"}]}); } quit(db.hello().isWritablePrimary ? 0 : 1);'
       interval: 5s
       timeout: 5s
       retries: 12

@@ -5,11 +5,13 @@ name: peers-e2e-${E2E_RUN_ID:?E2E_RUN_ID must identify this run}
 services:
   mongodb:
     image: mongo:8.0
+    # Transactions keep peer responses and completion atomic; wait for a primary.
+    command: [mongod, --replSet, peers-rs, --bind_ip_all]
     tmpfs:
       - /data/db
       - /data/configdb
     healthcheck:
-      test: [CMD, mongosh, --quiet, --eval, 'quit(db.adminCommand({ ping: 1 }).ok === 1 ? 0 : 1)']
+      test: [CMD, mongosh, --quiet, --eval, 'try { rs.status(); } catch (e) { if (e.codeName !== "NotYetInitialized") throw e; rs.initiate({_id: "peers-rs", members: [{_id: 0, host: "mongodb:27017"}]}); } quit(db.hello().isWritablePrimary ? 0 : 1);']
       interval: 2s
       timeout: 5s
       retries: 30

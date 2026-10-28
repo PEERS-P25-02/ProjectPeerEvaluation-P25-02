@@ -1,11 +1,12 @@
 # Backend API and Database Integration Tests
 
 The integration suite covers all [36 inventoried operations](api-database-operation-inventory.md)
-through actual HTTP requests and MongoDB persistence. The current recorded
-suite contains 12 files and 176 tests: the original 73, 96 authentication and
-authorization cases, and seven email integration cases. The implementation
-contains the integration environment, eleven application suites, and four
-application repairs described in this record. The detailed course and database
+through actual HTTP requests and MongoDB persistence. The October 26, 2026 recorded
+suite contained 12 files and 176 tests: the original 73, 96 authentication and
+authorization cases, and seven email integration cases. That snapshot contained
+the integration environment, eleven application suites, and four application
+repairs described in this record. The submission integrity extension and its
+execution status are recorded in Section 5. The detailed course and database
 verification below preserves the October 24, 2026 snapshot; later full-suite
 and focused email results are recorded separately below and in
 [email integration](email-integration.md).
@@ -31,8 +32,9 @@ Docker with Compose v2.24+, and Linux container support. Docker must be running.
 The [integration environment guide](integration-test-environment.md#1-testing-strategy) describes
 the exact run-only settings, destination guards, readiness checks, diagnostics,
 and cleanup. No developer `.env`, Atlas account, or Mailtrap credentials are
-needed. Image builds need network access. No dependencies or configuration
-changes are introduced by this suite.
+needed. Image builds need network access. The original suite introduced no
+dependencies or configuration changes. The submission integrity extension
+requires transaction-capable MongoDB; see Section 5.
 
 From the repository root, run the complete environment and application checks:
 
@@ -298,10 +300,10 @@ performed for the expanded backend change.
   shape, and deterministic rejection/retry behavior, not provider delivery or
   browser navigation. Known account-recovery defects remain separate concerns.
 - Self/foreign recipients are addressed in the access-control record above.
-  Duplicate recipients, later-entry rating/feedback failures, concurrency,
-  token uniqueness/security, deadline enforcement and database outages remain
-  unverified integrity concerns. Rejecting an invalid first entry does not prove
-  submission atomicity.
+  Submission duplicate-recipient, later-entry validation, concurrency, and
+  database write rollback assertions are added in Section 5, with execution
+  verification recorded there separately. Token uniqueness/security, deadline
+  enforcement, and arbitrary database outages remain outside those cases.
 - Evaluation reset clears tokens/records and is tested to invalidate the old
   student capability. Cached completion flags and the complete reset/relaunch
   lifecycle remain verification gaps. The status endpoint still reports `evaluations_sent: true`
@@ -317,3 +319,59 @@ performed for the expanded backend change.
 - Browser navigation/end-to-end behavior, service-backed CI, and the unavailable
   separate shared SWE4724 Test Document remain separate work. No requirement text
   or historical implementation assessment is rewritten to match current code.
+
+## 5. Submission Integrity
+
+The [submission integrity suite](../../../../../src/backend/tests/integration/submissionIntegrity.test.js)
+extends OP-33-27 through real HTTP requests and independent MongoDB queries.
+It uses the existing isolated fixture lifecycle and synthetic records. The
+controller validates the complete batch before writes and rejects duplicate
+recipients. A MongoDB transaction commits response records and evaluator
+completion together; a forced Student version update serializes submissions
+for the same evaluator before the transaction-local completion check. Existing
+completion records remain authoritative for repeat rejection. No unique index
+or migration is introduced, and existing duplicate data is not repaired.
+
+MongoDB must be a replica set or sharded deployment. The supplied local,
+integration, and browser-test Compose stacks initialize a single-node replica
+set automatically and wait for its writable primary. Existing named volumes
+are retained without data deletion. A native backend using the Compose
+published MongoDB port needs `directConnection=true` because the replica set
+advertises the Compose hostname `mongodb`.
+
+| Target / case | Steps | Expected result |
+| --- | --- | --- |
+| REG-CW08-04 | Submit the same eligible recipient twice, then correct the request. | HTTP 400 `VALIDATION_ERROR`, unchanged students/evaluations; corrected retry stores the complete two-peer submission with HTTP 201. |
+| REG-CW08-07 / REG-CW08-11 | Place a valid peer first and an invalid rating or feedback entry second. Cases include missing, below/above-bound, participation-bound, nonnumeric string and null ratings, and short/non-string feedback. | HTTP 400 `VALIDATION_ERROR`, unchanged response and completion state; corrected retry succeeds with exact stored values. |
+| REG-CW08-06 | Send eight concurrent two-peer requests with distinct request/recipient feedback markers and ratings, with false and stale-true initial completion flags. | Exactly one HTTP 201 and seven HTTP 409 `ALREADY_COMPLETED`; exactly two response records from one winning request and only its evaluator completion/version update. |
+| REG-CW08-07 / database rollback | Temporarily add a disposable collection validator rejecting the second recipient, submit two otherwise-valid entries, restore the validator, then retry. | HTTP 500 and unchanged students/evaluations after rejection; corrected retry returns HTTP 201 and stores both responses. Validator restoration runs even on failure. |
+
+### Execution Results
+
+The original implementation failed 12 retained integrity assertions in an
+isolated baseline run; cleanup was verified. Duplicate recipients were accepted
+with HTTP 201; later missing-rating/short-feedback rejection left the first
+response stored; out-of-range, nonnumeric/null rating and feedback-type errors
+returned HTTP 500. Concurrent submissions with a stale-true completion flag
+produced six successes instead of one, and a later database validator failure
+also left the first response stored.
+
+Repaired-source verification on October 28, 2026:
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:integration -- submissionIntegrity.test.js` | 12/12 passed; exit 0; cleanup verified. |
+| `npm run test:integration` | 188/188 passed across 13 files; exit 0; cleanup verified. |
+| `npm --prefix src/backend test` | 79/79 passed across 11 files. |
+| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; cleanup verified. |
+| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
+
+The browser run verifies existing journeys against the replica-set stack; the
+new integrity cases execute at the API/database layer. Earlier dated run records
+above remain historical. The separate shared SWE4724 Test Document is
+unavailable/deferred; this repository update does not claim to update it.
+
+The cases establish bounded submission integrity assertions. They do not
+establish general database-outage handling, token uniqueness/security, deadline
+enforcement, historical duplicate cleanup, or every concurrent reset/relaunch
+interaction. No requirement text or requirement-wide status is changed.

@@ -31,7 +31,7 @@ npm run docker:up
 
 `npm run setup` installs frontend and backend dependencies, then prepares the root `.env` from `.env.example`. Setup preserves configured values, adds missing settings, and creates a random JWT secret if one is missing, blank, or a recognized development placeholder. Local `.env` files are ignored by Git. See [Local development](developer-guides/local-development.md) for manual configuration and setup safeguards.
 
-Compose starts MongoDB, the backend, the frontend, and Mailpit. Mailpit captures locally generated email, so the local setup does not need MongoDB Atlas or an external mail account. Local email is not sent to real recipients.
+Compose starts MongoDB, the backend, the frontend, and Mailpit. Evaluation submissions use transactions, so MongoDB must run as a replica set or sharded deployment. The supplied Compose stacks automatically initialize a single-node replica set and wait for its primary to be ready, including when reusing the existing MongoDB volume; no data deletion is required. Mailpit captures locally generated email, so the local setup does not need MongoDB Atlas or an external mail account. Local email is not sent to real recipients.
 
 ## Open the application
 
