@@ -136,6 +136,19 @@ describe('public submission atomicity and concurrency', () => {
         input.ratings.participation = 5;
       },
     },
+    // REG-CW08-11 also probes the participation and communication lower bounds.
+    {
+      name: 'participation below its minimum',
+      invalidate(input) {
+        input.ratings.participation = 0;
+      },
+    },
+    {
+      name: 'communication below its minimum',
+      invalidate(input) {
+        input.ratings.communication = 0;
+      },
+    },
     {
       name: 'nonnumeric string rating',
       invalidate(input) {

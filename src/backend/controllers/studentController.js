@@ -625,7 +625,11 @@ exports.uploadRoster = async (req, res, next) => {
               console.log(`✅ Inserted ${created.length} new students`);
             } catch (insertError) {
               console.error('❌ Error inserting students:', insertError);
-              // Try to get partial results
+              // Unordered writes can save valid rows before rejecting other rows.
+              // Keep those students while disclosing that the import had errors.
+              errors.push(
+                'Some students could not be added (possible duplicates or DB error).',
+              );
               const insertedStudents = await Student.find({
                 course_id: courseObjectId,
                 student_id: { $in: filteredToCreate.map((s) => s.student_id) },
@@ -746,7 +750,7 @@ exports.uploadRoster = async (req, res, next) => {
           console.log(`Team names: ${Object.keys(createdTeams).join(', ')}`);
 
           res.status(200).json({
-            message: `Roster processed successfully. ${created.length} new students added, ${studentsToUpdate.length} existing students updated. Evaluation state reset for fresh start.`,
+            message: `Roster processed ${errors.length ? 'with some errors' : 'successfully'}. ${created.length} new students added, ${studentsToUpdate.length} existing students updated. Evaluation state reset for fresh start.`,
             students: created.map((s) => s.student_id),
             students_updated: studentsToUpdate.map((s) => s.student_id),
             teams_created: teamsCreatedCount,
@@ -860,10 +864,13 @@ exports.resetEvaluationState = async (req, res, next) => {
 
     const courseObjectId = new mongoose.Types.ObjectId(course_id);
 
-    // Clear evaluation tokens from all students in this course
+    // Reset completion with the invitation state so a new lifecycle starts fresh.
     const tokenUpdateResult = await Student.updateMany(
       { course_id: courseObjectId },
-      { $unset: { evaluation_token: 1, invitation_accepted_at: 1 } },
+      {
+        $unset: { evaluation_token: 1, invitation_accepted_at: 1 },
+        $set: { evaluation_completed: false },
+      },
     );
 
     // Clear all evaluation records for this course

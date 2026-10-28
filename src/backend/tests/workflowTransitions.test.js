@@ -251,7 +251,7 @@ describe('student membership transitions', () => {
 });
 
 describe('course-scoped cleanup', () => {
-  it('resets tokens, SMTP acceptance markers, and evaluations only in the selected course', async () => {
+  it('resets tokens, SMTP acceptance markers, completion, and evaluations only in the selected course', async () => {
     vi.spyOn(Student, 'updateMany').mockResolvedValue({ modifiedCount: 3 });
     vi.spyOn(Evaluation, 'deleteMany').mockResolvedValue({ deletedCount: 4 });
     const res = response();
@@ -260,7 +260,11 @@ describe('course-scoped cleanup', () => {
     expect(next).not.toHaveBeenCalled();
     expect(Student.updateMany).toHaveBeenCalledExactlyOnceWith(
       { course_id: courseId },
-      { $unset: { evaluation_token: 1, invitation_accepted_at: 1 } },
+      {
+        $unset: { evaluation_token: 1, invitation_accepted_at: 1 },
+        // Reset also returns completed students to the pending lifecycle state.
+        $set: { evaluation_completed: false },
+      },
     );
     expect(Evaluation.deleteMany).toHaveBeenCalledExactlyOnceWith({
       course_id: courseId,

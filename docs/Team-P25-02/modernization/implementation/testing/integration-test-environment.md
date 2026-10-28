@@ -132,7 +132,8 @@ checks passing, lint/format/whitespace checks passing, and a successful frontend
 build with an existing bundle-size warning. These are historical results; they
 do not establish a current hosted CI result or a fresh test run after subsequent
 changes. Replica-set stack execution is separately recorded in
-[submission integrity](api-database-integration.md#5-submission-integrity);
+[submission integrity](api-database-integration.md#5-submission-integrity) and
+the [combined follow-up](api-database-integration.md#current-combined-follow-up);
 the October 22/23 environment results above remain historical.
 
 ### Remaining verification and scope limits
