@@ -27,7 +27,7 @@ npm --prefix src/backend run test:coverage
 npm run test:all:coverage
 ```
 
-Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server. CI uploads coverage as workflow artifacts. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred until the end-to-end suite is implemented.
+Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server or browser. CI uploads coverage as workflow artifacts. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred; implementing browser E2E does not by itself combine coverage reports.
 
 ## Isolated backend integration environment
 
@@ -49,6 +49,16 @@ npm run test:integration -- emailIntegration.test.js evaluationManagement.test.j
 ```
 
 These tests do not start the frontend or establish complete browser journeys, external email delivery, or exhaustive failure handling. Integration execution is not yet part of the CI workflow. Use the [regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md) to distinguish existing assertions from incomplete and missing scenarios; keep the stable regression matrix's expected outcomes unchanged.
+
+## End-to-end browser tests
+
+Run the isolated Chromium browser suite with Docker and Compose available:
+
+```bash
+npm run test:e2e
+```
+
+The runner builds a disposable frontend/backend/MongoDB/Mailpit stack, seeds guarded synthetic fixtures, runs Playwright sequentially, preserves logs and failure artifacts, and verifies cleanup. It does not read the development `.env` or publish ports. See the [end-to-end implementation record](../modernization/implementation/testing/end-to-end-testing.md) for prerequisites, cases, historical results, and coverage limits.
 
 ## Linting and formatting
 
@@ -74,4 +84,5 @@ These project documents describe existing test implementations, evidence, and li
 - [API and database integration](../modernization/implementation/testing/api-database-integration.md)
 - [Authentication and authorization integration](../modernization/implementation/testing/authentication-authorization-integration.md)
 - [API/database operation inventory](../modernization/implementation/testing/api-database-operation-inventory.md)
+- [End-to-end browser testing](../modernization/implementation/testing/end-to-end-testing.md)
 - [ESLint migration notes](../modernization/implementation/tooling/eslint-and-formatting.md)
