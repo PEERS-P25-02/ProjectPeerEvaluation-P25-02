@@ -92,11 +92,11 @@ Testing verification and recorded results are maintained in [Unit Testing Implem
 
 Recorded runtime checks used synthetic data with Docker Engine 29.4.0 and Compose 5.1.1. They covered healthy startup, HTTP proxy and SPA routing, registration/login, protected API access, Mailpit capture with local email links, HTTP 503 during a database outage, and account persistence after down/up. The disposable containers and database volume were removed afterward.
 
-Automated email integration suites and CI jobs that exercise the stack remain separate work. Password-reset routing and response-contract defects remain tracked in [Known Bugs](../../known-bugs.md); full password-reset completion is not claimed.
+Automated invitation email suites and their dated local results are recorded in [Email Integration Testing](testing/email-integration.md). Hosted CI jobs that exercise the stack remain separate work. Password-reset routing and response-contract defects remain tracked in [Known Bugs](../../known-bugs.md); full password-reset completion is not claimed.
 
 ## Remaining Development Environment Work
 
-- Add automated email integration suites and CI jobs that exercise the Compose stack.
+- Add hosted CI jobs that exercise the Compose integration stack; local invitation email suites are recorded in [Email Integration Testing](testing/email-integration.md).
 - Complete clean-install and minimum-supported-runtime verification, plus hosting validation; local Node 24 build evidence is recorded above.
 - The current [CI workflow](../../../../.github/workflows/ci.yml) defines six jobs: frontend build, combined lint and formatting, unit tests, unit coverage, OWASP Dependency-Check, and Gitleaks. It does not run the local integration suite; repository required-check settings are separate from workflow configuration.
 - Revisit supported ESLint releases once React, import, and accessibility plugins declare ESLint 10 compatibility.
