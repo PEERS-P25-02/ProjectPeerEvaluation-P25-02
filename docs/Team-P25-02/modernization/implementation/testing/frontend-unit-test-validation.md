@@ -272,7 +272,7 @@ The earlier 57-test V8 measurement is preserved as historical evidence; no new c
 
 ### October 28 Reset-Prompt Regression Follow-up
 
-The CourseManagement component suite now covers REG-CW05-07 and REG-CW05-08. The reset confirmation handler stops the queued team action when the reset request fails; cancel continues to clear the pending action without issuing either request.
+The CourseManagement component suite now covers a canceled queued addition (REG-CW05-07) and a failed required reset before removal (REG-CW05-08). The reset confirmation handler stops the queued team action when the reset request fails; cancel continues to clear the pending action without issuing either request. The defect is tracked as [BUG-017](../../../known-bugs.md#bug-017-team-membership-changes-continue-after-a-required-evaluation-reset-fails).
 
 | Check | Result |
 | --- | --- |
@@ -282,4 +282,4 @@ The CourseManagement component suite now covers REG-CW05-07 and REG-CW05-08. The
 | Formatting (`npm run format:check`) | Passed. |
 | Frontend production build (`npm run build`) | Passed; existing large-chunk warning remains. |
 
-The reset-failure component test confirms only the reset request is issued; the queued removal request does not follow. No backend, database, SMTP, or browser service was started for these mocked component checks. The PR's shared external Test Document remains deferred and was not updated.
+The reset-failure component test confirms only the reset request is issued; the queued removal request does not follow. Failed-add and successful-reset ordering assertions remain separate follow-up scope. No backend, database, SMTP, or browser service was started for these mocked component checks. The PR's shared external Test Document remains deferred and was not updated.
