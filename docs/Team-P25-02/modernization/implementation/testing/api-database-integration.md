@@ -454,6 +454,8 @@ October 28, 2026 combined follow-up verification:
 
 These runs tested the PR #134 working tree combining `9d05881` and PR #137
 `649dc6f`, with the CSV/reset repairs and consolidated tests described above.
+The tested application and test files are recorded in commit `27a7861`; merge
+`57d76d2` incorporates the defect-ID correction without changing that tree.
 The current 200-test result independently verifies that combined source; the
 historical 184/10 and 188/188 results above remain evidence for their separate
 snapshots. Logs and `result.json` are retained under ignored
