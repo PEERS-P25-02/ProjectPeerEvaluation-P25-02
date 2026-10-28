@@ -465,3 +465,32 @@ build or frontend unit-suite rerun was performed. Hosted execution is not
 established by these local results.
 Remaining source gaps stay listed in the [coverage gap inventory](regression-coverage-gaps.md);
 BUG-017 and its frontend reset-confirmation coverage remain separate unmerged work.
+
+
+### Unit-test compatibility with merged main — October 28, 2026
+
+The [hosted run 40781814676](https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02/actions/runs/40781814676)
+tested merge commit `f2d7d8293d6534ef502440bcdee98906b0a38ea0`, combining
+PR head `911328a` with main `726b17c`. Its newer `workflowTransitions.test.js`
+expected a token-only reset update and failed because BUG-020 correctly also
+sets `evaluation_completed` to false. Both backend unit jobs failed on that
+assertion; missing coverage artifacts were a consequence of the failed tests.
+The integration and browser jobs succeeded in that run.
+
+The branch now carries the same [cleanup unit-test file](../../../../../src/backend/tests/workflowTransitions.test.js)
+with the reset assertion updated to require completion reset alongside token
+and SMTP-marker removal. Exact selected-course filters, call counts,
+evaluation deletion, and response assertions remain intact. Production code,
+matrix outcomes, and source-coverage classifications are unchanged.
+
+- Reproduced the original failure against that exact CI merge source: one
+  failed and ten passed in the focused cleanup file.
+- Updated merged-source backend unit suite: 143/143 passed in 16 files.
+- Updated merged-source `test:coverage`: 143/143 passed; report-integrity guard
+  passed and backend coverage artifacts were generated.
+- Standalone PR branch backend suite: 90/90 passed in 12 files.
+- Root lint, formatting, and whitespace checks passed. Integration/browser
+  suites were not rerun for this unit-test-only correction.
+
+These local results verify the corrected assertion against both source
+contexts; the hosted rerun remains separate verification.
