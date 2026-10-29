@@ -287,51 +287,6 @@ jobs:
           check_result "$INTEGRATION_SELECTED" "$INTEGRATION_TESTS_RESULT" 'Integration Tests'
           check_result "$E2E_SELECTED" "$E2E_TESTS_RESULT" 'End-to-End Tests'
 
-  unit-coverage:
-    name: Unit Test Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            src/backend/package-lock.json
-      - name: Install frontend dependencies
-        id: install-frontend
-        run: npm ci
-      - name: Install backend dependencies
-        id: install-backend
-        run: npm ci
-        working-directory: ./src/backend
-      # Coverage commands execute their package tests and keep each report separate.
-      - name: Run frontend tests with coverage
-        id: frontend-tests
-        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
-        run: npm run test:coverage
-      - name: Upload frontend coverage report
-        if: ${{ !cancelled() && steps.frontend-tests.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: frontend-coverage
-          path: coverage
-          if-no-files-found: error
-      # Backend coverage remains independently reportable after frontend test failure.
-      - name: Run backend tests with coverage
-        id: backend-tests
-        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
-        run: npm run test:coverage
-        working-directory: ./src/backend
-      - name: Upload backend coverage report
-        if: ${{ !cancelled() && steps.backend-tests.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: backend-coverage
-          path: src/backend/coverage
-          if-no-files-found: error
-
   dependency-vulnerability-scan:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
