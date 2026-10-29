@@ -13,6 +13,71 @@ permissions:
   contents: read
 
 jobs:
+  select-tests:
+    name: Select Regression Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      mode: ${{ steps.select.outputs.mode }}
+      frontend-unit: ${{ steps.select.outputs.frontend-unit }}
+      backend-unit: ${{ steps.select.outputs.backend-unit }}
+      integration: ${{ steps.select.outputs.integration }}
+      e2e: ${{ steps.select.outputs.e2e }}
+      frontend-files: ${{ steps.select.outputs.frontend-files }}
+      backend-files: ${{ steps.select.outputs.backend-files }}
+      integration-files: ${{ steps.select.outputs.integration-files }}
+      e2e-files: ${{ steps.select.outputs.e2e-files }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Check selector policy
+        run: node scripts/selectRegressionTests.test.cjs
+      # The action uses the PR file list and a branch diff for pushes.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: changes
+        with:
+          list-files: json
+          filters: |
+            all:
+              - '**'
+      - name: Select regression tests
+        id: select
+        env:
+          CHANGED_FILES: ${{ steps.changes.outputs.all_files }}
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_BRANCH: ${{ github.ref_name }}
+        run: |
+          decision=$(node scripts/selectRegressionTests.cjs)
+          # Reject malformed selector output before exposing it to downstream jobs.
+          jq -e '(.mode == "full" or .mode == "selected" or .mode == "none") and
+            ([.frontendUnit, .backendUnit, .integration, .e2e] | all(type == "array")) and
+            ((.mode == "none") == ([.frontendUnit, .backendUnit, .integration, .e2e] | map(length) | add == 0))' <<< "$decision" > /dev/null
+          {
+            echo "mode=$(jq -r '.mode' <<< "$decision")"
+            echo "frontend-unit=$(jq -r '.frontendUnit | length > 0' <<< "$decision")"
+            echo "backend-unit=$(jq -r '.backendUnit | length > 0' <<< "$decision")"
+            echo "integration=$(jq -r '.integration | length > 0' <<< "$decision")"
+            echo "e2e=$(jq -r '.e2e | length > 0' <<< "$decision")"
+            echo "frontend-files=$(jq -c '.frontendUnit' <<< "$decision")"
+            echo "backend-files=$(jq -c '.backendUnit' <<< "$decision")"
+            echo "integration-files=$(jq -c '.integration' <<< "$decision")"
+            echo "e2e-files=$(jq -c '.e2e' <<< "$decision")"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo '## Regression test selection'
+            echo
+            jq -r '"Mode: \(.mode) — \(.reason)"' <<< "$decision"
+            echo
+            if [[ "$(jq -r '.mode' <<< "$decision")" == full ]]; then
+              echo 'Full suite discovery is used; new test files are included automatically.'
+            else
+              jq -r '"Frontend unit: \(.frontendUnit | length) files", "Backend unit: \(.backendUnit | length) files", "Integration: \(.integration | length) files", "End-to-end: \(.e2e | length) files"' <<< "$decision"
+              echo 'Selected test files:'
+              jq -r '[.frontendUnit[], .backendUnit[], .integration[], .e2e[]] | if length == 0 then "None" else .[] end' <<< "$decision"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Keep the build independent so it reports separately from quality and tests.
   frontend-build:
     name: Frontend Build
@@ -56,6 +121,8 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    needs: select-tests
+    if: ${{ needs.select-tests.result == 'success' && (needs.select-tests.outputs.frontend-unit == 'true' || needs.select-tests.outputs.backend-unit == 'true') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -67,24 +134,48 @@ jobs:
             src/backend/package-lock.json
       - name: Install frontend dependencies
         id: install-frontend
+        if: ${{ needs.select-tests.outputs.frontend-unit == 'true' }}
         run: npm ci
       - name: Install backend dependencies
         id: install-backend
+        if: ${{ needs.select-tests.outputs.backend-unit == 'true' }}
         run: npm ci
         working-directory: ./src/backend
       - name: Run frontend unit tests
         if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
-        run: npm test
+        env:
+          SELECTION_MODE: ${{ needs.select-tests.outputs.mode }}
+          SELECTED_FILES: ${{ needs.select-tests.outputs.frontend-files }}
+        run: |
+          if [[ "$SELECTION_MODE" == full ]]; then
+            npm test
+            exit
+          fi
+          mapfile -t files < <(jq -r '.[]' <<< "$SELECTED_FILES")
+          test "${#files[@]}" -gt 0
+          ./node_modules/.bin/vitest run "${files[@]}"
       # Preserve the backend result when frontend tests fail, unless the run is cancelled.
       - name: Run backend unit tests
         if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
-        run: npm test
+        env:
+          SELECTION_MODE: ${{ needs.select-tests.outputs.mode }}
+          SELECTED_FILES: ${{ needs.select-tests.outputs.backend-files }}
+        run: |
+          if [[ "$SELECTION_MODE" == full ]]; then
+            npm test
+            exit
+          fi
+          mapfile -t files < <(jq -r '.[] | sub("^src/backend/"; "")' <<< "$SELECTED_FILES")
+          test "${#files[@]}" -gt 0
+          ./node_modules/.bin/vitest run "${files[@]}"
         working-directory: ./src/backend
 
   integration-tests:
     name: Integration Tests
     # MongoDB 8.0 fails to start on newer ubuntu-latest kernels; pin service-backed jobs to 22.04.
     runs-on: ubuntu-22.04
+    needs: select-tests
+    if: ${{ needs.select-tests.result == 'success' && needs.select-tests.outputs.integration == 'true' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
@@ -93,7 +184,17 @@ jobs:
           node-version: '24'
       - name: Run integration tests
         id: integration
-        run: npm run test:integration
+        env:
+          SELECTION_MODE: ${{ needs.select-tests.outputs.mode }}
+          SELECTED_FILES: ${{ needs.select-tests.outputs.integration-files }}
+        run: |
+          if [[ "$SELECTION_MODE" == full ]]; then
+            npm run test:integration
+            exit
+          fi
+          mapfile -t files < <(jq -r '.[] | sub("^src/backend/"; "")' <<< "$SELECTED_FILES")
+          test "${#files[@]}" -gt 0
+          npm run test:integration -- "${files[@]}"
       - name: Upload integration test results
         if: ${{ always() && steps.integration.outcome != 'skipped' }}
         uses: actions/upload-artifact@v7.0.2
@@ -105,6 +206,8 @@ jobs:
   e2e-tests:
     name: End-to-End Tests
     runs-on: ubuntu-22.04
+    needs: select-tests
+    if: ${{ needs.select-tests.result == 'success' && needs.select-tests.outputs.e2e == 'true' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7.0.1
@@ -113,7 +216,17 @@ jobs:
           node-version: '24'
       - name: Run end-to-end tests
         id: e2e
-        run: npm run test:e2e
+        env:
+          SELECTION_MODE: ${{ needs.select-tests.outputs.mode }}
+          SELECTED_FILES: ${{ needs.select-tests.outputs.e2e-files }}
+        run: |
+          if [[ "$SELECTION_MODE" == full ]]; then
+            npm run test:e2e
+            exit
+          fi
+          mapfile -t files < <(jq -r '.[]' <<< "$SELECTED_FILES")
+          test "${#files[@]}" -gt 0
+          npm run test:e2e -- "${files[@]}"
       - name: Upload end-to-end test results
         if: ${{ always() && steps.e2e.outcome != 'skipped' }}
         uses: actions/upload-artifact@v7.0.2
@@ -125,12 +238,18 @@ jobs:
   regression-checks:
     name: Regression Checks
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, e2e-tests]
+    needs: [select-tests, unit-tests, integration-tests, e2e-tests]
     if: ${{ !cancelled() && always() }}
     steps:
-      # Report the outcomes of existing jobs without executing any tests again.
+      # A skipped job is acceptable only when selection explicitly chose no files for it.
       - name: Enforce test job results
         env:
+          SELECTION_RESULT: ${{ needs.select-tests.result }}
+          SELECTION_MODE: ${{ needs.select-tests.outputs.mode }}
+          FRONTEND_SELECTED: ${{ needs.select-tests.outputs.frontend-unit }}
+          BACKEND_SELECTED: ${{ needs.select-tests.outputs.backend-unit }}
+          INTEGRATION_SELECTED: ${{ needs.select-tests.outputs.integration }}
+          E2E_SELECTED: ${{ needs.select-tests.outputs.e2e }}
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           INTEGRATION_TESTS_RESULT: ${{ needs.integration-tests.result }}
           E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
@@ -138,16 +257,35 @@ jobs:
           {
             echo '## Test regression results'
             echo
+            echo "- Selection: $SELECTION_RESULT ($SELECTION_MODE)"
             echo "- Unit tests: $UNIT_TESTS_RESULT"
             echo "- Integration tests: $INTEGRATION_TESTS_RESULT"
             echo "- End-to-end tests: $E2E_TESTS_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
-          if [[ "$UNIT_TESTS_RESULT" != success || \
-                "$INTEGRATION_TESTS_RESULT" != success || \
-                "$E2E_TESTS_RESULT" != success ]]; then
-            echo 'One or more test jobs did not succeed.' >&2
+          if [[ "$SELECTION_RESULT" != success || \
+                "$SELECTION_MODE" != full && "$SELECTION_MODE" != selected && "$SELECTION_MODE" != none ]]; then
+            echo 'Regression test selection failed.' >&2
             exit 1
           fi
+          check_result() {
+            local selected="$1" result="$2" name="$3"
+            if [[ "$selected" != true && "$selected" != false ]]; then
+              echo "$name has no valid selection decision." >&2
+              exit 1
+            fi
+            if [[ "$selected" == true && "$result" != success || \
+                  "$selected" == false && "$result" != skipped ]]; then
+              echo "$name result $result does not match selection $selected." >&2
+              exit 1
+            fi
+          }
+          if [[ "$FRONTEND_SELECTED" == true || "$BACKEND_SELECTED" == true ]]; then
+            check_result true "$UNIT_TESTS_RESULT" 'Unit Tests'
+          else
+            check_result false "$UNIT_TESTS_RESULT" 'Unit Tests'
+          fi
+          check_result "$INTEGRATION_SELECTED" "$INTEGRATION_TESTS_RESULT" 'Integration Tests'
+          check_result "$E2E_SELECTED" "$E2E_TESTS_RESULT" 'End-to-End Tests'
 
   unit-coverage:
     name: Unit Test Coverage
