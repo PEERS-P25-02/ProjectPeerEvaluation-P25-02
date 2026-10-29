@@ -10,6 +10,8 @@ Run commands from the repository root. CI uses `npm ci` for lockfile-based insta
 
 The two service-backed test commands require Docker and Docker Compose to be installed and Docker to be running. They use isolated generated settings and do not require cloud credentials. The first hosted PR #138 run (40735605439) failed during MongoDB startup in Integration Tests and End-to-End Tests; cleanup was verified and result artifacts uploaded. Both jobs now use Ubuntu 22.04, and the compatibility rerun is pending. Regression Checks behavior and repository required-check configuration have not been verified. The integration and E2E suites are selected regression checks, not complete coverage of the [functional regression matrix](../requirements/regression-test-matrix.md); see the [coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
 
+The E2E job enables `compose.e2e.ci-cache.yml` through `E2E_BUILD_CACHE=gha`. It uses Buildx and the GitHub Actions runtime cache credentials to import and export separate BuildKit caches for the backend, frontend, and browser-test images. The ordinary `npm run test:e2e` command does not use this overlay. The cache contains build layers only; each run still creates a fresh Compose project, database, JWT secret, and Mailpit instance. Integration builds remain uncached while the E2E trial is measured.
+
 ```bash
 npm ci
 npm ci --prefix src/backend

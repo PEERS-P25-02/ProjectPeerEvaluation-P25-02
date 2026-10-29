@@ -53,6 +53,9 @@ const composeArguments = [
   emptyEnvironmentFile,
   '--file',
   path.join(root, 'compose.e2e.yml'),
+  ...(process.env.E2E_BUILD_CACHE === 'gha'
+    ? ['--file', path.join(root, 'compose.e2e.ci-cache.yml')]
+    : []),
   '--project-name',
   project,
 ];

@@ -1,0 +1,21 @@
+# CI-only BuildKit cache. Runtime services and their isolated data remain in compose.e2e.yml.
+services:
+  backend:
+    build:
+      context: ./src/backend
+      cache_from:
+        - type=gha,scope=peers-e2e-backend
+      cache_to:
+        - type=gha,scope=peers-e2e-backend,mode=max
+  frontend:
+    build:
+      cache_from:
+        - type=gha,scope=peers-e2e-frontend
+      cache_to:
+        - type=gha,scope=peers-e2e-frontend,mode=max
+  tests:
+    build:
+      cache_from:
+        - type=gha,scope=peers-e2e-tests
+      cache_to:
+        - type=gha,scope=peers-e2e-tests,mode=max

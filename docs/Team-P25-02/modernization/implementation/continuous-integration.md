@@ -29,6 +29,12 @@ These cases describe expected workflow behavior. Recorded evidence and its limit
 
 ## 3. Recorded Evidence and Limits
 
+### E2E BuildKit cache trial
+
+The E2E job now selects a CI-only Compose overlay with separate GitHub Actions cache scopes for its backend, frontend, and Playwright images. The Buildx setup and GitHub runtime helper expose the builder and cache credentials. The integration job and both ordinary local Compose commands retain their existing builds and isolated runtime state.
+
+Before this change, hosted run 40790520102 at main commit `fa78ac6` recorded 172 seconds for End-to-End Tests and 112 seconds for Integration Tests. Its E2E test execution took about 37 seconds and integration test execution about 54 seconds. These are observations from one run; cache miss, cache hit, and total post-change hosted durations remain to be measured. Integration cache wiring is deferred until the E2E comparison justifies it.
+
 CI-46 local runs on the issue branch executed `npm run test:integration` (176/176 tests in 12 files) and `npm run test:e2e` (13/13 tests). Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files report exit code 0 and `cleanupVerified: true`. The first hosted PR #138 run (40735605439) failed during MongoDB startup in Integration Tests and End-to-End Tests; cleanup was verified and both result artifacts uploaded. The jobs now pin Ubuntu 22.04; that hosted compatibility outcome is pending. Local shell simulations of the Regression Checks condition returned 0 when all three outcomes were `success`, and 1 when an outcome was `failure` or `skipped`. Hosted controlled-failure behavior and repository required-check configuration remain unverified.
 
 Historical workflow evidence was a visible Checks screenshot reporting successful build, lint, frontend-test, and backend-test jobs for a pull-request workflow. Formatting was added later; the record contains no fresh result for that job. The screenshot did not retain individual logs or test counts. It does not demonstrate required-check enforcement, a post-merge run on `main`, or that a failing check blocks a merge. Those properties must be verified through repository settings and a controlled workflow observation if evidence is needed.
