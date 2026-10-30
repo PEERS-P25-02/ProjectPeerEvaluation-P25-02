@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { evaluate } = require('./ciGate.cjs');
-function fixture(mode = 'selected', broaden = 'false') {
+function fixture(mode = 'selected', decision = 'pass') {
   const needs = Object.fromEntries(
     [
       'select-tests',
@@ -22,8 +22,8 @@ function fixture(mode = 'selected', broaden = 'false') {
     integration: mode === 'none' ? 'false' : 'true',
     e2e: mode === 'none' ? 'false' : 'true',
   };
-  needs['patch-coverage'].outputs = { broaden };
-  if (broaden !== 'true') needs['broaden-regression'].result = 'skipped';
+  needs['patch-coverage'].outputs = { decision };
+  if (decision !== 'broaden') needs['broaden-regression'].result = 'skipped';
   if (mode === 'none')
     for (const key of [
       'unit-tests',
@@ -36,7 +36,11 @@ function fixture(mode = 'selected', broaden = 'false') {
   return needs;
 }
 test('valid selected, broadened and docs-only graphs pass', () => {
-  for (const needs of [fixture(), fixture('selected', 'true'), fixture('none')])
+  for (const needs of [
+    fixture(),
+    fixture('selected', 'broaden'),
+    fixture('none'),
+  ])
     assert.deepEqual(evaluate(needs), []);
 });
 test('all required failures, cancellations, missing and skipped jobs block', () => {
@@ -61,10 +65,45 @@ test('full discovery and docs-only decisions reject inconsistent selections', ()
   full['select-tests'].outputs.e2e = 'false';
   full['e2e-tests'].result = 'skipped';
   assert.ok(evaluate(full).length);
-  assert.ok(evaluate(fixture('full', 'true')).length);
-  assert.ok(evaluate(fixture('none', 'true')).length);
+  assert.ok(evaluate(fixture('full', 'broaden')).length);
+  assert.ok(evaluate(fixture('none', 'broaden')).length);
 });
-const { validateCapture } = require('./runCiCoverage.cjs');
+test('a selected browser failure blocks even when coverage passes', () => {
+  const needs = fixture();
+  needs['e2e-tests'].result = 'failure';
+  assert.match(evaluate(needs).join('\n'), /e2e-tests/);
+});
+test('below-threshold coverage and unsuccessful broadening block', () => {
+  assert.match(
+    evaluate(fixture('selected', 'below')).join('\n'),
+    /below threshold/,
+  );
+  const needs = fixture('selected', 'broaden');
+  needs['broaden-regression'].result = 'failure';
+  assert.match(evaluate(needs).join('\n'), /broaden-regression/);
+});
+test('an unselected integration or browser job may be skipped', () => {
+  const needs = fixture();
+  needs['select-tests'].outputs.integration = 'false';
+  needs['integration-tests'].result = 'skipped';
+  needs['select-tests'].outputs.e2e = 'false';
+  needs['e2e-tests'].result = 'skipped';
+  assert.deepEqual(evaluate(needs), []);
+});
+const { addRuntime, validateCapture } = require('./runCiCoverage.cjs');
+test('selected API coverage requires its expected artifact', () => {
+  assert.throws(
+    () =>
+      addRuntime(
+        () => {},
+        '/missing-coverage-artifacts',
+        'integration',
+        'integration-results-expected',
+        { sha: 'a'.repeat(40), runId: '123', runAttempt: '1' },
+      ),
+    /Expected one integration coverage capture/,
+  );
+});
 test('runtime coverage requires complete captures and immutable run provenance', () => {
   const provenance = { sha: 'a'.repeat(40), runId: '123', runAttempt: '1' };
   const capture = {

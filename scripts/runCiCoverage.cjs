@@ -4,6 +4,8 @@ const { execFileSync } = require('node:child_process');
 const { changedFiles } = require('./regressionChanges.cjs');
 const { select } = require('./selectRegressionTests.cjs');
 const { patchThreshold } = require('./coverage/policy.json');
+const { decide, validate } = require('./coverageDecision.cjs');
+
 function validateCapture(capture, suite, provenance) {
   if (
     capture.complete !== true ||
@@ -22,6 +24,7 @@ function run(args) {
     stdio: 'inherit',
   });
 }
+
 function directories(root) {
   if (!fs.existsSync(root)) return [];
   return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
@@ -29,6 +32,32 @@ function directories(root) {
     return entry.isDirectory() ? [name, ...directories(name)] : [];
   });
 }
+
+function addRuntime(add, root, suite, artifactName, provenance) {
+  const artifact = path.join(root, artifactName);
+  const captures = directories(artifact).filter(
+    (dir) => path.basename(dir) === 'coverage',
+  );
+  if (captures.length !== 1)
+    throw new Error(
+      `Expected one ${suite} coverage capture in ${artifactName}`,
+    );
+  const directory = captures[0];
+  const capturePath = path.join(directory, 'capture.json');
+  validateCapture(
+    JSON.parse(fs.readFileSync(capturePath, 'utf8')),
+    suite,
+    provenance,
+  );
+  add(
+    `integration-${artifactName.startsWith('broaden-') ? 'broadened' : 'selected'}`,
+    path.join(directory, 'backend'),
+    'v8',
+    undefined,
+    capturePath,
+  );
+}
+
 function main() {
   const root = process.env.COVERAGE_ARTIFACTS || 'coverage-artifacts';
   const output = process.env.COVERAGE_OUTPUT || 'coverage';
@@ -88,6 +117,11 @@ function main() {
     throw new Error('Selection or merge-base provenance mismatch');
   if (!['selected', 'full'].includes(selection.mode))
     throw new Error('Coverage requires a code-change selection');
+  if (!Array.isArray(selection.integration))
+    throw new Error('Invalid integration selection');
+  const broaden = process.env.REQUIRE_BROADEN === 'true';
+  if (broaden && selection.mode !== 'selected')
+    throw new Error('Full discovery cannot request broadening');
   console.log(
     `Integration selection: ${
       selection.mode === 'full'
@@ -97,53 +131,33 @@ function main() {
           : 'none'
     }`,
   );
-  if (process.env.REQUIRE_BROADEN === 'true' && selection.mode !== 'selected')
-    throw new Error('Full discovery cannot request broadening');
-  for (const suite of ['integration', 'e2e']) {
-    // Require each expected artifact independently; several initial captures cannot
-    // substitute for a missing broadened run.
-    const artifactNames = [];
-    if (selection[suite].length)
-      artifactNames.push(`${suite}-results-${suffix}`);
-    if (process.env.REQUIRE_BROADEN === 'true')
-      artifactNames.push(`broaden-${suite}-results-${suffix}`);
-    for (const [index, artifactName] of artifactNames.entries()) {
-      const artifact = path.join(root, artifactName);
-      const captures = directories(artifact).filter(
-        (dir) => path.basename(dir) === 'coverage',
-      );
-      if (captures.length !== 1)
-        throw new Error(
-          `Expected one ${suite} coverage capture in ${artifactName}`,
-        );
-      const directory = captures[0];
-      const capture = JSON.parse(
-        fs.readFileSync(path.join(directory, 'capture.json'), 'utf8'),
-      );
-      validateCapture(capture, suite, { sha, runId, runAttempt: attempt });
-      const name = `${suite}-${index}`;
-      add(
-        `${name}-backend`,
-        path.join(directory, 'backend'),
-        'v8',
-        undefined,
-        path.join(directory, 'capture.json'),
-      );
-      if (suite === 'e2e')
-        add(
-          `${name}-frontend`,
-          path.join(directory, 'frontend'),
-          'istanbul',
-          undefined,
-          path.join(directory, 'capture.json'),
-        );
-    }
-  }
+  if (selection.integration.length)
+    addRuntime(add, root, 'integration', `integration-results-${suffix}`, {
+      sha,
+      runId,
+      runAttempt: attempt,
+    });
+  if (broaden)
+    addRuntime(
+      add,
+      root,
+      'integration',
+      `broaden-integration-results-${suffix}`,
+      { sha, runId, runAttempt: attempt },
+    );
+
   fs.mkdirSync(output, { recursive: true });
   const plan = path.join(output, 'plan.json');
   fs.writeFileSync(
     plan,
-    JSON.stringify({ sha, runId, runAttempt: attempt, suites }),
+    JSON.stringify({
+      sha,
+      runId,
+      runAttempt: attempt,
+      selectorMode: selection.mode,
+      selectedIntegrationCount: selection.integration.length,
+      suites,
+    }),
   );
   run(['merge', '--plan', plan, '--output', output]);
   run([
@@ -159,24 +173,38 @@ function main() {
     '--threshold',
     String(patchThreshold),
   ]);
-  const report = JSON.parse(
+  const patchReport = JSON.parse(
     fs.readFileSync(path.join(output, 'patch-report.json'), 'utf8'),
   );
-  if (typeof report.pass !== 'boolean')
-    throw new Error('Invalid patch decision');
-  const broaden = !report.pass && selection.mode !== 'full';
+  const decision = decide(patchReport, selection.mode, {
+    sha,
+    runId,
+    runAttempt: attempt,
+    threshold: patchThreshold,
+    suites: suites.map(({ name }) => name),
+    selectedIntegrationCount: selection.integration.length,
+    broadened: broaden,
+  });
+  fs.writeFileSync(
+    path.join(output, 'decision.json'),
+    JSON.stringify(decision, null, 2) + '\n',
+  );
   const coverage =
-    report.percentage === null ? 'N/A' : `${report.percentage.toFixed(2)}%`;
+    patchReport.percentage === null
+      ? 'N/A'
+      : `${patchReport.percentage.toFixed(2)}%`;
   console.log(
-    `Changed-line coverage: ${coverage} (${report.covered}/${report.total}); broadening: ${broaden ? 'required' : 'not required'}`,
+    `Changed-line coverage: ${coverage} (${patchReport.covered}/${patchReport.total}); decision: ${decision.decision}`,
   );
   if (process.env.GITHUB_OUTPUT)
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `broaden=${broaden}\n`);
-  if (process.env.FINAL_COVERAGE === 'true' && !report.pass)
-    throw new Error(
-      `Changed executable line coverage is below ${patchThreshold}%`,
+    fs.appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `decision=${decision.decision}\nbroaden=${decision.decision === 'broaden'}\n`,
     );
+  if (process.env.FINAL_COVERAGE === 'true')
+    validate(output, { sha, runId, runAttempt: attempt });
 }
+
 if (require.main === module) {
   try {
     main();
@@ -185,4 +213,4 @@ if (require.main === module) {
     process.exitCode = 1;
   }
 }
-module.exports = { main, validateCapture };
+module.exports = { main, validateCapture, addRuntime };

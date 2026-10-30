@@ -37,14 +37,15 @@ function evaluate(needs) {
     requireResult(job, outputs[key] === 'true' ? 'success' : 'skipped');
   }
   requireResult('patch-coverage', code ? 'success' : 'skipped');
-  const broaden = needs['patch-coverage']?.outputs.broaden;
-  if (code && !['true', 'false'].includes(broaden))
-    failures.push('Invalid coverage broadening decision');
-  if ((!code || mode === 'full') && broaden === 'true')
+  const decision = needs['patch-coverage']?.outputs.decision;
+  if (code && !['pass', 'na', 'broaden', 'below'].includes(decision))
+    failures.push('Invalid coverage decision');
+  if ((!code || mode === 'full') && decision === 'broaden')
     failures.push('Unexpected coverage broadening');
+  if (decision === 'below') failures.push('Patch coverage below threshold');
   requireResult(
     'broaden-regression',
-    broaden === 'true' ? 'success' : 'skipped',
+    decision === 'broaden' ? 'success' : 'skipped',
   );
   requireResult('final-coverage', code ? 'success' : 'skipped');
   return failures;

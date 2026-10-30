@@ -199,3 +199,201 @@ test('patch selection uses merge-base and preserves renames with unusual paths',
     current,
   ]);
 });
+
+test('coverage decisions broaden only for missed backend lines in selected mode', () => {
+  const { decide } = require('../coverageDecision.cjs');
+  const report = {
+    pass: false,
+    status: 'evaluated',
+    total: 3,
+    covered: 2,
+    percentage: (2 / 3) * 100,
+    threshold: 80,
+    files: {
+      'src/backend/controllers/a.js': {
+        executable: [12, 13],
+        missed: [12],
+      },
+      'src/frontend/App.jsx': { executable: [4], missed: [] },
+    },
+  };
+  const provenance = {
+    sha: 'a'.repeat(40),
+    runId: '12',
+    runAttempt: '1',
+    threshold: 80,
+    suites: ['frontend-unit', 'backend-unit'],
+    broadened: false,
+  };
+  assert.equal(decide(report, 'selected', provenance).decision, 'broaden');
+  assert.equal(decide(report, 'full', provenance).decision, 'below');
+  assert.equal(
+    decide(
+      {
+        ...report,
+        total: 1,
+        covered: 0,
+        percentage: 0,
+        files: {
+          'src/frontend/App.jsx': { executable: [4], missed: [4] },
+        },
+      },
+      'selected',
+      provenance,
+    ).decision,
+    'below',
+  );
+  assert.equal(
+    decide(
+      {
+        ...report,
+        pass: true,
+        status: 'not-applicable',
+        total: 0,
+        covered: 0,
+        percentage: null,
+        files: {},
+      },
+      'selected',
+      provenance,
+    ).decision,
+    'na',
+  );
+  const passing = {
+    ...report,
+    status: 'evaluated',
+    total: 1,
+    covered: 1,
+    percentage: 100,
+    pass: true,
+    files: { 'src/backend/controllers/a.js': { executable: [12], missed: [] } },
+  };
+  assert.equal(decide(passing, 'selected', provenance).decision, 'pass');
+});
+
+test('coverage validator checks artifact provenance and requires broadened evidence', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { validate } = require('../coverageDecision.cjs');
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'coverage-decision-'),
+  );
+  const expected = { sha: 'a'.repeat(40), runId: '12', runAttempt: '1' };
+  const suites = [
+    { name: 'frontend-unit' },
+    { name: 'backend-unit' },
+    { name: 'integration-selected' },
+    { name: 'integration-broadened' },
+  ];
+  fs.writeFileSync(
+    path.join(directory, 'provenance.json'),
+    JSON.stringify({
+      ...expected,
+      suites,
+      selectorMode: 'selected',
+      selectedIntegrationCount: 1,
+    }),
+  );
+  fs.writeFileSync(
+    path.join(directory, 'patch-report.json'),
+    JSON.stringify({
+      ...expected,
+      head: expected.sha,
+      threshold: 80,
+      status: 'evaluated',
+      total: 1,
+      covered: 1,
+      percentage: 100,
+      pass: true,
+      files: { 'src/backend/a.js': { executable: [12], missed: [] } },
+    }),
+  );
+  fs.writeFileSync(
+    path.join(directory, 'decision.json'),
+    JSON.stringify({
+      schemaVersion: 1,
+      ...expected,
+      threshold: 80,
+      selectorMode: 'selected',
+      decision: 'pass',
+      broadened: true,
+      selectedIntegrationCount: 1,
+      missedBackendLines: [],
+      suites: suites.map(({ name }) => name),
+    }),
+  );
+  assert.equal(validate(directory, expected).decision, 'pass');
+  assert.throws(
+    () => validate(directory, { ...expected, sha: 'b'.repeat(40) }),
+    /provenance mismatch/,
+  );
+  const decisionFile = path.join(directory, 'decision.json');
+  const patchFile = path.join(directory, 'patch-report.json');
+  const validDecision = JSON.parse(fs.readFileSync(decisionFile, 'utf8'));
+  const validPatch = JSON.parse(fs.readFileSync(patchFile, 'utf8'));
+  fs.writeFileSync(
+    patchFile,
+    JSON.stringify({ ...validPatch, percentage: 0, pass: true }),
+  );
+  assert.throws(
+    () => validate(directory, expected),
+    /evaluated patch coverage/,
+  );
+  fs.writeFileSync(
+    patchFile,
+    JSON.stringify({ ...validPatch, percentage: 'NaN' }),
+  );
+  assert.throws(
+    () => validate(directory, expected),
+    /evaluated patch coverage/,
+  );
+  fs.writeFileSync(
+    patchFile,
+    JSON.stringify({
+      ...validPatch,
+      status: 'not-applicable',
+    }),
+  );
+  assert.throws(
+    () => validate(directory, expected),
+    /evaluated patch coverage/,
+  );
+  fs.writeFileSync(patchFile, JSON.stringify(validPatch));
+  const noBroadenSuites = suites.slice(0, 3);
+  fs.writeFileSync(
+    path.join(directory, 'provenance.json'),
+    JSON.stringify({
+      ...expected,
+      suites: noBroadenSuites,
+      selectorMode: 'selected',
+      selectedIntegrationCount: 1,
+    }),
+  );
+  const noBroadenDecision = {
+    ...validDecision,
+    broadened: false,
+    suites: noBroadenSuites.map(({ name }) => name),
+  };
+  fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
+  assert.equal(validate(directory, expected).decision, 'pass');
+  fs.writeFileSync(
+    decisionFile,
+    JSON.stringify({ ...noBroadenDecision, selectorMode: 'full' }),
+  );
+  assert.throws(() => validate(directory, expected), /provenance mismatch/);
+  fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
+  fs.writeFileSync(
+    path.join(directory, 'provenance.json'),
+    JSON.stringify({
+      ...expected,
+      suites: noBroadenSuites.filter(
+        ({ name }) => name !== 'integration-selected',
+      ),
+      selectorMode: 'selected',
+      selectedIntegrationCount: 1,
+    }),
+  );
+  assert.throws(() => validate(directory, expected), /suite provenance/);
+  fs.rmSync(directory, { recursive: true, force: true });
+});
