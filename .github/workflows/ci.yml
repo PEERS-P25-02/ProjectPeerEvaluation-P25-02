@@ -2,7 +2,9 @@
 name: CI - Build Lint and Tests
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - ci/selective-regression
 permissions:
   contents: read
 concurrency:
