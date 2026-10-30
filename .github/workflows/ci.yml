@@ -26,7 +26,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - name: Check selector and gate policy
-        run: node --test scripts/selectRegressionTests.test.cjs scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs
+        run: node --test scripts/selectRegressionTests.test.cjs scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs src/backend/scripts/integrationTestPaths.test.cjs
       - name: Select regression tests
         id: select
         env:
@@ -45,9 +45,18 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           {
             echo '## Regression selection'
-            echo '```json'
-            cat changes.json selection.json
-            echo '```'
+            echo "- Mode: **$(jq -r '.mode' selection.json)**"
+            echo "- Changed paths: $(jq -r '.files | length' changes.json)"
+            echo "- Frontend unit tests: $(jq -r '.frontendUnit | length' selection.json)"
+            echo "- Backend unit tests: $(jq -r '.backendUnit | length' selection.json)"
+            echo "- Integration tests: $(jq -r '.integration | length' selection.json)"
+            echo "- Browser tests: $(jq -r '.e2e | length' selection.json)"
+            if [[ "$(jq -r '.mode' selection.json)" == full ]]; then
+              echo '- Discovery: full integration and browser suites'
+            else
+              echo "- Integration paths: $(jq -r '.integration | join(", ")' selection.json)"
+              echo "- Browser paths: $(jq -r '.e2e | join(", ")' selection.json)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7.0.2
         with:

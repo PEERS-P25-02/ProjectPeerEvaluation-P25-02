@@ -88,6 +88,15 @@ function main() {
     throw new Error('Selection or merge-base provenance mismatch');
   if (!['selected', 'full'].includes(selection.mode))
     throw new Error('Coverage requires a code-change selection');
+  console.log(
+    `Integration selection: ${
+      selection.mode === 'full'
+        ? 'full discovery'
+        : selection.integration.length
+          ? selection.integration.join(', ')
+          : 'none'
+    }`,
+  );
   if (process.env.REQUIRE_BROADEN === 'true' && selection.mode !== 'selected')
     throw new Error('Full discovery cannot request broadening');
   for (const suite of ['integration', 'e2e']) {
@@ -156,6 +165,11 @@ function main() {
   if (typeof report.pass !== 'boolean')
     throw new Error('Invalid patch decision');
   const broaden = !report.pass && selection.mode !== 'full';
+  const coverage =
+    report.percentage === null ? 'N/A' : `${report.percentage.toFixed(2)}%`;
+  console.log(
+    `Changed-line coverage: ${coverage} (${report.covered}/${report.total}); broadening: ${broaden ? 'required' : 'not required'}`,
+  );
   if (process.env.GITHUB_OUTPUT)
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `broaden=${broaden}\n`);
   if (process.env.FINAL_COVERAGE === 'true' && !report.pass)

@@ -22,6 +22,16 @@ const { randomBytes } = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { toContainerPaths } = require('./integrationTestPaths');
+
+let integrationPaths;
+try {
+  integrationPaths = toContainerPaths(process.argv.slice(2));
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
+  return;
+}
 
 const root = path.resolve(__dirname, '../../..');
 const runId = randomBytes(8).toString('hex');
@@ -112,6 +122,11 @@ async function main() {
   let cleanupVerified = false;
   console.log(`Integration project: ${project}`);
   console.log(`Results: ${resultsDirectory}`);
+  console.log(
+    integrationPaths.length
+      ? `Integration tests: ${integrationPaths.join(', ')}`
+      : 'Integration tests: full discovery',
+  );
   try {
     const version = await docker(['compose', 'version']);
     if (version.code !== 0 || interrupted) return;
@@ -137,7 +152,7 @@ async function main() {
       'run',
       'test:integration',
       '--',
-      ...process.argv.slice(2),
+      ...integrationPaths,
     ]);
     exitCode = tests.code;
   } finally {

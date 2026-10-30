@@ -21,6 +21,13 @@ test('code changes always run both full unit suites', () => {
       'src/backend/tests/integration/submissionIntegrity.test.js',
     ),
   );
+  assert.ok(
+    result.integration.every((file) =>
+      /^src\/backend\/tests\/integration\/[A-Za-z0-9_.-]+\.test\.js$/.test(
+        file,
+      ),
+    ),
+  );
   assert.ok(result.regressionIds.includes('REG-CW08-04'));
   assert.ok(result.workflowIds.includes('CW-08'));
   assert.match(result.reasons[0], /exact feature mapping/);
