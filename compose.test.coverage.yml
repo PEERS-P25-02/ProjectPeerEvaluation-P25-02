@@ -1,0 +1,6 @@
+# Opt-in runtime instrumentation; never merged into the development stack.
+services:
+  backend:
+    command: [node, --require, ./scripts/runtimeCoverage.cjs, index.js]
+    environment:
+      NODE_V8_COVERAGE: /coverage/backend

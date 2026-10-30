@@ -1,18 +1,20 @@
 # Continuous integration
 
-The configured GitHub Actions workflow is `.github/workflows/ci.yml`. It runs on pushes to all branches and on pull requests targeting `main`. The build, quality, and unit-test jobs use Ubuntu and Node.js 24 with the committed package lockfiles.
+The pull-request workflow in `.github/workflows/ci.yml` targets `main` and checks the immutable PR head. It has no push or merge-group trigger. Build, quality, and security checks run independently of application-test selection. Node.js 24 and committed lockfiles are used for npm jobs.
 
-The workflow has nine jobs, including Select Regression Tests, the existing build/quality/test jobs, Regression Checks, and both security scans. Select Regression Tests reads changed paths and chooses existing Vitest and Playwright files. A push to `main`, an unrecognized application or shared-infrastructure change, or invalid change data selects every regression test file. A documentation-only change selects none. Unit, integration, and E2E jobs run only when selected; the service-backed jobs still create isolated Docker Compose environments and retain result artifacts when run. Regression Checks fails if selection fails, a selected job fails, or a job result disagrees with the selection. It stays present on every workflow run.
+Select Regression Tests records the PR base, head, merge-base, changed paths, and selection. Documentation-only changes explicitly select no application tests. Code changes run both complete unit suites once with coverage; only integration and browser execution is narrowed. Shared infrastructure, unknown application paths, invalid/empty change data, and uncertain mappings choose full suite discovery. Full mode discovers new tests through the ordinary suite commands.
 
-The build, quality, and security jobs remain independent of regression selection. The separate Unit Test Coverage job was removed from this branch while coverage CI is being revised separately; the local coverage commands below remain available, but this workflow does not upload coverage reports. The build installs root dependencies; quality installs both packages. The selected unit job installs only the packages it needs. A selected integration or E2E file still pays the fixed Docker startup cost.
+The source-to-test mapping is maintained in [`scripts/selectRegressionTests.cjs`](../../../scripts/selectRegressionTests.cjs). Review mappings when sources, dependencies, tests, or helpers change. Selected service-backed jobs use isolated Compose stacks with MongoDB, Mailpit, and synthetic data. They capture coverage from the API and browser application processes before cleanup. Frontend unit and browser tests share original-source Istanbul instrumentation; the test-only browser build exports snapshots, while backend runtime capture uses V8. Per-source hashes protect source identity. The ordinary production build emits no source maps. A valid selected report below the **80% changed-executable-line** minimum triggers full integration and browser discovery; full mode already runs those suites. The final coverage check enforces the minimum. Missing, malformed, incompatible, or incomplete reports fail rather than triggering an ordinary low-coverage fallback.
 
-The source-to-test mapping is maintained in [`scripts/selectRegressionTests.cjs`](../../../scripts/selectRegressionTests.cjs). Review its mapping whenever application paths, tests, helpers, routes, or CI infrastructure change. An unknown path selects all suites. Full mode calls the ordinary suite commands so newly added tests are discovered. The selection job also runs its own policy tests. Its summary lists the decision and exact files for selected mode; a skipped test job is expected only when its selected file list is empty. The selector is a conservative execution optimization, not a claim that every [regression matrix](../requirements/regression-test-matrix.md) outcome is fully covered.
+`CI Gate` checks selection, build, quality, security, tests, and coverage outcomes. It accepts skipped work only when explicitly unselected or unnecessary under the coverage decision. A successful workflow does not establish merge protection: the last live settings inspection found main unprotected and its ruleset disabled with legacy check names. Activating protection and merge-queue validation belongs to session 2.
+
+Coverage uses the production JavaScript/JSX manifest in [`scripts/coverage/policy.json`](../../../scripts/coverage/policy.json), including unvisited files with zero hits. Unit and runtime hits are combined by original source identity, with separate frontend/backend reports for lines, statements, functions, and branches. HTML, CSS, and assets are outside these execution metrics. The [quality-gate policy](../requirements/quality-gate-policy.md) preserves the sponsor's historical scoped coverage target separately. Overall package floors are inactive; selected PR measurements cannot establish full-suite baselines. Test selection and line hits also do not demonstrate complete [functional regression coverage](../requirements/regression-test-matrix.md).
 
 ## Reproduce CI checks locally
 
 Run commands from the repository root. CI uses `npm ci` for lockfile-based installs; [Getting Started](../getting-started.md) describes the recommended local setup.
 
-The two service-backed test commands require Docker and Docker Compose to be installed and Docker to be running. They use isolated generated settings and do not require cloud credentials. The earlier PR #138 MongoDB startup failure is historical; the [October 28 main run](https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02/actions/runs/40790520102) completed all existing jobs successfully on Ubuntu 22.04. Hosted [selection probes](https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02/pull/141) verified selected, skipped, full-fallback, and deliberately failed regression outcomes before the coverage job was removed. Repository required-check configuration has not been rechecked. The integration and E2E suites are selected regression checks, not complete coverage of the [functional regression matrix](../requirements/regression-test-matrix.md); see the [coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
+The service-backed commands require Docker and Docker Compose already running. They use isolated generated settings and require no cloud credentials. Set `PEERS_COVERAGE=1` to retain runtime coverage. These commands remain independently runnable:
 
 ```bash
 npm ci
@@ -20,15 +22,17 @@ npm ci --prefix src/backend
 npm run build
 npm run lint
 npm run format:check
-npm test
-npm --prefix src/backend test
-npm run test:integration
-npm run test:e2e
-npm run test:coverage
+PEERS_COVERAGE=1 npm test
 npm --prefix src/backend run test:coverage
+PEERS_COVERAGE=1 npm run test:integration
+PEERS_COVERAGE=1 npm run test:e2e
 ```
 
-Inspect the GitHub Actions tab for job logs and uploaded integration and E2E artifacts. Pull requests also display check results. This workflow does not upload coverage artifacts; the local coverage commands remain available. The last recorded main-branch ruleset review found eight old required check names; current ruleset settings have not been rechecked. The first hosted PR #138 integration and E2E attempts failed at MongoDB startup; later main and selection-probe runs passed on Ubuntu 22.04.
+The frontend CI command `PEERS_COVERAGE=1 npm test` produces canonical Istanbul snapshots for merging with browser execution. Ordinary `npm run test:coverage` remains a diagnostic V8 unit report and is not the canonical frontend merge input. The backend CI coverage command retains its `assertCoverage` guard.
+
+Inspect Actions job summaries and artifacts for the tested SHA, run ID, and attempt. Selection artifacts retain `changes.json` and `selection.json`; unit artifacts retain both package reports; service-backed artifacts retain result records, logs, cleanup status, and raw runtime captures. Initial/final coverage artifacts retain normalized inputs, the merge plan, source manifest/provenance, combined and per-package HTML/LCOV/JSON summaries, and the patch report. Artifact identity includes the head SHA, run ID, and attempt to avoid mixing runs.
+
+A local unit/integration/browser combined-report proof succeeded, with this PR explicitly reporting no changed executable production lines as not applicable. The canonical frontend/backend union passed compatibility validation with no mismatches; the hosted session-1 workflow remains pending; older selection probes do not validate this coverage implementation. See the [implementation record](../modernization/implementation/continuous-integration.md) for actual evidence and limitations. Session 2 must run complete merge-group suites, approve separate frontend/backend four-metric floors from full measurements, adapt security checks, and activate reviewed required-check and queue settings. Push-to-main checks, post-merge verification, and deployment are deferred to Milestone 3.
 
 ## Optional Compose stack check in CI
 
