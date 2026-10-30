@@ -129,8 +129,9 @@ function StudentEvaluation() {
       // Check all ratings are filled
       for (const [criterion, value] of Object.entries(evaluation.ratings)) {
         if (value === '' || value === null || value === undefined) {
+          const criterionLabel = criterion.replaceAll('_', ' ');
           setError(
-            `Please provide a rating for ${criterion.replaceAll('_', ' ')} for all team members.`,
+            `Please provide a rating for ${criterionLabel} for all team members.`,
           );
           return;
         }
