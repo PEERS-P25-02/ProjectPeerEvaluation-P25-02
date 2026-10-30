@@ -56,6 +56,19 @@ const composeArguments = [
   '--project-name',
   project,
 ];
+const coverageEnabled = process.env.PEERS_COVERAGE === '1';
+if (coverageEnabled) {
+  composeArguments.splice(
+    composeArguments.indexOf('--project-name'),
+    0,
+    '--file',
+    path.join(root, 'compose.e2e.coverage.yml'),
+  );
+}
+const { captureRuntimeCoverage } = require(
+  path.join(root, 'scripts/runtimeCoverage.cjs'),
+);
+let coverageComplete = !coverageEnabled;
 let activeChild;
 let interrupted = 0;
 let cleaningUp = false;
@@ -174,6 +187,16 @@ async function main() {
         [...composeArguments, 'logs', '--no-color', '--timestamps'],
         { quiet: true, log: 'services.log' },
       );
+      if (coverageEnabled) {
+        coverageComplete = await captureRuntimeCoverage({
+          docker,
+          composeArguments,
+          resultsDirectory,
+          suite: 'e2e',
+          testContainer,
+        });
+        if (!coverageComplete) exitCode = exitCode || 1;
+      }
       const cleanup = await docker([
         ...composeArguments,
         'down',
@@ -216,6 +239,7 @@ async function main() {
           runId,
           exitCode: process.exitCode,
           cleanupVerified,
+          coverage: { enabled: coverageEnabled, complete: coverageComplete },
           interrupted: Boolean(interrupted),
         },
         null,

@@ -1,24 +1,90 @@
-﻿# This workflow checks that changes build and meet repository quality rules.
-# Pull requests to main and pushes run the applicable jobs independently.
-#
-# TLDR: builds the frontend, runs lint, unit, integration, and end-to-end tests, and scans dependencies and secrets.
+# PR checks use one immutable head and a merge-base diff against the event base.
 name: CI - Build Lint and Tests
-
 on:
   pull_request:
-    branches: [main]
-  push:
-
+    branches:
+      - main
 permissions:
   contents: read
-
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 jobs:
+  select-tests:
+    name: Select Regression Tests
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.select.outputs.mode }}
+      integration: ${{ steps.select.outputs.integration }}
+      e2e: ${{ steps.select.outputs.e2e }}
+      integration-files: ${{ steps.select.outputs.integration-files }}
+      e2e-files: ${{ steps.select.outputs.e2e-files }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha: ${{ github.event.pull_request.head.sha }}
+      run-id: ${{ github.run_id }}
+      attempt: ${{ github.run_attempt }}
+      suite: selection
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check selector and gate policy
+        run: node --test scripts/selectRegressionTests.test.cjs scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs scripts/integrationTestPaths.test.cjs
+      - name: Select regression tests
+        id: select
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node scripts/regressionChanges.cjs > changes.json
+          CHANGED_FILES="$(jq -c '.files' changes.json)" node scripts/selectRegressionTests.cjs > selection.json
+          jq -e '.mode == "none" or .mode == "selected" or .mode == "full"' selection.json
+          {
+            echo "mode=$(jq -r '.mode' selection.json)"
+            echo "integration=$(jq -r '.integration | length > 0' selection.json)"
+            echo "e2e=$(jq -r '.e2e | length > 0' selection.json)"
+            echo "integration-files=$(jq -c '.integration' selection.json)"
+            echo "e2e-files=$(jq -c '.e2e' selection.json)"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo '## Regression selection'
+            echo "- Mode: **$(jq -r '.mode' selection.json)**"
+            echo "- Changed paths: $(jq -r '.files | length' changes.json)"
+            echo "- Frontend unit tests: $(jq -r '.frontendUnit | length' selection.json)"
+            echo "- Backend unit tests: $(jq -r '.backendUnit | length' selection.json)"
+            echo "- Integration tests: $(jq -r '.integration | length' selection.json)"
+            echo "- Browser tests: $(jq -r '.e2e | length' selection.json)"
+            if [[ "$(jq -r '.mode' selection.json)" == full ]]; then
+              echo '- Discovery: full integration and browser suites'
+            else
+              echo "- Integration paths: $(jq -r '.integration | join(", ")' selection.json)"
+              echo "- Browser paths: $(jq -r '.e2e | join(", ")' selection.json)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Write selection artifact provenance
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node scripts/ciArtifactProvenance.cjs . selection
+      - uses: actions/upload-artifact@v7.0.2
+        id: upload
+        with:
+          name: selection-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            selection.json
+            changes.json
+            artifact-provenance.json
+          if-no-files-found: error
   # Keep the build independent so it reports separately from quality and tests.
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
@@ -31,6 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
@@ -45,6 +113,9 @@ jobs:
         id: install-backend
         run: npm ci
         working-directory: ./src/backend
+      - name: Check coverage engine policy
+        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
+        run: node --test scripts/coverage/coverage.test.cjs
       - name: Lint frontend and backend
         if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
         run: npm run lint
@@ -54,145 +125,194 @@ jobs:
         run: npm run format:check
 
   unit-tests:
-    name: Unit Tests
+    name: Unit Tests with Coverage
     runs-on: ubuntu-latest
+    needs: select-tests
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha: ${{ github.event.pull_request.head.sha }}
+      run-id: ${{ github.run_id }}
+      attempt: ${{ github.run_attempt }}
+      suite: unit
+    if: ${{ needs.select-tests.result == 'success' && needs.select-tests.outputs.mode != 'none' }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: |
             package-lock.json
             src/backend/package-lock.json
-      - name: Install frontend dependencies
-        id: install-frontend
-        run: npm ci
-      - name: Install backend dependencies
-        id: install-backend
-        run: npm ci
-        working-directory: ./src/backend
-      - name: Run frontend unit tests
-        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
+      - run: npm ci
+      - run: npm ci --prefix src/backend
+      - name: Complete frontend unit suite with canonical coverage
+        id: frontend
+        env:
+          PEERS_COVERAGE: '1'
         run: npm test
-      # Preserve the backend result when frontend tests fail, unless the run is cancelled.
-      - name: Run backend unit tests
-        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
-        run: npm test
+      - name: Complete backend unit suite with coverage
+        if: ${{ !cancelled() }}
+        run: npm run test:coverage
         working-directory: ./src/backend
-
+      - name: Write unit artifact provenance
+        if: ${{ always() }}
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node scripts/ciArtifactProvenance.cjs coverage unit
+      - uses: actions/upload-artifact@v7.0.2
+        id: upload
+        if: ${{ always() }}
+        with:
+          name: unit-coverage-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            coverage/
+            src/backend/coverage/
+          if-no-files-found: error
   integration-tests:
     name: Integration Tests
-    # MongoDB 8.0 fails to start on newer ubuntu-latest kernels; pin service-backed jobs to 22.04.
     runs-on: ubuntu-22.04
+    needs: select-tests
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha: ${{ github.event.pull_request.head.sha }}
+      run-id: ${{ github.run_id }}
+      attempt: ${{ github.run_attempt }}
+      suite: integration-selected
+    if: ${{ needs.select-tests.result == 'success' && needs.select-tests.outputs.integration == 'true' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-      - name: Run integration tests
-        id: integration
-        run: npm run test:integration
-      - name: Upload integration test results
-        if: ${{ always() && steps.integration.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v7.0.2
+      - name: Run integration tests with runtime coverage
+        env:
+          PEERS_COVERAGE: '1'
+          MODE: ${{ needs.select-tests.outputs.mode }}
+          SELECTED: ${{ needs.select-tests.outputs.integration-files }}
+        run: |
+          if [[ "$MODE" == full ]]; then
+            npm run test:integration
+          else
+            mapfile -t files < <(jq -r '.[]' <<< "$SELECTED")
+            test "${#files[@]}" -gt 0
+            npm run test:integration -- "${files[@]}"
+          fi
+      - name: Write selected integration artifact provenance
+        if: ${{ always() }}
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node scripts/ciArtifactProvenance.cjs test-results/integration integration-selected
+      - uses: actions/upload-artifact@v7.0.2
+        id: upload
+        if: ${{ always() }}
         with:
-          name: integration-results
+          name: integration-results-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: test-results/integration/
           if-no-files-found: error
-
   e2e-tests:
-    name: End-to-End Tests
+    name: E2E Tests
     runs-on: ubuntu-22.04
+    needs: select-tests
+    if: ${{ needs.select-tests.result == 'success' && needs.select-tests.outputs.e2e == 'true' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-      - name: Run end-to-end tests
-        id: e2e
-        run: npm run test:e2e
-      - name: Upload end-to-end test results
-        if: ${{ always() && steps.e2e.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v7.0.2
+      - name: Run selected e2e tests
+        env:
+          MODE: ${{ needs.select-tests.outputs.mode }}
+          SELECTED: ${{ needs.select-tests.outputs.e2e-files }}
+        run: |
+          if [[ "$MODE" == full ]]; then
+            npm run test:e2e
+          else
+            mapfile -t files < <(jq -r '.[]' <<< "$SELECTED")
+            test "${#files[@]}" -gt 0
+            npm run test:e2e -- "${files[@]}"
+          fi
+      - uses: actions/upload-artifact@v7.0.2
+        if: ${{ always() }}
         with:
-          name: e2e-results
+          name: e2e-results-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: test-results/e2e/
           if-no-files-found: error
-
-  regression-checks:
-    name: Regression Checks
+  patch-coverage:
+    name: Changed-Line Coverage
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, e2e-tests]
-    if: ${{ !cancelled() && always() }}
-    steps:
-      # Report the outcomes of existing jobs without executing any tests again.
-      - name: Enforce test job results
-        env:
-          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
-          INTEGRATION_TESTS_RESULT: ${{ needs.integration-tests.result }}
-          E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
-        run: |
-          {
-            echo '## Test regression results'
-            echo
-            echo "- Unit tests: $UNIT_TESTS_RESULT"
-            echo "- Integration tests: $INTEGRATION_TESTS_RESULT"
-            echo "- End-to-end tests: $E2E_TESTS_RESULT"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [[ "$UNIT_TESTS_RESULT" != success || \
-                "$INTEGRATION_TESTS_RESULT" != success || \
-                "$E2E_TESTS_RESULT" != success ]]; then
-            echo 'One or more test jobs did not succeed.' >&2
-            exit 1
-          fi
-
-  unit-coverage:
-    name: Unit Test Coverage
-    runs-on: ubuntu-latest
+    needs: [select-tests, unit-tests, integration-tests]
+    if: ${{ !cancelled() && always() && needs.select-tests.result == 'success' && needs.select-tests.outputs.mode != 'none' && needs.unit-tests.result == 'success' && (needs.integration-tests.result == 'success' || (needs.select-tests.outputs.integration == 'false' && needs.integration-tests.result == 'skipped')) }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            src/backend/package-lock.json
-      - name: Install frontend dependencies
-        id: install-frontend
-        run: npm ci
-      - name: Install backend dependencies
-        id: install-backend
-        run: npm ci
-        working-directory: ./src/backend
-      # Coverage commands execute their package tests and keep each report separate.
-      - name: Run frontend tests with coverage
-        id: frontend-tests
-        if: ${{ !cancelled() && steps.install-frontend.outcome == 'success' }}
-        run: npm run test:coverage
-      - name: Upload frontend coverage report
-        if: ${{ !cancelled() && steps.frontend-tests.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v7.0.2
+          cache: npm
+      - run: npm ci
+      - name: Validate upstream artifact IDs
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          CI_PRODUCERS: ${{ toJSON(needs) }}
+        run: node scripts/ciArtifactProvenance.cjs check
+      - uses: actions/download-artifact@v8.0.1
         with:
-          name: frontend-coverage
-          path: coverage
-          if-no-files-found: error
-      # Backend coverage remains independently reportable after frontend test failure.
-      - name: Run backend tests with coverage
-        id: backend-tests
-        if: ${{ !cancelled() && steps.install-backend.outcome == 'success' }}
-        run: npm run test:coverage
-        working-directory: ./src/backend
-      - name: Upload backend coverage report
-        if: ${{ !cancelled() && steps.backend-tests.outcome != 'skipped' }}
-        uses: actions/upload-artifact@v7.0.2
+          artifact-ids: ${{ needs.select-tests.outputs.artifact-id }}
+          path: coverage-artifacts/selection
+      - uses: actions/download-artifact@v8.0.1
         with:
-          name: backend-coverage
-          path: src/backend/coverage
-          if-no-files-found: error
+          artifact-ids: ${{ needs.unit-tests.outputs.artifact-id }}
+          path: coverage-artifacts/unit
+      - uses: actions/download-artifact@v8.0.1
+        if: ${{ needs.integration-tests.outputs.artifact-id != '' }}
+        with:
+          artifact-ids: ${{ needs.integration-tests.outputs.artifact-id }}
+          path: coverage-artifacts/integration-selected
+      - name: Combine runtime and unit coverage and evaluate patch
+        id: coverage
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          CI_PRODUCERS: ${{ toJSON(needs) }}
+        run: node scripts/runCiCoverage.cjs
+      - uses: actions/upload-artifact@v7.0.2
+        if: ${{ always() }}
+        with:
+          name: changed-line-coverage-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: coverage/
+          if-no-files-found: warn
+
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [select-tests, frontend-build, code-quality, unit-tests, integration-tests, e2e-tests, patch-coverage, dependency-vulnerability-scan, secret-scan]
+    if: ${{ always() }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Enforce every required job outcome
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ciGate.cjs
 
   dependency-vulnerability-scan:
     name: OWASP Dependency-Check
@@ -202,6 +322,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       # The updater writes this shared cache namespace after a complete successful refresh.
       - name: Prepare scanner data and report directories
@@ -436,6 +558,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
 
