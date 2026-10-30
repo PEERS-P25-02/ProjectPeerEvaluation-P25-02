@@ -4,7 +4,7 @@ const { execFileSync } = require('node:child_process');
 const { changedFiles } = require('./regressionChanges.cjs');
 const { select } = require('./selectRegressionTests.cjs');
 const { patchThreshold } = require('./coverage/policy.json');
-const { decide, validate } = require('./coverageDecision.cjs');
+const { enforce } = require('./coverageDecision.cjs');
 const { producer, validateFile } = require('./ciArtifactProvenance.cjs');
 
 function validateCapture(capture, suite, provenance) {
@@ -100,12 +100,6 @@ function main() {
   const unitProducer = input('unit-tests', 'unit', 'unit/coverage');
   const inputs = [selectionProducer, unitProducer];
   const unit = path.join(root, 'unit');
-  add('frontend-unit', path.join(unit, 'coverage/canonical'), 'istanbul');
-  add(
-    'backend-unit',
-    path.join(unit, 'src/backend/coverage/coverage-final.json'),
-    'istanbul',
-  );
   const selection = JSON.parse(
     fs.readFileSync(path.join(root, 'selection/selection.json'), 'utf8'),
   );
@@ -123,9 +117,12 @@ function main() {
     throw new Error('Coverage requires a code-change selection');
   if (!Array.isArray(selection.integration))
     throw new Error('Invalid integration selection');
-  const broaden = process.env.REQUIRE_BROADEN === 'true';
-  if (broaden && selection.mode !== 'selected')
-    throw new Error('Full discovery cannot request broadening');
+  add('frontend-unit', path.join(unit, 'coverage/canonical'), 'istanbul');
+  add(
+    'backend-unit',
+    path.join(unit, 'src/backend/coverage/coverage-final.json'),
+    'istanbul',
+  );
   console.log(
     `Integration selection: ${
       selection.mode === 'full'
@@ -154,22 +151,6 @@ function main() {
       'integration-selected',
     );
   }
-  if (broaden) {
-    const broadenProducer = input(
-      'broaden-regression',
-      'integration-broadened',
-      'integration-broadened',
-    );
-    inputs.push(broadenProducer);
-    addRuntime(
-      add,
-      path.join(root, 'integration-broadened'),
-      'integration',
-      { sha, runId, runAttempt: broadenProducer.attempt },
-      'integration-broadened',
-    );
-  }
-
   fs.mkdirSync(output, { recursive: true });
   const plan = path.join(output, 'plan.json');
   fs.writeFileSync(
@@ -201,34 +182,15 @@ function main() {
   const patchReport = JSON.parse(
     fs.readFileSync(path.join(output, 'patch-report.json'), 'utf8'),
   );
-  const decision = decide(patchReport, selection.mode, {
-    sha,
-    runId,
-    runAttempt: attempt,
-    inputs,
-    threshold: patchThreshold,
-    suites: suites.map(({ name }) => name),
-    selectedIntegrationCount: selection.integration.length,
-    broadened: broaden,
-  });
-  fs.writeFileSync(
-    path.join(output, 'decision.json'),
-    JSON.stringify(decision, null, 2) + '\n',
-  );
   const coverage =
     patchReport.percentage === null
       ? 'N/A'
       : `${patchReport.percentage.toFixed(2)}%`;
   console.log(
-    `Changed-line coverage: ${coverage} (${patchReport.covered}/${patchReport.total}); decision: ${decision.decision}`,
+    `Changed-line coverage: ${coverage} (${patchReport.covered}/${patchReport.total}); required: ${patchThreshold}%.`,
   );
-  if (process.env.GITHUB_OUTPUT)
-    fs.appendFileSync(
-      process.env.GITHUB_OUTPUT,
-      `decision=${decision.decision}\nbroaden=${decision.decision === 'broaden'}\n`,
-    );
-  if (process.env.FINAL_COVERAGE === 'true')
-    validate(output, { sha, runId, runAttempt: attempt, inputs });
+  // The report is already on disk, so a failed threshold remains inspectable.
+  enforce(patchReport);
 }
 
 if (require.main === module) {

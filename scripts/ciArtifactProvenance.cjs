@@ -1,14 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const suites = new Set([
-  'selection',
-  'unit',
-  'integration-selected',
-  'integration-broadened',
-  'coverage-initial',
-  'coverage-final',
-]);
+const suites = new Set(['selection', 'unit', 'integration-selected']);
 
 function producer(outputs, suite, sha, runId) {
   if (
@@ -67,12 +60,6 @@ if (require.main === module) {
         ['unit-tests', 'unit'],
         ...(needs['integration-tests']?.result === 'success'
           ? [['integration-tests', 'integration-selected']]
-          : []),
-        ...(process.env.REQUIRE_BROADEN === 'true'
-          ? [['broaden-regression', 'integration-broadened']]
-          : []),
-        ...(process.env.REQUIRE_INITIAL_REPORT === 'true'
-          ? [['patch-coverage', 'coverage-initial']]
           : []),
       ];
       for (const [job, suite] of suites)

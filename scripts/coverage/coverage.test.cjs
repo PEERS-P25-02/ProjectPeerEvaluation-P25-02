@@ -249,276 +249,236 @@ test('patch selection uses merge-base and preserves renames with unusual paths',
   ]);
 });
 
-test('coverage decisions broaden only for missed backend lines in selected mode', () => {
-  const { decide } = require('../coverageDecision.cjs');
-  const report = {
-    pass: false,
+test('changed-line threshold validation reconciles synthetic file counters', () => {
+  const { validatePatchReport, enforce } = require('../coverageDecision.cjs');
+  const threshold = 80;
+  assert.equal(threshold, 80);
+  const passing = {
     status: 'evaluated',
-    total: 3,
-    covered: 2,
-    percentage: (2 / 3) * 100,
-    threshold: 80,
+    total: 5,
+    covered: 4,
+    percentage: 80,
+    threshold,
+    pass: true,
     files: {
-      'src/backend/controllers/a.js': {
-        executable: [12, 13],
-        missed: [12],
-      },
-      'src/frontend/App.jsx': { executable: [4], missed: [] },
+      'src/backend/a.js': { executable: [2, 3], missed: [3] },
+      'src/frontend/b.jsx': { executable: [8, 9, 10], missed: [] },
     },
   };
-  const provenance = {
-    sha: 'a'.repeat(40),
-    runId: '12',
-    runAttempt: '1',
-    threshold: 80,
-    suites: ['frontend-unit', 'backend-unit'],
-    broadened: false,
+  assert.deepEqual(validatePatchReport(passing, threshold), passing);
+  assert.equal(enforce(passing, threshold).pass, true);
+  const below = {
+    ...passing,
+    covered: 3,
+    percentage: 60,
+    pass: false,
+    files: {
+      'src/backend/a.js': { executable: [2, 3], missed: [3] },
+      'src/frontend/b.jsx': { executable: [8, 9, 10], missed: [8] },
+    },
   };
-  assert.equal(decide(report, 'selected', provenance).decision, 'broaden');
-  assert.equal(decide(report, 'full', provenance).decision, 'below');
-  assert.equal(
-    decide(
-      {
-        ...report,
-        total: 1,
-        covered: 0,
-        percentage: 0,
-        files: {
-          'src/frontend/App.jsx': { executable: [4], missed: [4] },
-        },
+  assert.throws(() => enforce(below, threshold), /Coverage failed/);
+  // A rounded display value must not turn 79.5% into a passing report.
+  const roundedBelow = {
+    ...passing,
+    total: 200,
+    covered: 159,
+    percentage: 79.5,
+    pass: false,
+    files: {
+      'src/backend/a.js': {
+        executable: Array.from({ length: 100 }, (_, index) => index + 1),
+        missed: Array.from({ length: 20 }, (_, index) => index + 1),
       },
-      'selected',
-      provenance,
-    ).decision,
-    'below',
-  );
-  assert.equal(
-    decide(
-      {
-        ...report,
-        pass: true,
-        status: 'not-applicable',
-        total: 0,
-        covered: 0,
-        percentage: null,
-        files: {},
+      'src/frontend/b.jsx': {
+        executable: Array.from({ length: 100 }, (_, index) => index + 101),
+        missed: Array.from({ length: 21 }, (_, index) => index + 101),
       },
-      'selected',
-      provenance,
-    ).decision,
-    'na',
-  );
-  const passing = {
-    ...report,
-    status: 'evaluated',
-    total: 1,
-    covered: 1,
-    percentage: 100,
-    pass: true,
-    files: { 'src/backend/controllers/a.js': { executable: [12], missed: [] } },
+    },
   };
-  assert.equal(decide(passing, 'selected', provenance).decision, 'pass');
+  assert.throws(() => enforce(roundedBelow, threshold), /Coverage failed/);
+  assert.throws(
+    () => enforce({ ...passing, threshold: 75 }, threshold),
+    /Invalid patch coverage report/,
+  );
+  assert.throws(
+    () => validatePatchReport({ ...passing, covered: 5 }, threshold),
+    /do not reconcile/,
+  );
 });
 
-test('coverage validator checks artifact provenance and requires broadened evidence', () => {
+test('empty changed-line set is a valid not-applicable report', () => {
+  const { enforce } = require('../coverageDecision.cjs');
+  const report = {
+    status: 'not-applicable',
+    total: 0,
+    covered: 0,
+    percentage: null,
+    threshold: 80,
+    pass: true,
+    files: {},
+  };
+  assert.deepEqual(enforce(report, 80), report);
+});
+
+test('artifact producers may come from mixed attempts within one workflow run', () => {
+  const { producer } = require('../ciArtifactProvenance.cjs');
+  const sha = 'a'.repeat(40);
+  const selection = producer(
+    {
+      suite: 'selection',
+      sha,
+      'run-id': '12',
+      attempt: '1',
+      'artifact-id': '101',
+    },
+    'selection',
+    sha,
+    '12',
+  );
+  const unit = producer(
+    { suite: 'unit', sha, 'run-id': '12', attempt: '2', 'artifact-id': '102' },
+    'unit',
+    sha,
+    '12',
+  );
+  assert.equal(selection.attempt, '1');
+  assert.equal(unit.attempt, '2');
+  assert.equal(selection.runId, unit.runId);
+  assert.throws(
+    () =>
+      producer(
+        {
+          suite: 'unit',
+          sha,
+          'run-id': '13',
+          attempt: '2',
+          'artifact-id': '102',
+        },
+        'unit',
+        sha,
+        '12',
+      ),
+    /producer/,
+  );
+});
+
+test('coverage orchestration retains its report when the changed-line threshold fails', () => {
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
-  const { validate } = require('../coverageDecision.cjs');
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'coverage-decision-'),
-  );
-  const expected = { sha: 'a'.repeat(40), runId: '12', runAttempt: '1' };
-  const inputs = [
-    {
-      suite: 'selection',
-      sha: expected.sha,
-      runId: '12',
-      attempt: '1',
-      artifactId: '101',
-    },
-    {
-      suite: 'unit',
-      sha: expected.sha,
-      runId: '12',
-      attempt: '1',
-      artifactId: '102',
-    },
-    {
-      suite: 'integration-selected',
-      sha: expected.sha,
-      runId: '12',
-      attempt: '1',
-      artifactId: '103',
-    },
-    {
-      suite: 'integration-broadened',
-      sha: expected.sha,
-      runId: '12',
-      attempt: '1',
-      artifactId: '104',
-    },
-  ];
-  const suites = [
-    { name: 'frontend-unit' },
-    { name: 'backend-unit' },
-    { name: 'integration-selected' },
-    { name: 'integration-broadened' },
-  ];
-  fs.writeFileSync(
-    path.join(directory, 'provenance.json'),
-    JSON.stringify({
-      ...expected,
-      inputs,
-      suites,
-      selectorMode: 'selected',
-      selectedIntegrationCount: 1,
-    }),
-  );
-  fs.writeFileSync(
-    path.join(directory, 'patch-report.json'),
-    JSON.stringify({
-      ...expected,
-      head: expected.sha,
-      threshold: 80,
-      status: 'evaluated',
-      total: 1,
-      covered: 1,
-      percentage: 100,
-      pass: true,
-      files: { 'src/backend/a.js': { executable: [12], missed: [] } },
-    }),
-  );
-  fs.writeFileSync(
-    path.join(directory, 'decision.json'),
-    JSON.stringify({
-      schemaVersion: 2,
-      ...expected,
-      inputs,
-      threshold: 80,
-      selectorMode: 'selected',
-      decision: 'pass',
-      broadened: true,
-      selectedIntegrationCount: 1,
-      missedBackendLines: [],
-      suites: suites.map(({ name }) => name),
-    }),
-  );
-  assert.equal(validate(directory, expected).decision, 'pass');
-  assert.throws(
-    () => validate(directory, { ...expected, sha: 'b'.repeat(40) }),
-    /provenance mismatch/,
-  );
-  const decisionFile = path.join(directory, 'decision.json');
-  const patchFile = path.join(directory, 'patch-report.json');
-  const validDecision = JSON.parse(fs.readFileSync(decisionFile, 'utf8'));
-  const validPatch = JSON.parse(fs.readFileSync(patchFile, 'utf8'));
-  fs.writeFileSync(
-    patchFile,
-    JSON.stringify({ ...validPatch, percentage: 0, pass: true }),
-  );
-  assert.throws(
-    () => validate(directory, expected),
-    /evaluated patch coverage/,
-  );
-  fs.writeFileSync(
-    patchFile,
-    JSON.stringify({ ...validPatch, percentage: 'NaN' }),
-  );
-  assert.throws(
-    () => validate(directory, expected),
-    /evaluated patch coverage/,
-  );
-  fs.writeFileSync(
-    patchFile,
-    JSON.stringify({
-      ...validPatch,
-      status: 'not-applicable',
-    }),
-  );
-  assert.throws(
-    () => validate(directory, expected),
-    /evaluated patch coverage/,
-  );
-  fs.writeFileSync(patchFile, JSON.stringify(validPatch));
-  const noBroadenSuites = suites.slice(0, 3);
-  const noBroadenInputs = inputs.slice(0, 3);
-  fs.writeFileSync(
-    path.join(directory, 'provenance.json'),
-    JSON.stringify({
-      ...expected,
-      inputs: noBroadenInputs,
-      suites: noBroadenSuites,
-      selectorMode: 'selected',
-      selectedIntegrationCount: 1,
-    }),
-  );
-  const noBroadenDecision = {
-    ...validDecision,
-    inputs: noBroadenInputs,
-    broadened: false,
-    suites: noBroadenSuites.map(({ name }) => name),
+  const { spawnSync } = require('node:child_process');
+  const { select } = require('../selectRegressionTests.cjs');
+  const { patchThreshold } = require('./policy.json');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-coverage-'));
+  const sha = 'a'.repeat(40);
+  const base = 'b'.repeat(40);
+  const runId = '12';
+  const root = path.join(directory, 'artifacts');
+  const output = path.join(directory, 'coverage');
+  const changes = {
+    mergeBase: base,
+    files: [
+      { path: 'src/frontend/tests/StudentEvaluation.test.jsx', status: 'M' },
+    ],
   };
-  fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
-  assert.equal(validate(directory, expected).decision, 'pass');
-  // The coverage consumer can be rerun while its successful inputs retain an
-  // earlier producer attempt in the same workflow run.
-  const rerunInputs = noBroadenInputs.map((input) => ({ ...input }));
-  rerunInputs[2].attempt = '2';
-  const rerunExpected = { ...expected, runAttempt: '3', inputs: rerunInputs };
-  fs.writeFileSync(
-    path.join(directory, 'provenance.json'),
-    JSON.stringify({
-      ...rerunExpected,
-      suites: noBroadenSuites,
-      selectorMode: 'selected',
-      selectedIntegrationCount: 1,
-    }),
-  );
-  fs.writeFileSync(
-    decisionFile,
-    JSON.stringify({ ...noBroadenDecision, ...rerunExpected }),
-  );
-  assert.equal(validate(directory, rerunExpected).decision, 'pass');
-  assert.throws(
-    () =>
-      validate(directory, {
-        ...rerunExpected,
-        inputs: rerunInputs.map((input, index) =>
-          index === 1 ? { ...input, artifactId: '999' } : input,
-        ),
-      }),
-    /provenance mismatch/,
-  );
-  fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
-  fs.writeFileSync(
-    path.join(directory, 'provenance.json'),
-    JSON.stringify({
-      ...expected,
-      inputs: noBroadenInputs,
-      suites: noBroadenSuites,
-      selectorMode: 'selected',
-      selectedIntegrationCount: 1,
-    }),
-  );
-  fs.writeFileSync(
-    decisionFile,
-    JSON.stringify({ ...noBroadenDecision, selectorMode: 'full' }),
-  );
-  assert.throws(() => validate(directory, expected), /provenance mismatch/);
-  fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
-  fs.writeFileSync(
-    path.join(directory, 'provenance.json'),
-    JSON.stringify({
-      ...expected,
-      inputs: noBroadenInputs,
-      suites: noBroadenSuites.filter(
-        ({ name }) => name !== 'integration-selected',
-      ),
-      selectorMode: 'selected',
-      selectedIntegrationCount: 1,
-    }),
-  );
-  assert.throws(() => validate(directory, expected), /suite provenance/);
-  fs.rmSync(directory, { recursive: true, force: true });
+  const selection = select(JSON.stringify(changes.files));
+  const writeJson = (file, value) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(value));
+  };
+  const artifact = (relative, suite, attempt, artifactId) => {
+    writeJson(path.join(root, relative, 'artifact-provenance.json'), {
+      suite,
+      sha,
+      runId,
+      attempt,
+    });
+    return {
+      result: 'success',
+      outputs: {
+        suite,
+        sha,
+        'run-id': runId,
+        attempt,
+        'artifact-id': artifactId,
+      },
+    };
+  };
+  try {
+    writeJson(path.join(root, 'selection/selection.json'), selection);
+    writeJson(path.join(root, 'selection/changes.json'), changes);
+    const producers = {
+      'select-tests': artifact('selection', 'selection', '1', '101'),
+      'unit-tests': artifact('unit/coverage', 'unit', '2', '102'),
+    };
+    const changedPath = changes.files[0].path;
+    const preload = path.join(directory, 'mock-coverage-cli.cjs');
+    fs.writeFileSync(
+      preload,
+      `const cp = require('node:child_process');
+const original = cp.execFileSync;
+cp.execFileSync = (file, args, options) => {
+  if (file === 'git') return args[0] === 'merge-base'
+    ? process.env.PR_BASE_SHA + '\\n'
+    : 'M\\0' + process.env.TEST_CHANGED_PATH + '\\0';
+  if (args[0] === 'scripts/coverage/coverage.cjs') {
+    const command = args[1];
+    const value = (flag) => args[args.indexOf(flag) + 1];
+    const fs = require('node:fs');
+    const path = require('node:path');
+    if (command === 'collect') {
+      const reportPath = value('--output');
+      fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+      fs.writeFileSync(reportPath, '{}');
+    } else if (command === 'merge') {
+      const reportPath = path.join(value('--output'), 'combined/coverage-final.json');
+      fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+      fs.writeFileSync(reportPath, '{}');
+    } else if (command === 'patch') {
+      const report = {
+        status: 'evaluated', total: 1, covered: 0, percentage: 0,
+        threshold: Number(value('--threshold')), pass: false,
+        files: { [process.env.TEST_CHANGED_PATH]: { executable: [1], missed: [1] } },
+      };
+      fs.writeFileSync(value('--output'), JSON.stringify(report));
+    }
+    return Buffer.from('');
+  }
+  return original(file, args, options);
+};\n`,
+    );
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve(__dirname, '../runCiCoverage.cjs')],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          COVERAGE_ARTIFACTS: root,
+          COVERAGE_OUTPUT: output,
+          PR_HEAD_SHA: sha,
+          PR_BASE_SHA: base,
+          GITHUB_RUN_ID: runId,
+          GITHUB_RUN_ATTEMPT: '3',
+          TEST_CHANGED_PATH: changedPath,
+          CI_PRODUCERS: JSON.stringify(producers),
+          NODE_OPTIONS: `--require=${preload}`,
+        },
+      },
+    );
+    assert.notEqual(result.status, 0, result.stdout + result.stderr);
+    // The CLI reaches enforcement only after writing patch-report.json; a nonzero
+    // status plus that report proves threshold failure did not discard evidence.
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    const retained = JSON.parse(
+      fs.readFileSync(path.join(output, 'patch-report.json'), 'utf8'),
+    );
+    assert.equal(retained.pass, false);
+    assert.equal(retained.percentage, 0);
+    assert.equal(retained.threshold, patchThreshold);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
