@@ -15,10 +15,7 @@ COPY . .
 # Vite embeds this public API address in browser assets at build time.
 ARG VITE_API_BASE_URL=""
 ARG PEERS_COVERAGE="0"
-RUN if [ "$PEERS_COVERAGE" = "1" ]; then PEERS_COVERAGE=1 VITE_API_BASE_URL="$VITE_API_BASE_URL" npm run build -- --sourcemap hidden --minify false; else VITE_API_BASE_URL="$VITE_API_BASE_URL" npm run build; fi
-# Coverage maps stay outside the served directory, including in the test image.
-RUN mkdir -p /coverage-sources/assets && if [ "$PEERS_COVERAGE" = "1" ]; then cp build/assets/* /coverage-sources/assets/ && rm build/assets/*.map; fi
-
+RUN PEERS_COVERAGE="$PEERS_COVERAGE" VITE_API_BASE_URL="$VITE_API_BASE_URL" npm run build
 # Only the compiled site and its Nginx config are needed in the serving image.
 FROM nginx:1.28.0-alpine AS production
 
@@ -29,9 +26,5 @@ EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
 
-# Explicit opt-in target exports maps privately through docker cp.
-FROM production AS coverage
-COPY --from=build /coverage-sources /coverage-sources
-
-# Ordinary builds retain the production target and contain no private maps.
+# Keep the default target explicit for ordinary builds.
 FROM production AS final

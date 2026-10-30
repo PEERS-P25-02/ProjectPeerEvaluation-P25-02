@@ -81,18 +81,6 @@ async function captureRuntimeCoverage({
     if (!files.length) throw new Error('API coverage is empty');
     manifest.backend = true;
     if (suite === 'e2e') {
-      const frontend = await run([
-        ...composeArguments,
-        'ps',
-        '--all',
-        '--quiet',
-        'frontend',
-      ]);
-      await run([
-        'cp',
-        `${frontend}:/coverage-sources`,
-        path.join(directory, 'frontend-sources'),
-      ]);
       await run([
         'cp',
         `${testContainer}:/app/coverage/frontend`,

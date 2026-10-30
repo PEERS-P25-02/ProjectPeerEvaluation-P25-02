@@ -72,6 +72,55 @@ test('manifest excludes generated coverage assets', () => {
   assert.ok(manifest().every((file) => !file.split('/').includes('coverage')));
 });
 
+test('missing aggregate frontend unit coverage still fails collection', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { collect } = require('./coverage.cjs');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-unit-'));
+  try {
+    await assert.rejects(
+      collect({
+        suite: 'frontend-unit',
+        format: 'istanbul',
+        input: directory,
+        output: path.join(directory, 'report.json'),
+      }),
+      /No coverage input files/,
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('artifact producers accept different attempts within one SHA and run', () => {
+  const { producer } = require('../ciArtifactProvenance.cjs');
+  const sha = 'a'.repeat(40);
+  const selection = {
+    suite: 'selection',
+    sha,
+    'run-id': '12',
+    attempt: '1',
+    'artifact-id': '101',
+  };
+  const unit = {
+    suite: 'unit',
+    sha,
+    'run-id': '12',
+    attempt: '2',
+    'artifact-id': '102',
+  };
+  assert.equal(producer(selection, 'selection', sha, '12').attempt, '1');
+  assert.equal(producer(unit, 'unit', sha, '12').attempt, '2');
+  for (const bad of [
+    { ...unit, sha: 'b'.repeat(40) },
+    { ...unit, 'run-id': '13' },
+    { ...unit, suite: 'selection' },
+    { ...unit, 'artifact-id': '' },
+  ])
+    assert.throws(() => producer(bad, 'unit', sha, '12'), /producer/);
+});
+
 test('normalization unwraps Vitest FileCoverage instances before serializing', async () => {
   const { normalize, manifest } = require('./coverage.cjs');
   const name = manifest()[0];
@@ -280,6 +329,36 @@ test('coverage validator checks artifact provenance and requires broadened evide
     path.join(os.tmpdir(), 'coverage-decision-'),
   );
   const expected = { sha: 'a'.repeat(40), runId: '12', runAttempt: '1' };
+  const inputs = [
+    {
+      suite: 'selection',
+      sha: expected.sha,
+      runId: '12',
+      attempt: '1',
+      artifactId: '101',
+    },
+    {
+      suite: 'unit',
+      sha: expected.sha,
+      runId: '12',
+      attempt: '1',
+      artifactId: '102',
+    },
+    {
+      suite: 'integration-selected',
+      sha: expected.sha,
+      runId: '12',
+      attempt: '1',
+      artifactId: '103',
+    },
+    {
+      suite: 'integration-broadened',
+      sha: expected.sha,
+      runId: '12',
+      attempt: '1',
+      artifactId: '104',
+    },
+  ];
   const suites = [
     { name: 'frontend-unit' },
     { name: 'backend-unit' },
@@ -290,6 +369,7 @@ test('coverage validator checks artifact provenance and requires broadened evide
     path.join(directory, 'provenance.json'),
     JSON.stringify({
       ...expected,
+      inputs,
       suites,
       selectorMode: 'selected',
       selectedIntegrationCount: 1,
@@ -312,8 +392,9 @@ test('coverage validator checks artifact provenance and requires broadened evide
   fs.writeFileSync(
     path.join(directory, 'decision.json'),
     JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       ...expected,
+      inputs,
       threshold: 80,
       selectorMode: 'selected',
       decision: 'pass',
@@ -361,10 +442,12 @@ test('coverage validator checks artifact provenance and requires broadened evide
   );
   fs.writeFileSync(patchFile, JSON.stringify(validPatch));
   const noBroadenSuites = suites.slice(0, 3);
+  const noBroadenInputs = inputs.slice(0, 3);
   fs.writeFileSync(
     path.join(directory, 'provenance.json'),
     JSON.stringify({
       ...expected,
+      inputs: noBroadenInputs,
       suites: noBroadenSuites,
       selectorMode: 'selected',
       selectedIntegrationCount: 1,
@@ -372,11 +455,52 @@ test('coverage validator checks artifact provenance and requires broadened evide
   );
   const noBroadenDecision = {
     ...validDecision,
+    inputs: noBroadenInputs,
     broadened: false,
     suites: noBroadenSuites.map(({ name }) => name),
   };
   fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
   assert.equal(validate(directory, expected).decision, 'pass');
+  // The coverage consumer can be rerun while its successful inputs retain an
+  // earlier producer attempt in the same workflow run.
+  const rerunInputs = noBroadenInputs.map((input) => ({ ...input }));
+  rerunInputs[2].attempt = '2';
+  const rerunExpected = { ...expected, runAttempt: '3', inputs: rerunInputs };
+  fs.writeFileSync(
+    path.join(directory, 'provenance.json'),
+    JSON.stringify({
+      ...rerunExpected,
+      suites: noBroadenSuites,
+      selectorMode: 'selected',
+      selectedIntegrationCount: 1,
+    }),
+  );
+  fs.writeFileSync(
+    decisionFile,
+    JSON.stringify({ ...noBroadenDecision, ...rerunExpected }),
+  );
+  assert.equal(validate(directory, rerunExpected).decision, 'pass');
+  assert.throws(
+    () =>
+      validate(directory, {
+        ...rerunExpected,
+        inputs: rerunInputs.map((input, index) =>
+          index === 1 ? { ...input, artifactId: '999' } : input,
+        ),
+      }),
+    /provenance mismatch/,
+  );
+  fs.writeFileSync(decisionFile, JSON.stringify(noBroadenDecision));
+  fs.writeFileSync(
+    path.join(directory, 'provenance.json'),
+    JSON.stringify({
+      ...expected,
+      inputs: noBroadenInputs,
+      suites: noBroadenSuites,
+      selectorMode: 'selected',
+      selectedIntegrationCount: 1,
+    }),
+  );
   fs.writeFileSync(
     decisionFile,
     JSON.stringify({ ...noBroadenDecision, selectorMode: 'full' }),
@@ -387,6 +511,7 @@ test('coverage validator checks artifact provenance and requires broadened evide
     path.join(directory, 'provenance.json'),
     JSON.stringify({
       ...expected,
+      inputs: noBroadenInputs,
       suites: noBroadenSuites.filter(
         ({ name }) => name !== 'integration-selected',
       ),

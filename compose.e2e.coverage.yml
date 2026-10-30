@@ -6,7 +6,6 @@ services:
       NODE_V8_COVERAGE: /coverage/backend
   frontend:
     build:
-      target: coverage
       args:
         PEERS_COVERAGE: '1'
   tests:

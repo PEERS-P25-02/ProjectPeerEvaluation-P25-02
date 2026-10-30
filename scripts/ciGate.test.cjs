@@ -98,8 +98,8 @@ test('selected API coverage requires its expected artifact', () => {
         () => {},
         '/missing-coverage-artifacts',
         'integration',
-        'integration-results-expected',
         { sha: 'a'.repeat(40), runId: '123', runAttempt: '1' },
+        'integration-selected',
       ),
     /Expected one integration coverage capture/,
   );

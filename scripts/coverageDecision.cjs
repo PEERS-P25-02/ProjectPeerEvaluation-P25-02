@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { patchThreshold } = require('./coverage/policy.json');
+const { producer } = require('./ciArtifactProvenance.cjs');
 
 function validatePatchReport(report, threshold) {
   if (
@@ -98,7 +99,7 @@ function decide(report, selectorMode, provenance) {
     decision = 'broaden';
   else decision = 'below';
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     ...provenance,
     selectorMode,
     decision,
@@ -116,13 +117,14 @@ function validate(directory, expected) {
   const provenance = readJson(directory, 'provenance.json');
   const same = (actual, value) => String(actual) === String(value);
   if (
-    decision.schemaVersion !== 1 ||
+    decision.schemaVersion !== 2 ||
     !['selected', 'full'].includes(decision.selectorMode) ||
     !['pass', 'na', 'broaden', 'below'].includes(decision.decision) ||
     !Number.isInteger(decision.selectedIntegrationCount) ||
     decision.selectedIntegrationCount < 0 ||
     typeof decision.broadened !== 'boolean' ||
     !Array.isArray(decision.missedBackendLines) ||
+    !Array.isArray(decision.inputs) ||
     !same(decision.sha, expected.sha) ||
     !same(decision.runId, expected.runId) ||
     !same(decision.runAttempt, expected.runAttempt) ||
@@ -136,9 +138,47 @@ function validate(directory, expected) {
     provenance.selectorMode !== decision.selectorMode ||
     provenance.selectedIntegrationCount !== decision.selectedIntegrationCount ||
     !Array.isArray(provenance.suites) ||
-    !Array.isArray(decision.suites)
+    !Array.isArray(decision.suites) ||
+    JSON.stringify(provenance.inputs) !== JSON.stringify(decision.inputs) ||
+    (expected.inputs &&
+      JSON.stringify(expected.inputs) !== JSON.stringify(decision.inputs))
   )
     throw new Error('Coverage artifact schema or provenance mismatch');
+  const inputSuites = decision.inputs.map((input) => input.suite);
+  if (
+    new Set(inputSuites).size !== inputSuites.length ||
+    !inputSuites.includes('selection') ||
+    !inputSuites.includes('unit') ||
+    (decision.selectedIntegrationCount > 0 &&
+      !inputSuites.includes('integration-selected')) ||
+    (decision.selectedIntegrationCount === 0 &&
+      inputSuites.includes('integration-selected')) ||
+    (decision.broadened && !inputSuites.includes('integration-broadened')) ||
+    (!decision.broadened && inputSuites.includes('integration-broadened')) ||
+    inputSuites.some(
+      (suite) =>
+        ![
+          'selection',
+          'unit',
+          'integration-selected',
+          'integration-broadened',
+        ].includes(suite),
+    )
+  )
+    throw new Error('Coverage artifact input suite provenance mismatch');
+  for (const input of decision.inputs)
+    producer(
+      {
+        suite: input.suite,
+        sha: input.sha,
+        'run-id': input.runId,
+        attempt: input.attempt,
+        'artifact-id': input.artifactId,
+      },
+      input.suite,
+      expected.sha,
+      expected.runId,
+    );
   const { missedBackendLines } = validatePatchReport(
     report,
     decision.threshold,
@@ -182,7 +222,8 @@ function main() {
   const directory = process.env.REPORT_DIR;
   const sha = process.env.PR_HEAD_SHA;
   const runId = process.env.GITHUB_RUN_ID;
-  const runAttempt = process.env.GITHUB_RUN_ATTEMPT;
+  const runAttempt =
+    process.env.REPORT_PRODUCER_ATTEMPT || process.env.GITHUB_RUN_ATTEMPT;
   if (
     !directory ||
     !/^[a-f0-9]{40,64}$/i.test(sha || '') ||
@@ -190,7 +231,38 @@ function main() {
     !/^\d+$/.test(runAttempt || '')
   )
     throw new Error('Missing coverage validator provenance');
-  const result = validate(directory, { sha, runId, runAttempt });
+  const needs = JSON.parse(process.env.CI_PRODUCERS || '{}');
+  let inputs;
+  if (process.env.REPORT_PRODUCER_JOB) {
+    const reportProducer = producer(
+      needs[process.env.REPORT_PRODUCER_JOB]?.outputs,
+      'coverage-initial',
+      sha,
+      runId,
+    );
+    if (reportProducer.attempt !== runAttempt)
+      throw new Error('Coverage report producer attempt mismatch');
+    require('./ciArtifactProvenance.cjs').validateFile(
+      directory,
+      reportProducer,
+    );
+    const decision = readJson(directory, 'decision.json');
+    inputs = [
+      producer(needs['select-tests']?.outputs, 'selection', sha, runId),
+      producer(needs['unit-tests']?.outputs, 'unit', sha, runId),
+      ...(decision.selectedIntegrationCount
+        ? [
+            producer(
+              needs['integration-tests']?.outputs,
+              'integration-selected',
+              sha,
+              runId,
+            ),
+          ]
+        : []),
+    ];
+  }
+  const result = validate(directory, { sha, runId, runAttempt, inputs });
   console.log(`Changed-line coverage decision: ${result.decision}`);
 }
 

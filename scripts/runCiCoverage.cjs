@@ -5,6 +5,7 @@ const { changedFiles } = require('./regressionChanges.cjs');
 const { select } = require('./selectRegressionTests.cjs');
 const { patchThreshold } = require('./coverage/policy.json');
 const { decide, validate } = require('./coverageDecision.cjs');
+const { producer, validateFile } = require('./ciArtifactProvenance.cjs');
 
 function validateCapture(capture, suite, provenance) {
   if (
@@ -33,15 +34,12 @@ function directories(root) {
   });
 }
 
-function addRuntime(add, root, suite, artifactName, provenance) {
-  const artifact = path.join(root, artifactName);
+function addRuntime(add, artifact, suite, provenance, name) {
   const captures = directories(artifact).filter(
     (dir) => path.basename(dir) === 'coverage',
   );
   if (captures.length !== 1)
-    throw new Error(
-      `Expected one ${suite} coverage capture in ${artifactName}`,
-    );
+    throw new Error(`Expected one ${suite} coverage capture in ${artifact}`);
   const directory = captures[0];
   const capturePath = path.join(directory, 'capture.json');
   validateCapture(
@@ -50,11 +48,12 @@ function addRuntime(add, root, suite, artifactName, provenance) {
     provenance,
   );
   add(
-    `integration-${artifactName.startsWith('broaden-') ? 'broadened' : 'selected'}`,
+    name,
     path.join(directory, 'backend'),
     'v8',
     undefined,
     capturePath,
+    provenance.runAttempt,
   );
 }
 
@@ -62,7 +61,7 @@ function main() {
   const root = process.env.COVERAGE_ARTIFACTS || 'coverage-artifacts';
   const output = process.env.COVERAGE_OUTPUT || 'coverage';
   const suites = [];
-  const add = (name, input, format, sourceRoot, capture) => {
+  const add = (name, input, format, sourceRoot, capture, producerAttempt) => {
     const report = path.join(output, 'inputs', `${name}.json`);
     run([
       'collect',
@@ -76,6 +75,7 @@ function main() {
       format,
       ...(sourceRoot ? ['--source-root', sourceRoot] : []),
       ...(capture ? ['--capture', capture] : []),
+      ...(producerAttempt ? ['--producer-attempt', producerAttempt] : []),
     ]);
     suites.push({ name, report });
   };
@@ -88,8 +88,18 @@ function main() {
     !/^\d+$/.test(attempt || '')
   )
     throw new Error('Missing run provenance');
-  const suffix = `${sha}-${runId}-${attempt}`;
-  const unit = path.join(root, `unit-coverage-${suffix}`);
+  const needs = JSON.parse(process.env.CI_PRODUCERS || '{}');
+  const input = (job, suite, directory) => {
+    if (needs[job]?.result !== 'success')
+      throw new Error(`Required ${suite} producer did not succeed`);
+    const metadata = producer(needs[job].outputs, suite, sha, runId);
+    if (directory) validateFile(path.join(root, directory), metadata);
+    return metadata;
+  };
+  const selectionProducer = input('select-tests', 'selection', 'selection');
+  const unitProducer = input('unit-tests', 'unit', 'unit/coverage');
+  const inputs = [selectionProducer, unitProducer];
+  const unit = path.join(root, 'unit');
   add('frontend-unit', path.join(unit, 'coverage/canonical'), 'istanbul');
   add(
     'backend-unit',
@@ -97,16 +107,10 @@ function main() {
     'istanbul',
   );
   const selection = JSON.parse(
-    fs.readFileSync(
-      path.join(root, `selection-${suffix}/selection.json`),
-      'utf8',
-    ),
+    fs.readFileSync(path.join(root, 'selection/selection.json'), 'utf8'),
   );
   const changes = JSON.parse(
-    fs.readFileSync(
-      path.join(root, `selection-${suffix}/changes.json`),
-      'utf8',
-    ),
+    fs.readFileSync(path.join(root, 'selection/changes.json'), 'utf8'),
   );
   const currentChanges = changedFiles(process.env.PR_BASE_SHA, sha);
   if (
@@ -131,20 +135,40 @@ function main() {
           : 'none'
     }`,
   );
-  if (selection.integration.length)
-    addRuntime(add, root, 'integration', `integration-results-${suffix}`, {
-      sha,
-      runId,
-      runAttempt: attempt,
-    });
-  if (broaden)
+  if (selection.integration.length) {
+    const integrationProducer = input(
+      'integration-tests',
+      'integration-selected',
+      'integration-selected',
+    );
+    inputs.push(integrationProducer);
     addRuntime(
       add,
-      root,
+      path.join(root, 'integration-selected'),
       'integration',
-      `broaden-integration-results-${suffix}`,
-      { sha, runId, runAttempt: attempt },
+      {
+        sha,
+        runId,
+        runAttempt: integrationProducer.attempt,
+      },
+      'integration-selected',
     );
+  }
+  if (broaden) {
+    const broadenProducer = input(
+      'broaden-regression',
+      'integration-broadened',
+      'integration-broadened',
+    );
+    inputs.push(broadenProducer);
+    addRuntime(
+      add,
+      path.join(root, 'integration-broadened'),
+      'integration',
+      { sha, runId, runAttempt: broadenProducer.attempt },
+      'integration-broadened',
+    );
+  }
 
   fs.mkdirSync(output, { recursive: true });
   const plan = path.join(output, 'plan.json');
@@ -154,6 +178,7 @@ function main() {
       sha,
       runId,
       runAttempt: attempt,
+      inputs,
       selectorMode: selection.mode,
       selectedIntegrationCount: selection.integration.length,
       suites,
@@ -180,6 +205,7 @@ function main() {
     sha,
     runId,
     runAttempt: attempt,
+    inputs,
     threshold: patchThreshold,
     suites: suites.map(({ name }) => name),
     selectedIntegrationCount: selection.integration.length,
@@ -202,7 +228,7 @@ function main() {
       `decision=${decision.decision}\nbroaden=${decision.decision === 'broaden'}\n`,
     );
   if (process.env.FINAL_COVERAGE === 'true')
-    validate(output, { sha, runId, runAttempt: attempt });
+    validate(output, { sha, runId, runAttempt: attempt, inputs });
 }
 
 if (require.main === module) {

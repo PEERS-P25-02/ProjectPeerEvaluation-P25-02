@@ -145,7 +145,9 @@ async function collect(options) {
       capture.sha !== sha() ||
       String(capture.runId) !== String(process.env.GITHUB_RUN_ID || null) ||
       String(capture.runAttempt) !==
-        String(process.env.GITHUB_RUN_ATTEMPT || null)
+        String(
+          options['producer-attempt'] || process.env.GITHUB_RUN_ATTEMPT || null,
+        )
     )
       throw new Error('Runtime capture provenance mismatch');
     const hashes = sourceHashes();
