@@ -293,7 +293,7 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
-          REPORT_DIR: coverage-artifacts/initial-coverage-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}/coverage
+          REPORT_DIR: coverage-artifacts/initial-coverage-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/coverageDecision.cjs
       - name: Install coverage dependencies
         if: ${{ needs.patch-coverage.outputs.decision == 'broaden' }}
