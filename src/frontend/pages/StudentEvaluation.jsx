@@ -130,7 +130,7 @@ function StudentEvaluation() {
       for (const [criterion, value] of Object.entries(evaluation.ratings)) {
         if (value === '' || value === null || value === undefined) {
           setError(
-            `Please provide a rating for ${criterion.replace('_', ' ')} for all team members.`,
+            `Please provide a rating for ${criterion.replaceAll('_', ' ')} for all team members.`,
           );
           return;
         }

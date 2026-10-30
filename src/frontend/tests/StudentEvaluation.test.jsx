@@ -180,6 +180,31 @@ describe('StudentEvaluation', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  it('shows readable names for criteria with multiple underscores', async () => {
+    const user = userEvent.setup();
+    api.get.mockResolvedValueOnce({ data: evaluationForm() });
+    renderStudentEvaluation();
+    const card = await screen.findByText('Evaluate: Teammate Student');
+    const groups = within(card.closest('.MuiCard-root')).getAllByRole(
+      'radiogroup',
+    );
+
+    // Leave content_knowledge_skills unanswered to exercise its validation label.
+    for (const index of [0, 1, 2]) {
+      await user.click(
+        within(groups[index]).getByRole('radio', { name: /^4 / }),
+      );
+    }
+    await user.click(screen.getByRole('button', { name: 'Submit Evaluation' }));
+
+    expect(
+      await screen.findByText(
+        'Please provide a rating for content knowledge skills for all team members.',
+      ),
+    ).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('rejects feedback shorter than ten characters without sending a submission', async () => {
     const user = userEvent.setup();
     api.get.mockResolvedValueOnce({ data: evaluationForm() });
