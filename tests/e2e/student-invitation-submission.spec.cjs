@@ -44,7 +44,8 @@ test('student submits an issued invitation in a fresh browser and completed or i
     .collection('evaluations')
     .find({ course_id: new ObjectId(course.id) })
     .toArray();
-  expect(saved).toHaveLength(1);
+  // Deliberate probe failure: E2E must block the gate even when coverage passes.
+  expect(saved).toHaveLength(2);
   expect(saved[0].evaluator_id.toString()).toBe(link.studentId);
   expect(saved[0].student_id.toString()).toBe(teammate._id);
   expect(saved[0].ratings).toEqual(ratings);
