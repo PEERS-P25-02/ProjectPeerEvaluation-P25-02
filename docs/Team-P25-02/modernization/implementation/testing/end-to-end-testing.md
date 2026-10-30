@@ -57,7 +57,7 @@ Each browser command used a fresh guarded Compose/MongoDB/Mailpit stack and synt
 - [Playwright configuration](../../../../../playwright.config.cjs)
 - [E2E runner and lifecycle](../../../../../scripts/runE2ETests.cjs)
 - [Compose E2E environment](../../../../../compose.e2e.yml)
-- [Browser smoke test](../../../../../tests/e2e/smoke.spec.cjs)
+- [Browser smoke test](../../../../../tests/e2e/basic-smoke.spec.cjs)
 - [Fixture lifecycle tests](../../../../../tests/e2e/fixtures.spec.cjs)
 - [Instructor setup and launch](../../../../../tests/e2e/instructor-setup-launch.spec.cjs)
 - [Student invitation and submission](../../../../../tests/e2e/student-invitation-submission.spec.cjs)
