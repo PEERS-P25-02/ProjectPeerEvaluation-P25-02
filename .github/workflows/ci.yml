@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - ci/selective-regression
 permissions:
   contents: read
 concurrency:
