@@ -1,10 +1,10 @@
 # Continuous Integration: Build, Lint, Tests, and Coverage
 
-**Status:** The current PR workflow uses one Changed-Line Coverage job after unit and selected integration tests. The historical Session B hosted runs below predate subsequent workflow changes and do not verify the current coverage job.
+**Status:** The current PR workflow uses one Changed-Line Coverage job after unit and selected integration tests. PR #141 merged this workflow; the final PR run succeeded at `6f6a919`.
 
-## 1. Session-A workflow
+## 1. Pull-request workflow
 
-The workflow checks the immutable head of pull requests targeting `main` and `ci/selective-regression`, without workflow-level path filtering. It records the event base/head and merge-base change set. Documentation-only changes explicitly skip application tests while build, quality, security, and `CI Gate` still run. Code changes run both complete unit suites once with coverage. API integration and browser E2E tests use conservative selection; API integration coverage contributes to the changed-line report, while browser E2E does not. The single Changed-Line Coverage job combines unit reports with any selected API runtime report and evaluates the 80% changed-executable-line minimum. It does not run a second broad API suite or a separate final-coverage job. Missing or invalid coverage evidence fails.
+The workflow checks the immutable head of pull requests targeting `main`, without workflow-level path filtering. It records the event base/head and merge-base change set. Documentation-only changes explicitly skip application tests while build, quality, security, and `CI Gate` still run. Code changes run both complete unit suites once with coverage. API integration and browser E2E tests use conservative selection; API integration coverage contributes to the changed-line report, while browser E2E does not. The single Changed-Line Coverage job combines unit reports with any selected API runtime report and evaluates the 80% changed-executable-line minimum. It does not run a second broad API suite or a separate final-coverage job. Missing or invalid coverage evidence fails.
 
 Full fallback rebuilds its inventory from current test files, including newly added and renamed tests, so missing historical paths do not stop selector evidence collection. Added application/test files choose full discovery; added documentation remains a valid no-test selection. The explicit frontend journey mapping now includes reset/relaunch for `StudentEvaluation.jsx` and results export for `CourseManagement.jsx`. These mappings are maintained starting points, not a completeness claim.
 
@@ -14,7 +14,9 @@ Selection, unit, selected integration, E2E, and changed-line coverage artifacts 
 
 `CI Gate` evaluates every required job and rejects unexpected skipped or failed work. Repository settings remain a separate enforcement requirement: the last live inspection found main unprotected and its ruleset disabled with legacy check names. Session A does not activate those settings or add merge-group/push triggers.
 
-## 2. Prior verification evidence and handoff
+## 2. Verification evidence and handoff
+
+The [final PR run](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/41129935359) succeeded at `6f6a919`. Earlier hosted probes against the single-coverage-job revision verified documentation-only skipping, a measured coverage pass (100%, 1/1), a measured failure (0%, 0/1), full fallback, a renamed browser test, and a deliberate E2E failure that failed CI Gate despite passing coverage. A partial rerun also passed coverage using selection from attempt 2 and unit/API inputs from attempt 3 in consumer attempt 4. These probes predate the final removal of the temporary PR target. See [PR #141](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/pull/141) for the scenario details.
 
 Session B local checks passed the five focused Node test files, lint, formatting, and production build. Frontend unit collection passed 85/85 tests across ten files, including an isolated test file with no application counters; backend coverage passed 143/143 tests and its integrity guard. Selected API integration coverage passed 12/12 roster tests with verified cleanup (`test-results/integration/32608d59930e92b8/`). Selected E2E without coverage passed 2/2 smoke tests with verified cleanup (`test-results/e2e/207ac60423431f4f/`). Opt-in instrumented E2E passed 2/2 smoke tests with verified cleanup and complete browser/backend captures (`test-results/e2e/42bdcc70aa5f8d4e/`); the Istanbul collector accepted ten original-source frontend reports without exported bundle maps. These are local results on the uncommitted Session B tree, not hosted patch-threshold or partial-rerun evidence.
 

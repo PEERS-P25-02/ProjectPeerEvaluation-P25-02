@@ -1,6 +1,6 @@
 # Quality Gate Policy
 
-**Policy status:** Session A pull-request CI runs both complete unit suites once with coverage, selects API integration coverage and browser E2E execution conservatively, and enforces an approved 80% changed-executable-line minimum. Low valid coverage broadens API integration discovery and reuses the initial unit reports. The functional regression targets remain unchanged. Full pre-merge queue validation, overall coverage floors, and activation of protected-main settings remain deferred. Push-to-main CI, post-merge verification, and deployment are deferred to Milestone 3. See the [CI guide](../developer-guides/continuous-integration.md) and [verification record](../modernization/implementation/continuous-integration.md).
+**Policy status:** Pull-request CI runs both complete unit suites once with coverage, selects API integration coverage and browser E2E execution conservatively, and enforces an approved 80% changed-executable-line minimum. A valid report below the minimum fails without automatic API broadening. The functional regression targets remain unchanged. Full pre-merge queue validation, overall coverage floors, and activation of protected-main settings remain deferred. Push-to-main CI, post-merge verification, and deployment are deferred to Milestone 3. See the [CI guide](../developer-guides/continuous-integration.md) and [verification record](../modernization/implementation/continuous-integration.md).
 
 ## 1. Scope and pass/fail rules
 
@@ -12,7 +12,7 @@ Repository administrators must activate a ruleset requiring the final check to e
 
 ## 2. Current checks and planned gates
 
-The PR workflow is `.github/workflows/ci.yml`. It targets `main` and temporarily `ci/selective-regression` for probe PRs, without workflow-level path filtering. Documentation-only changes have an explicit no-application-test outcome while build, quality, security, and the final gate still run. Code PRs run the entire frontend and backend unit suites with coverage once. Selected API integration tests and browser E2E tests use isolated Docker Compose environments, MongoDB, Mailpit, and synthetic data. API integration contributes backend runtime coverage; browser E2E validates journeys without contributing coverage. A valid below-80% report triggers full API integration discovery only when selection is `selected` and the report includes missed backend lines. Frontend-only misses or an already-full API run below 80% fail without broadening. When broadened, API coverage is combined with the initial unit reports for final enforcement. Malformed or missing reports fail instead of being treated as an ordinary low percentage.
+The PR workflow is `.github/workflows/ci.yml`. It targets `main`, without workflow-level path filtering. Documentation-only changes have an explicit no-application-test outcome while build, quality, security, and the final gate still run. Code PRs run the entire frontend and backend unit suites with coverage once. Selected API integration tests and browser E2E tests use isolated Docker Compose environments, MongoDB, Mailpit, and synthetic data. API integration contributes backend runtime coverage; browser E2E validates journeys without contributing coverage. One Changed-Line Coverage job combines unit reports with selected API coverage and fails when valid coverage is below 80%; it does not automatically broaden API testing. Malformed or missing reports fail instead of being treated as an ordinary low percentage.
 
 | Gate | Pass rule | Status |
 | --- | --- | --- |
@@ -20,9 +20,9 @@ The PR workflow is `.github/workflows/ci.yml`. It targets `main` and temporarily
 | Frontend Build | `npm run build` succeeds. | Configured |
 | Lint and Formatting | ESLint and Prettier checks succeed. Zero-warning enforcement remains a separate planned policy item. | Configured |
 | Unit Tests | Both complete coverage-enabled unit suites pass for code changes; required reports exist. | Configured |
-| API Integration Tests | Selected or broadened API cases, service readiness, backend coverage capture, and cleanup succeed; evidence is retained. | Configured |
+| API Integration Tests | Selected API cases, service readiness, backend coverage capture, and cleanup succeed; evidence is retained. | Configured |
 | Browser E2E Tests | Selected journey cases, service readiness, and cleanup succeed; evidence is retained. Browser execution does not contribute coverage. | Configured |
-| Patch coverage | At least 80% of changed executable application lines are covered after any required broadening. Invalid/missing evidence fails. No executable changes are explicitly not applicable. | Approved numerical PR gate |
+| Patch coverage | At least 80% of changed executable application lines are covered. Invalid/missing evidence fails. No executable changes are explicitly not applicable. | Approved numerical PR gate |
 | OWASP Dependency-Check | Database freshness, report integrity, and existing CVSS 7.0 blocking policy pass. | Configured |
 | Gitleaks Secret Scan | PR-range scanning succeeds with no exposed secrets; scanner errors fail. | Configured |
 | CI Gate | Every required job has the expected result; only explicitly unselected work may be skipped. | Configured; repository enforcement requires settings activation |
