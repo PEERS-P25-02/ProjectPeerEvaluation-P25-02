@@ -1,6 +1,6 @@
 # Continuous Integration: Build, Lint, Tests, and Coverage
 
-**Status:** Session-1 implementation on PR #141 configures PR-only selection, combined application coverage, and an approved 80% changed-executable-line gate. Local instrumented suite evidence is recorded below. A local combined-report proof succeeded; final hosted workflow verification remains pending. Earlier successful runs are historical evidence, not validation of this revision.
+**Status:** Session-1 implementation on PR #141 configures PR-only selection, combined application coverage, and an approved 80% changed-executable-line gate. Local instrumented suite evidence is recorded below. A local combined-report proof and the [hosted PR run](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/40995431410) at commit `19998219bd8ccd100e4bd2c66dd6c6b40bc19625` succeeded. Earlier successful runs are historical evidence, not validation of this revision.
 
 ## 1. Session-1 workflow
 
@@ -28,7 +28,7 @@ The real local union under `/tmp/canonical-full-proof/` merged the unit reports 
 
 These are local observations of this implementation, not approved overall floors or proof of the sponsor's scoped target. The current PR changes no production executable lines: the patch report explicitly records `status: not-applicable`, `percentage: null`, and `pass: true`, rather than 100% measured patch coverage. The earlier `coverage/combined-proof/` output predates canonical frontend counters and is superseded by this proof.
 
-A hosted run of the final revision and hosted artifact transfer remain pending. No CI-minute savings, hosted final check success, or merge enforcement is claimed here. The maintained selection map can miss dependencies; passing selected tests does not prove unselected tests pass. Service startup remains a fixed cost, and broadening may run selected service tests again.
+The [hosted PR #141 run 40995431410](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/40995431410) completed successfully at commit `19998219bd8ccd100e4bd2c66dd6c6b40bc19625`: all 11 required jobs succeeded, broadening was skipped, and `CI Gate` passed. Final coverage artifact `12950794807` was uploaded. This evidence applies to that tested commit; it does not verify any later documentation-only commit or establish branch-protection enforcement. No CI-minute savings or merge enforcement is claimed here. The maintained selection map can miss dependencies; passing selected tests does not prove unselected tests pass. Service startup remains a fixed cost, and broadening may run selected service tests again.
 
 Session 2 must add complete `merge_group` execution before merge, collect full-suite per-package four-metric measurements, obtain approval for exact floors and precision, adapt security event handling, and migrate/activate the reviewed main ruleset and merge queue. Require the stable final gate only after hosted success/failure evidence. Preserve session-1 commands, manifest, source/provenance checks, and run-specific artifact contracts. Push-to-main CI, post-merge verification, and deployment remain deferred to Milestone 3.
 
