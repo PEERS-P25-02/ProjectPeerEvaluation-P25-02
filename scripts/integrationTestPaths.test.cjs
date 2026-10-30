@@ -1,12 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { toContainerPaths } = require('./integrationTestPaths');
+const {
+  toContainerPaths,
+} = require('../src/backend/scripts/integrationTestPaths');
 
 test('converts one repository-relative integration path', () => {
   assert.deepEqual(
-    toContainerPaths([
-      'src/backend/tests/integration/authentication.test.js',
-    ]),
+    toContainerPaths(['src/backend/tests/integration/authentication.test.js']),
     ['tests/integration/authentication.test.js'],
   );
 });
