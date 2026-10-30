@@ -22,6 +22,7 @@ The [quality gate policy](docs/Team-P25-02/requirements/quality-gate-policy.md) 
 - `build/`: generated frontend output, ignored by Git.
 - `docs/Team-P25-02/`: requirements, project reports, implementation records, and guides.
 
+
 ## Guides and project documents
 
 - [Getting Started](docs/Team-P25-02/getting-started.md)
