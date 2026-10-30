@@ -12,12 +12,13 @@ test('null-delimited changes preserve rename, deletion and whitespace paths', ()
     calls.push(args);
     return args[0] === 'merge-base'
       ? `${head}\n`
-      : 'R100\0old name.js\0new name.js\0D\0deleted.js\0M\0space file.js\0';
+      : 'R100\0old name.js\0new name.js\0D\0deleted.js\0M\0space file.js\0A\0added.js\0';
   });
   assert.deepEqual(result.files, [
     { path: 'new name.js', status: 'R100', previousPath: 'old name.js' },
     { path: 'deleted.js', status: 'D' },
     { path: 'space file.js', status: 'M' },
+    { path: 'added.js', status: 'A' },
   ]);
   assert.deepEqual(calls[1], [
     'diff',

@@ -247,6 +247,12 @@ function main() {
       reportProducer,
     );
     const decision = readJson(directory, 'decision.json');
+    if (
+      decision.selectorMode !== needs['select-tests']?.outputs?.mode ||
+      decision.selectedIntegrationCount > 0 !==
+        (needs['select-tests']?.outputs?.integration === 'true')
+    )
+      throw new Error('Coverage selection does not match producer outputs');
     inputs = [
       producer(needs['select-tests']?.outputs, 'selection', sha, runId),
       producer(needs['unit-tests']?.outputs, 'unit', sha, runId),

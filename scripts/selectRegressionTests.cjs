@@ -6,70 +6,45 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const FRONTEND_TESTS = [
-  'src/frontend/tests/ApiService.test.js',
-  'src/frontend/tests/AuthContext.test.jsx',
-  'src/frontend/tests/CourseManagement.resetSequencing.test.jsx',
-  'src/frontend/tests/CourseManagement.test.jsx',
-  'src/frontend/tests/LoginPage.test.jsx',
-  'src/frontend/tests/Reports.test.jsx',
-  'src/frontend/tests/Settings.test.jsx',
-  'src/frontend/tests/StudentEvaluation.test.jsx',
-  'src/frontend/tests/TeamAssignment.test.jsx',
-];
+function discoverTests(directory, pattern) {
+  const repositoryRoot = path.resolve(__dirname, '..');
+  const root = path.resolve(repositoryRoot, directory);
+  const relativeBase = path.isAbsolute(directory) ? root : repositoryRoot;
+  const found = [];
+  function visit(current) {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else if (entry.isFile() && pattern.test(entry.name))
+        found.push(path.relative(relativeBase, absolute));
+    }
+  }
+  visit(root);
+  return found.sort();
+}
 
-const BACKEND_TESTS = [
-  'src/backend/tests/auth.test.js',
-  'src/backend/tests/authenticationSuccess.test.js',
-  'src/backend/tests/controllerFailureBoundary.test.js',
-  'src/backend/tests/controllerSuccessPaths.test.js',
-  'src/backend/tests/controllerValidation.test.js',
-  'src/backend/tests/courseAuthorization.test.js',
-  'src/backend/tests/csvParsing.test.js',
-  'src/backend/tests/errorHandler.test.js',
-  'src/backend/tests/evaluationSubmission.test.js',
-  'src/backend/tests/integrationTarget.test.js',
-  'src/backend/tests/invitationContent.test.js',
-  'src/backend/tests/models.test.js',
-  'src/backend/tests/persistenceFailures.test.js',
-  'src/backend/tests/reporting.test.js',
-  'src/backend/tests/rubric.test.js',
-  'src/backend/tests/workflowTransitions.test.js',
-];
+const FRONTEND_TESTS = discoverTests('src/frontend', /\.test\.(js|jsx)$/);
+const BACKEND_TESTS = discoverTests('src/backend/tests', /\.test\.js$/).filter(
+  (file) => !file.startsWith('src/backend/tests/integration/'),
+);
 
-const INTEGRATION_TESTS = [
-  'src/backend/tests/integration/accountSupport.test.js',
-  'src/backend/tests/integration/authentication.test.js',
-  'src/backend/tests/integration/authenticationAccess.test.js',
-  'src/backend/tests/integration/authorization.test.js',
-  'src/backend/tests/integration/courses.test.js',
-  'src/backend/tests/integration/emailIntegration.test.js',
-  'src/backend/tests/integration/environment.test.js',
-  'src/backend/tests/integration/evaluationManagement.test.js',
-  'src/backend/tests/integration/priorityLifecycle.test.js',
-  'src/backend/tests/integration/priorityRoster.test.js',
-  'src/backend/tests/integration/reports.test.js',
-  'src/backend/tests/integration/roster.test.js',
-  'src/backend/tests/integration/studentEvaluation.test.js',
-  'src/backend/tests/integration/submissionIntegrity.test.js',
-  'src/backend/tests/integration/teams.test.js',
-];
+const INTEGRATION_TESTS = discoverTests(
+  'src/backend/tests/integration',
+  /\.test\.js$/,
+);
 
-const E2E_TESTS = [
-  'tests/e2e/fixtures.spec.cjs',
-  'tests/e2e/instructor-setup-launch.spec.cjs',
-  'tests/e2e/reset-relaunch.spec.cjs',
-  'tests/e2e/results-export.spec.cjs',
-  'tests/e2e/smoke.spec.cjs',
-  'tests/e2e/student-invitation-submission.spec.cjs',
-];
+const E2E_TESTS = discoverTests('tests/e2e', /\.spec\.cjs$/);
 
-const ALL = {
-  frontendUnit: FRONTEND_TESTS,
-  backendUnit: BACKEND_TESTS,
-  integration: INTEGRATION_TESTS,
-  e2e: E2E_TESTS,
-};
+function discoverAllTests() {
+  return {
+    frontendUnit: discoverTests('src/frontend', /\.test\.(js|jsx)$/),
+    backendUnit: discoverTests('src/backend/tests', /\.test\.js$/).filter(
+      (file) => !file.startsWith('src/backend/tests/integration/'),
+    ),
+    integration: discoverTests('src/backend/tests/integration', /\.test\.js$/),
+    e2e: discoverTests('tests/e2e', /\.spec\.cjs$/),
+  };
+}
 
 const EMPTY = { frontendUnit: [], backendUnit: [], integration: [], e2e: [] };
 // Exact source paths keep similarly named files from accidentally receiving a narrow selection.
@@ -121,6 +96,7 @@ const journeys = {
   'src/frontend/pages/CourseManagement.jsx': [
     'tests/e2e/instructor-setup-launch.spec.cjs',
     'tests/e2e/reset-relaunch.spec.cjs',
+    'tests/e2e/results-export.spec.cjs',
   ],
   'src/frontend/pages/TeamAssignment.jsx': [
     'tests/e2e/instructor-setup-launch.spec.cjs',
@@ -131,6 +107,7 @@ const journeys = {
   ],
   'src/frontend/pages/StudentEvaluation.jsx': [
     'tests/e2e/student-invitation-submission.spec.cjs',
+    'tests/e2e/reset-relaunch.spec.cjs',
   ],
   'src/frontend/pages/Settings.jsx': [],
 };
@@ -188,7 +165,7 @@ function decision(mode, reason, suites = EMPTY, reasons = []) {
   };
 }
 function fullDecision(reason) {
-  return decision('full', reason, ALL, [reason]);
+  return decision('full', reason, discoverAllTests(), [reason]);
 }
 function select(raw) {
   const paths = parseChangedFiles(raw);
@@ -209,6 +186,10 @@ function select(raw) {
     return decision(
       'none',
       'Documentation-only change; application tests are not required.',
+    );
+  if (paths.some((file) => /^(A|added)$/.test(file.status || '')))
+    return fullDecision(
+      'Added application or test path requires full discovery.',
     );
   const integration = new Set();
   const e2e = new Set();
@@ -257,6 +238,7 @@ if (require.main === module) {
 }
 module.exports = {
   select,
+  discoverTests,
   parseChangedFiles,
   FRONTEND_TESTS,
   BACKEND_TESTS,
