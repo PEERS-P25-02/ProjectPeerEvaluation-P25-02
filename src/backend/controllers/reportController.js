@@ -532,7 +532,8 @@ exports.downloadReport = async (req, res, next) => {
     // Call getCourseReport with mock response
     await exports.getCourseReport(req, mockRes, next);
   } catch (err) {
-    console.error('Error downloading report:', err);
+    // Retain the original failure for diagnosing report downloads.
+    console.error('Failed to download course report:', err);
     err.code = err.code || 'SERVER_ERROR';
     err.status = err.status || 500;
     next(err);
