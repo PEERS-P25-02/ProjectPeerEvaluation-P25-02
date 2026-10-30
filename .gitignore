@@ -2,7 +2,7 @@
 # TLDR: ignores dependencies, build and coverage output, test results, and real env files.
 node_modules
 build/
-coverage/
+/coverage/
 src/backend/coverage/
 test-results/
 .env

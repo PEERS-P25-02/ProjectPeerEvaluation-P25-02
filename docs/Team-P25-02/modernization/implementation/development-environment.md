@@ -98,7 +98,7 @@ Automated invitation email suites and their dated local results are recorded in 
 
 - Add hosted CI jobs that exercise the Compose integration stack; local invitation email suites are recorded in [Email Integration Testing](testing/email-integration.md).
 - Complete clean-install and minimum-supported-runtime verification, plus hosting validation; local Node 24 build evidence is recorded above.
-- The current [CI workflow](../../../../.github/workflows/ci.yml) defines six jobs: frontend build, combined lint and formatting, unit tests, unit coverage, OWASP Dependency-Check, and Gitleaks. It does not run the local integration suite; repository required-check settings are separate from workflow configuration.
+- The current [CI workflow](../../../../.github/workflows/ci.yml) includes test selection, frontend build, lint/formatting, unit tests, selected integration and E2E tests, one changed-line coverage evaluation, OWASP Dependency-Check, Gitleaks, and the final CI gate. That evaluation combines unit coverage with selected API runtime coverage and enforces the 80% changed-executable-line minimum; it does not trigger broader API discovery. Repository required-check settings are separate from workflow configuration.
 - Revisit supported ESLint releases once React, import, and accessibility plugins declare ESLint 10 compatibility.
 
 ## Related Documents
