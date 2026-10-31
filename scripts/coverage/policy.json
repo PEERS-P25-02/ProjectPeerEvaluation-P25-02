@@ -1,6 +1,7 @@
 {
   "version": 1,
   "patchThreshold": 80,
+  "overallLineThreshold": 70,
   "productionRoots": [
     "src/frontend",
     "src/backend"

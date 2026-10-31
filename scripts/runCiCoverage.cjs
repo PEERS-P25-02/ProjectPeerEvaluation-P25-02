@@ -58,6 +58,10 @@ function addRuntime(add, artifact, suite, provenance, name) {
 }
 
 function main() {
+  const kind = process.env.CI_CANDIDATE_KIND;
+  if (!['pull_request', 'merge_group'].includes(kind))
+    throw new Error('Unsupported coverage event');
+  const queue = kind === 'merge_group';
   const root = process.env.COVERAGE_ARTIFACTS || 'coverage-artifacts';
   const output = process.env.COVERAGE_OUTPUT || 'coverage';
   const suites = [];
@@ -106,17 +110,32 @@ function main() {
   const changes = JSON.parse(
     fs.readFileSync(path.join(root, 'selection/changes.json'), 'utf8'),
   );
-  const currentChanges = changedFiles(process.env.PR_BASE_SHA, sha);
+  const base = queue
+    ? execFileSync('git', ['merge-base', 'refs/remotes/origin/main', sha], {
+        encoding: 'utf8',
+      }).trim()
+    : process.env.PR_BASE_SHA;
+  const currentChanges = changedFiles(base, sha);
   if (
     JSON.stringify(changes) !== JSON.stringify(currentChanges) ||
     JSON.stringify(selection) !==
-      JSON.stringify(select(JSON.stringify(changes.files)))
+      JSON.stringify(
+        select(
+          JSON.stringify(changes.files),
+          queue,
+          changes.uncertain === true,
+        ),
+      )
   )
     throw new Error('Selection or merge-base provenance mismatch');
   if (!['selected', 'full'].includes(selection.mode))
     throw new Error('Coverage requires a code-change selection');
+  if (queue && selection.mode !== 'full')
+    throw new Error('Queue coverage requires full selection');
   if (!Array.isArray(selection.integration))
     throw new Error('Invalid integration selection');
+  if (queue && (!selection.integration.length || !selection.e2e?.length))
+    throw new Error('Queue coverage requires complete API and E2E selection');
   add('frontend-unit', path.join(unit, 'coverage/canonical'), 'istanbul');
   add(
     'backend-unit',
@@ -166,6 +185,15 @@ function main() {
     }),
   );
   run(['merge', '--plan', plan, '--output', output]);
+  if (queue) {
+    execFileSync(process.execPath, ['scripts/overallCoverage.cjs'], {
+      stdio: 'inherit',
+      env: { ...process.env, COVERAGE_OUTPUT: output },
+    });
+    return;
+  }
+  if (changes.uncertain === true)
+    throw new Error('Changed-line coverage requires reliable change evidence');
   run([
     'patch',
     '--base',

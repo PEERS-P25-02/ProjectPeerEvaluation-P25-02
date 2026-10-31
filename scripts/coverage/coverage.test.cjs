@@ -377,6 +377,8 @@ test('coverage orchestration retains its report when the changed-line threshold 
   const root = path.join(directory, 'artifacts');
   const output = path.join(directory, 'coverage');
   const changes = {
+    base,
+    head: sha,
     mergeBase: base,
     files: [
       { path: 'src/frontend/tests/StudentEvaluation.test.jsx', status: 'M' },
@@ -456,6 +458,7 @@ cp.execFileSync = (file, args, options) => {
         encoding: 'utf8',
         env: {
           ...process.env,
+          CI_CANDIDATE_KIND: 'pull_request',
           COVERAGE_ARTIFACTS: root,
           COVERAGE_OUTPUT: output,
           PR_HEAD_SHA: sha,

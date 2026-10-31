@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { evaluate } = require('./ciGate.cjs');
+const { evaluate: evaluateEvent } = require('./ciGate.cjs');
+const evaluate = (needs, event = 'pull_request') => evaluateEvent(needs, event);
 function fixture(mode = 'selected') {
   const needs = Object.fromEntries(
     [
@@ -9,12 +10,15 @@ function fixture(mode = 'selected') {
       'code-quality',
       'dependency-vulnerability-scan',
       'secret-scan',
+      'policy-tests',
       'unit-tests',
       'integration-tests',
       'e2e-tests',
       'patch-coverage',
+      'overall-coverage',
     ].map((key) => [key, { result: 'success' }]),
   );
+  needs['overall-coverage'].result = 'skipped';
   needs['select-tests'].outputs = {
     mode,
     integration: mode === 'none' ? 'false' : 'true',
@@ -22,6 +26,7 @@ function fixture(mode = 'selected') {
   };
   if (mode === 'none')
     for (const key of [
+      'policy-tests',
       'unit-tests',
       'integration-tests',
       'e2e-tests',
@@ -35,12 +40,21 @@ test('valid selected and docs-only graphs pass', () => {
     assert.deepEqual(evaluate(needs), []);
 });
 test('all required failures, cancellations, missing and skipped jobs block', () => {
-  for (const key of Object.keys(fixture()))
+  for (const key of Object.keys(fixture()).filter(
+    (key) => key !== 'overall-coverage',
+  ))
     for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
       const needs = fixture();
       needs[key].result = result;
       assert.ok(evaluate(needs).length, `${key}: ${result}`);
     }
+});
+test('PR runs require the queue coverage job to be skipped', () => {
+  for (const result of ['success', 'failure', 'cancelled', undefined]) {
+    const needs = fixture();
+    needs['overall-coverage'].result = result;
+    assert.match(evaluate(needs).join('\n'), /overall-coverage/);
+  }
 });
 test('selector failure or missing selection cannot authorize skipped tests', () => {
   const needs = fixture('none');
@@ -79,6 +93,30 @@ test('an unselected integration or browser job may be skipped', () => {
   needs['select-tests'].outputs.e2e = 'false';
   needs['e2e-tests'].result = 'skipped';
   assert.deepEqual(evaluate(needs), []);
+});
+test('merge-group code requires complete suites and overall coverage', () => {
+  const needs = fixture('full');
+  needs['patch-coverage'].result = 'skipped';
+  needs['overall-coverage'] = { result: 'success' };
+  assert.deepEqual(evaluate(needs, 'merge_group'), []);
+  for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+    needs['overall-coverage'].result = result;
+    assert.match(evaluate(needs, 'merge_group').join('\n'), /overall-coverage/);
+  }
+  needs['overall-coverage'].result = 'success';
+  needs['select-tests'].outputs.mode = 'selected';
+  assert.match(evaluate(needs, 'merge_group').join('\n'), /full selection/);
+});
+test('merge-group docs-only permits only authorized suite skips', () => {
+  const needs = fixture('none');
+  needs['overall-coverage'] = { result: 'skipped' };
+  assert.deepEqual(evaluate(needs, 'merge_group'), []);
+  needs['unit-tests'].result = 'success';
+  assert.match(evaluate(needs, 'merge_group').join('\n'), /unit-tests/);
+});
+test('unsupported or missing event cannot pass', () => {
+  for (const event of [undefined, 'push'])
+    assert.match(evaluateEvent(fixture(), event).join('\n'), /Unsupported/);
 });
 const { addRuntime, validateCapture } = require('./runCiCoverage.cjs');
 test('selected API coverage requires its expected artifact', () => {
