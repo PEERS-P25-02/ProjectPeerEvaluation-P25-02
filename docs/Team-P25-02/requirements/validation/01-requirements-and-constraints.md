@@ -37,7 +37,7 @@ The goal of this project is to modernize the existing PEERS application by intro
 | FR-13 | Continuous Integration | Each code commit pushed to the repository and each pull request targeting main shall automatically trigger the required CI workflow. |
 | FR-14 | Continuous Integration | The CI workflow shall build the application and run configured linting and formatting checks. |
 | FR-15 | Continuous Integration | The CI workflow shall run automated unit and integration tests. |
-| FR-16 | Continuous Integration | The project shall use Jest and React Testing Library for appropriate frontend automated tests. |
+| FR-16 | Continuous Integration | The project shall use Vitest and React Testing Library for appropriate frontend automated tests. |
 | FR-17 | Continuous Integration | The project shall use Playwright for agreed end-to-end and regression workflows. |
 | FR-18 | Continuous Integration | The CI workflow shall perform dependency and security checks and make the results available to maintainers. |
 | FR-19 | Continuous Integration | Required failed checks shall prevent a pull request from being merged into main. |

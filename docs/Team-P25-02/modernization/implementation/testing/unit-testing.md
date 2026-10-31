@@ -142,13 +142,12 @@ Detailed verification is recorded in [03-frontend-unit-test-validation.md](front
 
 - Verify watch-mode reruns and frontend, backend, and combined failure exit codes where needed.
 - Continue expanding business-logic, integration, regression, and end-to-end coverage.
-- Reconcile the Vitest implementation with FR-16, which specifies Jest, through the requirements approval process.
 
 The [integration environment](integration-test-environment.md) and
 [CI implementation record](../continuous-integration.md) describe the
 implemented services, commands, and retained evidence.
 
-The [requirements tracker](../../../requirements/traceability/02-rtm.md) records FR-16 as In Progress. FR-16 specifies Jest, while the implementation uses Vitest; this conflict remains open and the requirement text is unchanged. The frontend unit tests improve frontend coverage but do not complete the integration-testing scope.
+The [requirements tracker](../../../requirements/traceability/02-rtm.md) records FR-16 as In Progress. The frontend unit tests improve frontend coverage but do not complete the integration-testing scope.
 
 ## Related Documents
 

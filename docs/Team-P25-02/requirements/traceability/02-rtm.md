@@ -248,7 +248,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <tr>
 <td>FR-16</td>
 <td>Functional</td>
-<td>The project shall use Jest and React Testing Library for appropriate frontend automated tests.</td>
+<td>The project shall use Vitest and React Testing Library for appropriate frontend automated tests.</td>
 <td>High</td>
 <td>Client</td>
 <td>Vitest / React Testing Library / jsdom</td>
@@ -258,7 +258,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/unit-testing.md#test-results">Unit test results</a></td>
 <td></td>
-<td>The project uses Vitest and React Testing Library rather than the Jest framework named in FR-16; this requirement conflict remains open. See the <a href="../../modernization/implementation/testing/unit-testing.md">unit-testing record</a>. End-to-end verification remains separately tracked under FR-17.</td>
+<td>The project uses Vitest and React Testing Library for frontend tests. See the <a href="../../modernization/implementation/testing/unit-testing.md">unit-testing record</a>. End-to-end verification remains separately tracked under FR-17.</td>
 </tr>
 <tr>
 <td>FR-17</td>
