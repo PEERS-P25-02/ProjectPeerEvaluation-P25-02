@@ -83,8 +83,7 @@ CI can supply an ephemeral `JWT_SECRET` through the job environment and invoke `
 | Manifest and lockfile synchronization | Metadata consistency and diff whitespace checks passed. |
 | Lint and formatting (Node 24.21.0/npm 11.19.0) | Both passed; lint reported zero errors and zero warnings. Backend uses the shared root tooling. |
 | Production build (Node 24.21.0/npm 11.19.0) | Passed; JavaScript bundle 651.02 kB, with the existing >500 kB chunk warning. |
-| Existing unit suites | Frontend and backend each passed their existing single test. Test files share the formatter baseline; assertions and cases are unchanged. |
-| Minimum supported Node versions | Clean installation and behavior verification have not been reported. |
+| Unit suites and minimum Node versions | Clean installations and both unit suites passed on Node 22.22.2, 24.15.0, and 26.0.0. See [unit test results](testing/unit-testing.md#test-results). |
 
 Testing verification and recorded results are maintained in [Unit Testing Implementation](testing/unit-testing.md#test-results). Manual API and browser checks still require the appropriate isolated database and email services.
 
@@ -92,13 +91,11 @@ Testing verification and recorded results are maintained in [Unit Testing Implem
 
 Recorded runtime checks used synthetic data with Docker Engine 29.4.0 and Compose 5.1.1. They covered healthy startup, HTTP proxy and SPA routing, registration/login, protected API access, Mailpit capture with local email links, HTTP 503 during a database outage, and account persistence after down/up. The disposable containers and database volume were removed afterward.
 
-Automated invitation email suites and their dated local results are recorded in [Email Integration Testing](testing/email-integration.md). Hosted CI jobs that exercise the stack remain separate work. Password-reset routing and response-contract defects remain tracked in [Known Bugs](../../known-bugs.md); full password-reset completion is not claimed.
+Automated invitation email suites and their results are recorded in [Email Integration Testing](testing/email-integration.md). CI runs isolated integration and browser test stacks; see the [CI guide](../../developer-guides/continuous-integration.md). Password-reset routing and response-contract defects remain tracked in [Known Bugs](../../known-bugs.md); full password-reset completion is not claimed.
 
 ## Remaining Development Environment Work
 
-- Add hosted CI jobs that exercise the Compose integration stack; local invitation email suites are recorded in [Email Integration Testing](testing/email-integration.md).
-- Complete clean-install and minimum-supported-runtime verification, plus hosting validation; local Node 24 build evidence is recorded above.
-- The current [CI workflow](../../../../.github/workflows/ci.yml) includes test selection, frontend build, lint/formatting, unit tests, selected integration and E2E tests, one changed-line coverage evaluation, OWASP Dependency-Check, Gitleaks, and the final CI gate. That evaluation combines unit coverage with selected API runtime coverage and enforces the 80% changed-executable-line minimum; it does not trigger broader API discovery. Repository required-check settings are separate from workflow configuration.
+- Complete hosting validation; the minimum-version checks above cover clean installation and unit suites.
 - Revisit supported ESLint releases once React, import, and accessibility plugins declare ESLint 10 compatibility.
 
 ## Related Documents

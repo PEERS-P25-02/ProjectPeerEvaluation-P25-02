@@ -126,4 +126,8 @@ Confirmed exposed credentials block and must be revoked or rotated; no active cr
 
 Retain the tested candidate SHA, commands, tool/configuration versions, suite selection, outcomes, coverage provenance, report locations, cleanup status, and exception disposition. Selection, unit, service-backed, and coverage artifacts identify the candidate SHA, workflow run, and producer attempt. Preserve the source manifest, normalized inputs, merge plan, per-package four-metric reports, and applicable patch or overall-line decision alongside raw captures. Preserve previous results as historical evidence rather than proof of a changed workflow. See the [CI verification record](../modernization/implementation/continuous-integration.md) for actual validation and limitations.
 
+Hosted merge-group code and documentation candidates have passed; the
+CI record links their runs. These successes do not establish every
+controlled failure scenario listed in this policy.
+
 The workflow implements pull-request and merge-group validation but does not itself configure repository rulesets or queue settings. CI on pushes to `main`, post-merge verification, and deployment are deferred to Milestone 3. No external course document or GitHub settings are updated by this policy change.
