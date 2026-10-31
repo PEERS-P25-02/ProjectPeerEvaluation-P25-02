@@ -147,7 +147,7 @@ The [integration environment](integration-test-environment.md) and
 [CI implementation record](../continuous-integration.md) describe the
 implemented services, commands, and retained evidence.
 
-The [requirements tracker](../../../requirements/traceability/02-rtm.md) records FR-16 as In Progress. The frontend unit tests improve frontend coverage but do not complete the integration-testing scope.
+The [requirements tracker](../../../requirements/traceability/02-rtm.md) records FR-16 as Verified. The frontend unit tests improve frontend coverage but do not complete the integration-testing scope.
 
 ## Related Documents
 

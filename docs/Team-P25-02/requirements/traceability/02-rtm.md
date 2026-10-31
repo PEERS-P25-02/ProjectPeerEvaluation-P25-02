@@ -255,7 +255,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td><a href="../../../../package.json">Frontend package</a>; <a href="../../../../vite.config.mjs">Vitest configuration</a>; <a href="../../../../src/frontend/test/setup.js">DOM assertion setup</a>; <a href="../../../../src/frontend/tests/LoginPage.test.jsx">Frontend test</a></td>
 <td>UNIT-FE-001; UNIT-FE-002; UNIT-FE-003; UNIT-FE-004; UNIT-CI-001; UNIT-CI-002</td>
 <td>Unit Test + Integration Test</td>
-<td>In Progress</td>
+<td>Verified</td>
 <td><a href="../../modernization/implementation/testing/unit-testing.md#test-results">Unit test results</a></td>
 <td></td>
 <td>The project uses Vitest and React Testing Library for frontend tests. See the <a href="../../modernization/implementation/testing/unit-testing.md">unit-testing record</a>. End-to-end verification remains separately tracked under FR-17.</td>
