@@ -1,5 +1,7 @@
 // Missing and unexpectedly skipped jobs must never turn an incomplete run green.
-function evaluate(needs) {
+function evaluate(needs, eventName) {
+  if (!['pull_request', 'merge_group'].includes(eventName))
+    return [`Unsupported CI event: ${eventName || 'missing'}`];
   const failures = [];
   const requireResult = (name, expected = 'success') => {
     if (needs[name]?.result !== expected)
@@ -20,6 +22,8 @@ function evaluate(needs) {
   if (!['none', 'selected', 'full'].includes(mode))
     failures.push('Invalid or missing selector decision');
   const code = mode === 'selected' || mode === 'full';
+  if (eventName === 'merge_group' && code && mode !== 'full')
+    failures.push('Merge-group code candidate requires full selection');
   for (const key of ['integration', 'e2e']) {
     if (
       (mode === 'none' && outputs[key] !== 'false') ||
@@ -27,6 +31,7 @@ function evaluate(needs) {
     )
       failures.push(`Inconsistent ${mode} ${key} selection`);
   }
+  requireResult('policy-tests', code ? 'success' : 'skipped');
   requireResult('unit-tests', code ? 'success' : 'skipped');
   for (const [job, key] of [
     ['integration-tests', 'integration'],
@@ -36,12 +41,22 @@ function evaluate(needs) {
       failures.push(`Invalid ${key} selection`);
     requireResult(job, outputs[key] === 'true' ? 'success' : 'skipped');
   }
-  requireResult('patch-coverage', code ? 'success' : 'skipped');
+  requireResult(
+    'patch-coverage',
+    eventName === 'pull_request' && code ? 'success' : 'skipped',
+  );
+  requireResult(
+    'overall-coverage',
+    eventName === 'merge_group' && code ? 'success' : 'skipped',
+  );
   return failures;
 }
 if (require.main === module) {
   try {
-    const failures = evaluate(JSON.parse(process.env.CI_NEEDS));
+    const failures = evaluate(
+      JSON.parse(process.env.CI_NEEDS),
+      process.env.CI_CANDIDATE_KIND,
+    );
     if (failures.length) throw new Error(failures.join('\n'));
     console.log('All required CI outcomes passed.');
   } catch (error) {

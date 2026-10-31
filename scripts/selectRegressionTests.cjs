@@ -167,7 +167,9 @@ function decision(mode, reason, suites = EMPTY, reasons = []) {
 function fullDecision(reason) {
   return decision('full', reason, discoverAllTests(), [reason]);
 }
-function select(raw) {
+function select(raw, forceFull = false, uncertain = false) {
+  if (uncertain)
+    return fullDecision('Change evidence is uncertain; run all suites.');
   const paths = parseChangedFiles(raw);
   if (
     paths.some(
@@ -186,6 +188,10 @@ function select(raw) {
     return decision(
       'none',
       'Documentation-only change; application tests are not required.',
+    );
+  if (forceFull)
+    return fullDecision(
+      'Merge-group code candidate requires complete suite discovery.',
     );
   if (paths.some((file) => /^(A|added)$/.test(file.status || '')))
     return fullDecision(
@@ -229,7 +235,7 @@ function select(raw) {
 if (require.main === module) {
   try {
     process.stdout.write(
-      `${JSON.stringify(select(process.env.CHANGED_FILES))}\n`,
+      `${JSON.stringify(select(process.env.CHANGED_FILES, process.env.CI_CANDIDATE_KIND === 'merge_group', process.env.CI_CHANGE_UNCERTAIN === 'true'))}\n`,
     );
   } catch (error) {
     console.error(error.message);

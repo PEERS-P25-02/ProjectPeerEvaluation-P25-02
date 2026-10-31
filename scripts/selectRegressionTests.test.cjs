@@ -148,3 +148,27 @@ test('invalid input blocks selection rather than silently selecting', () => {
   for (const raw of ['[]', '{bad', '["../README.md"]', '[""]'])
     assert.throws(() => select(raw));
 });
+test('uncertain evidence selects every suite', () => {
+  const result = select('[]', true, true);
+  assert.equal(result.mode, 'full');
+  assert.ok(result.frontendUnit.length);
+  assert.ok(result.backendUnit.length);
+  assert.ok(result.integration.length);
+  assert.ok(result.e2e.length);
+});
+test('docs-only candidate behind queued code selects every suite', () => {
+  const result = select(JSON.stringify(['README.md', 'src/index.jsx']), true);
+  assert.equal(result.mode, 'full');
+});
+test('merge-group docs-only candidates skip suites', () => {
+  assert.equal(select(JSON.stringify(['README.md']), true).mode, 'none');
+});
+test('merge-group code candidates discover all suites', () => {
+  const result = select(
+    JSON.stringify(['src/frontend/pages/StudentEvaluation.jsx']),
+    true,
+  );
+  assert.equal(result.mode, 'full');
+  assert.ok(result.integration.length > 0);
+  assert.ok(result.e2e.length > 0);
+});
