@@ -6,6 +6,8 @@
 - [Local development guide](developer-guides/local-development.md)
 - [Testing guide](developer-guides/testing.md)
 - [Continuous integration guide](developer-guides/continuous-integration.md)
+- [Student roster CSV format](developer-guides/csv-upload-format.md)
+- [Documents inherited from the previous team](../historical/)
 
 ## Approved requirements
 
