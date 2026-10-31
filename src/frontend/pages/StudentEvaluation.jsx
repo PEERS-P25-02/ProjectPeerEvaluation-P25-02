@@ -236,7 +236,8 @@ function StudentEvaluation() {
             color="inherit"
             sx={{ flexGrow: 1, fontWeight: 700 }}
           >
-            {evaluationData?.rubric?.title || 'Peer Evaluation'}
+            {/* Sponsor regression probe: the generic title hides the issued rubric identity. */}
+            Peer Evaluation
           </Typography>
         </Toolbar>
       </AppBar>
