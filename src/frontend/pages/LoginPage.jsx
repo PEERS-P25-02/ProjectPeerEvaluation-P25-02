@@ -98,7 +98,8 @@ function LoginPage() {
 
   return (
     <div style={{ maxWidth: '400px', margin: 'auto', paddingTop: '50px' }}>
-      <h2>{isRegistering ? 'Professor Registration' : 'Professor Login'}</h2>
+      {/* Sponsor CI probe: existing login tests should reject this altered heading. */}
+      <h2>{isRegistering ? 'Professor Registration' : 'Professor Sign In'}</h2>
       <form onSubmit={handleSubmit}>
         {isRegistering && (
           <>
