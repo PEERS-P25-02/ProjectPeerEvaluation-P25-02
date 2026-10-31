@@ -118,7 +118,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Check selection, gate, and coverage policy
-        run: node --test scripts/selectRegressionTests.test.cjs scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs scripts/integrationTestPaths.test.cjs scripts/coverage/coverage.test.cjs
+        run: node --test scripts/selectRegressionTests.test.cjs scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs scripts/integrationTestPaths.test.cjs scripts/coverage/coverage.test.cjs scripts/overallCoverage.test.cjs
   # Keep the build independent so it reports separately from quality and tests.
   frontend-build:
     name: Frontend Build
