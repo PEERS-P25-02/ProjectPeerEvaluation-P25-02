@@ -1,23 +1,25 @@
 # Milestone 2: Unit Testing Implementation
 
-**Updated:** October 21, 2026
-**Status:** Frontend and backend unit-test suites are implemented; integration and end-to-end coverage remain separate. Recorded suite counts vary by dated snapshot.
+**Updated:** October 31, 2026
+**Status:** Frontend and backend unit-test suites are implemented. Integration and end-to-end tests are separate layers.
 
 ## Purpose and Scope
 
-This document records testing implementation completed for the PEERS project. It covers the configured testing tools, commands, initial test cases, recorded results, and expanded frontend unit-test coverage.
+This document describes the unit-testing tools, commands, cases, and current verification results.
 
 The [Automated Testing Strategy](../../plans/automated-testing-strategy/README.md) remains the separate Milestone 1 strategy and inherited testing baseline. Development setup and supporting-service implementation are documented in the [Milestone 2 environment implementation](../development-environment.md).
 
-## Implemented Tooling
+## Testing Strategy
+
+### Implemented Tooling
 
 | Area | Implementation |
 | --- | --- |
-| Frontend runner | Vitest `^5.0.4`, configured through `vite.config.mjs`. |
-| Browser environment | jsdom `^30.1.2`, with Vitest globals enabled for the frontend. |
+| Frontend runner | Vitest `^5.0.5`, configured through `vite.config.mjs`. |
+| Browser environment | jsdom `^30.1.3`, with Vitest globals enabled for the frontend. |
 | Component testing | React Testing Library renders the application and queries user-visible elements. |
 | DOM assertions | `@testing-library/jest-dom/vitest` loads automatically through `src/frontend/test/setup.js`. |
-| Backend runner | Vitest `^5.0.4` uses its default Node environment for isolated middleware testing. |
+| Backend runner | Vitest `^5.0.5` uses its default Node environment for isolated unit testing. |
 | Commands | Both packages provide one-shot and watch scripts; root `test:all` runs both suites through the existing concurrently dependency. |
 | Jest cleanup | The unused `@types/jest` dependency and ESLint Jest environment were removed. |
 | Dependency records | Both package lockfiles include the test-tooling dependency changes. |
@@ -26,11 +28,11 @@ Implementation artifacts include the [frontend package](../../../../../package.j
 
 ### Runtime Compatibility
 
-Vitest `^5.0.4` is installed in both packages, and jsdom `^30.1.2` supplies the frontend browser environment. The unused `@types/jest` dependency and ESLint Jest environment were removed. The frontend loads DOM assertions from `@testing-library/jest-dom/vitest` through [the test setup file](../../../../../src/frontend/test/setup.js).
+Vitest `^5.0.5` is listed in both packages, and jsdom `^30.1.3` supplies the frontend browser environment. The unused `@types/jest` dependency and ESLint Jest environment were removed. The frontend loads DOM assertions from `@testing-library/jest-dom/vitest` through [the test setup file](../../../../../src/frontend/test/setup.js).
 
 Vitest 5 excludes Node 20, and jsdom 30 requires Node `^22.22.2 || ^24.15.0 || >=26.0.0`. Both package manifests and lockfile root entries were aligned with that range. npm remains `>=9.0.0`, and strict engine enforcement remains enabled.
 
-## Unit-Test Workflow
+### Unit-Test Workflow
 
 | Command | Purpose |
 | --- | --- |
@@ -40,13 +42,18 @@ Vitest 5 excludes Node 20, and jsdom 30 requires Node `^22.22.2 || ^24.15.0 || >
 | `npm run test:watch` | Rerun affected frontend tests during development. |
 | `npm --prefix src/backend run test:watch` | Rerun affected backend tests during development. |
 
-Watch mode keeps the runner open and reruns affected tests when relevant files change. One-shot commands exit after execution and return a nonzero status on test failure. CI should run package-specific commands separately to report frontend and backend failures independently.
+Watch mode keeps the runner open and reruns affected tests when relevant files change. One-shot commands exit after execution and return a nonzero status on test failure. CI runs package-specific commands separately.
 
 Vitest was selected for the backend to share a runner and command pattern with the Vite-based frontend. Its assertions and mocking utilities support isolated unit tests without MongoDB, SMTP, or a running Express server.
 
 Frontend tests belong in `src/frontend/tests/` and backend tests in `src/backend/tests/`. The frontend uses jsdom and React Testing Library; backend tests use Vitest's default Node environment. Backend success, failure, and boundary controller coverage is documented in the [backend unit testing implementation](backend-unit-testing.md); integration, regression, and end-to-end coverage remain separate.
 
-## Initial Unit Test Cases
+## Test Cases
+
+| Package | Case groups | Detailed record |
+| --- | --- | --- |
+| Frontend | Login and authentication, course and team management, evaluation, reports, settings, and API service behavior. | [Frontend unit validation](frontend-unit-test-validation.md) |
+| Backend | Authentication and authorization, controller success and failure paths, validation, roster CSV parsing, evaluation submission, reporting, models, and workflow transitions. | [Backend unit testing](backend-unit-testing.md) |
 
 The following cases were added during the initial unit-testing setup. The cases use synthetic in-memory request and browser state and do not require MongoDB, a live backend, or real email delivery.
 
@@ -57,43 +64,30 @@ The following cases were added during the initial unit-testing setup. The cases 
 | UNIT-CI-001 | Frontend / command verification | Temporarily change one expected frontend assertion to an incorrect value and run `npm test`; restore the assertion and rerun the command. | The temporary run exits nonzero; the restored run passes. | [`LoginPage.test.jsx`](../../../../../src/frontend/tests/LoginPage.test.jsx) |
 | UNIT-CI-002 | Frontend + backend / command verification | Run `npm run test:all` from the repository root. | Both package suites run once, both pass, and the combined command exits successfully. | Root `package.json`, frontend and backend test results |
 
-## Initial Test Results
+## Test Results
 
-These results were recorded during the initial testing implementation. They are kept here as the starting testing baseline.
+Verified October 31, 2026 at revision `d0088f7`. Clean `npm ci`
+installations for both packages and both unit suites passed on Node
+22.22.2, 24.15.0, and 26.0.0 in isolated copies. The suites did not
+require application services.
 
-| Test ID | Actual result | Status |
-| --- | --- | --- |
-| UNIT-FE-001 | Root `npm test` reported 1 frontend test file and 1 test passed. | Passed |
-| UNIT-BE-001 | `npm --prefix src/backend test` reported 1 backend test file and 1 test passed. | Passed |
-| UNIT-CI-001 | The temporary incorrect frontend assertion failed. After restoration, the frontend test passed. | Passed |
-| UNIT-CI-002 | `npm run test:all` reported the frontend and backend test suites passed. | Passed |
+| Date | Command | Recorded outcome | Evidence |
+| --- | --- | --- | --- |
+| October 31, 2026 | `npm test` | 10 frontend files, 85 tests passed. | Local command output |
+| October 31, 2026 | `npm --prefix src/backend test` | 16 backend files, 143 tests passed. | Local command output |
 
-The initial tests verified the test-runner setup and basic existing behavior. They were not meant to provide complete frontend or backend coverage.
+These unit results do not establish complete functional regression coverage.
 
-## Verification After Runtime Alignment
-
-| Check | Recorded result |
-| --- | --- |
-| Dependency installation | Developer reported successful `npm run setup`. |
-| Individual frontend and backend tests | Developer reported both suites passing. |
-| Manifest and lockfile synchronization | Metadata consistency and diff whitespace checks passed. |
-| Combined command and frontend failure-exit behavior | Initial results are preserved above. |
-| Watch mode and backend/combined failure-exit behavior | Additional verification remains available for future work. |
-| Minimum supported Node versions | Clean installation and testing across all declared supported Node versions has not been fully verified. |
-
-A later verification snapshot on October 19, 2026 used Node 24.21.0 and npm 11.19.0. The existing frontend and backend suites each passed one test at that time.
-
-The shared Prettier baseline includes tests, setup helpers, and manual API scripts. ESLint checks both suites and applies `@vitest/eslint-plugin` recommended rules to automated test/spec files. Focused tests, invalid assertions, and duplicate titles are errors. Skipped tests produce warnings.
-
-See the [ESLint implementation record](../tooling/eslint-and-formatting.md) for the related lint, formatting, build, and in-memory verification.
+The earlier `UNIT-CI-001` verification confirmed that a deliberately
+incorrect frontend assertion caused a failure and that the test passed
+after the assertion was restored. This check was not repeated in the
+October 31 run.
 
 ## Frontend Unit Test Coverage
 
-The original 29-test result is preserved below as an initial snapshot. The [October 22 coverage follow-up](frontend-unit-test-validation.md#october-22-follow-up-frontend-coverage-expansion) records the expanded 57-test suite, measured coverage, and regression checks as a dated snapshot. The [priority-workflow baseline follow-up](frontend-unit-test-validation.md#october-22-follow-up-priority-workflow-baseline) records five further tests and maps the 62-test frontend suite to the documented priority workflows. The [failure and boundary follow-up](frontend-unit-test-validation.md#failure-and-boundary-follow-up) records the additional malformed-authentication-state case and links the coordinated backend boundary case.
-
-The frontend suite uses Vitest and React Testing Library and covers the following application behaviors. Its recorded count grew from 29 tests initially to 63 in the October 24, 2026 snapshot. Backend unit-test counts are documented by their individual dated suite snapshots.
-
-The frontend tests are located in `src/frontend/tests/` and cover several parts of the PEERS frontend.
+The frontend suite uses Vitest and React Testing Library. Detailed
+case mappings and verification are in
+[Frontend Unit Test Validation](frontend-unit-test-validation.md).
 
 The test files include:
 
@@ -105,6 +99,10 @@ The test files include:
 - `TeamAssignment.test.jsx`
 - `Reports.test.jsx`
 - `CourseManagement.test.jsx`
+- `CourseManagement.resetSequencing.test.jsx`
+
+These files are in `src/frontend/tests/`. The suite also includes
+`src/frontend/test/setup.test.js`.
 
 The tests cover:
 
@@ -134,41 +132,6 @@ The tests cover:
 - empty Course Management results;
 - Course Management loading errors.
 
-The initial 29-test frontend suite was recorded with:
-
-```bash
-npm test
-```
-
-Recorded result:
-
-```text
-Test Files  8 passed (8)
-Tests       29 passed (29)
-```
-
-All 29 frontend tests passed in that initial snapshot. Later snapshots are recorded in [Frontend Unit Test Validation](frontend-unit-test-validation.md).
-
-The frontend test folder was also checked with ESLint:
-
-```bash
-npx eslint src/frontend/tests
-```
-
-ESLint completed with no errors.
-
-The frontend test files were checked with Prettier:
-
-```bash
-npx prettier --check "src/frontend/tests/**/*.{js,jsx}"
-```
-
-Prettier reported:
-
-```text
-All matched files use Prettier code style!
-```
-
 Mocks are used when needed so the frontend unit tests do not require the real backend, MongoDB, or email service. This helps keep the tests repeatable.
 
 Some tests intentionally create error conditions, such as invalid evaluation links or failed API requests. These tests may print expected error messages in the terminal. Existing MUI Grid code may also print migration warnings. These messages did not cause the test suite to fail.
@@ -178,11 +141,12 @@ Detailed verification is recorded in [03-frontend-unit-test-validation.md](front
 ## Remaining Testing Work
 
 - Verify watch-mode reruns and frontend, backend, and combined failure exit codes where needed.
-- Verify clean installation and test execution on the declared minimum supported Node versions.
 - Continue expanding business-logic, integration, regression, and end-to-end coverage.
-- Provide isolated MongoDB and Mailpit services, synthetic fixtures, readiness checks, and cleanup for integration tests.
-- Connect package-specific commands to CI and retain test reports.
 - Reconcile the Vitest implementation with FR-16, which specifies Jest, through the requirements approval process.
+
+The [integration environment](integration-test-environment.md) and
+[CI implementation record](../continuous-integration.md) describe the
+implemented services, commands, and retained evidence.
 
 The [requirements tracker](../../../requirements/traceability/02-rtm.md) records FR-16 as In Progress. FR-16 specifies Jest, while the implementation uses Vitest; this conflict remains open and the requirement text is unchanged. The frontend unit tests improve frontend coverage but do not complete the integration-testing scope.
 

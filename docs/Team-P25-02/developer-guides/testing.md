@@ -69,11 +69,8 @@ npm run test:integration
 The runner starts a backend with disposable transaction-capable MongoDB and Mailpit services, generates isolated settings rather than reading the development `.env`, runs the backend integration suite, saves logs and a result summary under the ignored `test-results/integration/` directory, and cleans up its Compose project and volumes after success, failure, or a handled interrupt. It publishes no host ports. If Docker or the computer stops unexpectedly, inspect for leftover Compose resources before retrying.
 
 Integration cases cover API/database operations, authorization, and email
-handling. Dated results and cleanup evidence are retained in the
-[API/database record](../modernization/implementation/testing/api-database-integration.md),
-[authentication and authorization record](../modernization/implementation/testing/authentication-authorization-integration.md),
-and [email record](../modernization/implementation/testing/email-integration.md).
-Those recorded results do not represent a new run.
+handling. See the [integration testing record](../modernization/implementation/testing/integration-testing.md)
+for the case map, results, and links to detailed records.
 
 For development Compose setup and native backend connections, see the
 [local development guide](local-development.md).
@@ -127,7 +124,7 @@ See the [ESLint migration notes](../modernization/implementation/tooling/eslint-
 
 These project documents describe existing test implementations, evidence, and limitations:
 
-- [Frontend unit testing implementation](../modernization/implementation/testing/unit-testing.md#initial-unit-test-cases)
+- [Unit testing implementation](../modernization/implementation/testing/unit-testing.md#test-cases)
 - [Backend unit testing implementation](../modernization/implementation/testing/backend-unit-testing.md)
 - [CI build, lint, and unit verification](../modernization/implementation/continuous-integration.md)
 - [Integration test environment](../modernization/implementation/testing/integration-test-environment.md)

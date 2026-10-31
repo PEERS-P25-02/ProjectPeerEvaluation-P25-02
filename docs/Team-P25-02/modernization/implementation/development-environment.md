@@ -86,7 +86,7 @@ CI can supply an ephemeral `JWT_SECRET` through the job environment and invoke `
 | Existing unit suites | Frontend and backend each passed their existing single test. Test files share the formatter baseline; assertions and cases are unchanged. |
 | Minimum supported Node versions | Clean installation and behavior verification have not been reported. |
 
-Testing verification and recorded results are maintained in [Unit Testing Implementation](testing/unit-testing.md#verification-after-runtime-alignment). Manual API and browser checks still require the appropriate isolated database and email services.
+Testing verification and recorded results are maintained in [Unit Testing Implementation](testing/unit-testing.md#test-results). Manual API and browser checks still require the appropriate isolated database and email services.
 
 ## Compose Verification
 
