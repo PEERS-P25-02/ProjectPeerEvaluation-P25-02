@@ -126,4 +126,6 @@ Run these commands from the repository root.
 | `npm --prefix src/backend run test:coverage` | Run backend tests and generate V8 coverage reports under `src/backend/coverage/`. |
 | `npm run test:all:coverage` | Run frontend and backend coverage commands sequentially; no minimum threshold is enforced. |
 
+These local commands produce unit-test reports; they do not reproduce CI's changed-line or merge-group coverage gates. See [Continuous integration](continuous-integration.md) for those checks.
+
 For test selection, coverage behavior, isolated integration checks, and implementation-record links, see [Testing](testing.md).

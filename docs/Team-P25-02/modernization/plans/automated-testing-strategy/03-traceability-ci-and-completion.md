@@ -95,7 +95,7 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 
 | Area | Progress | Remaining Action / Evidence |
 | --- | --- | --- |
-| Frontend baseline | Initial baseline recorded | One login-rendering test is documented with its results in [Unit Testing Implementation](../../implementation/testing/unit-testing.md#initial-test-results). Maintain that baseline as coverage grows. |
+| Frontend baseline | Initial baseline recorded | The initial login-rendering case is documented in [Unit Testing Implementation](../../implementation/testing/unit-testing.md#test-cases). Maintain that baseline as coverage grows. |
 | Backend framework | Implemented | Vitest and one-shot/watch scripts are configured. Expand the initial missing-token test to high-risk backend logic and routes. |
 | Unit and integration coverage | In Progress | Two initial unit tests exist. Expand high-risk unit coverage and implement service-backed integration tests. |
 | Regression coverage | Not Started | Build regression coverage for sponsor-approved priority workflows. |

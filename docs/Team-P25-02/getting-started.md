@@ -23,7 +23,7 @@ docker compose version
 Clone the repository, install dependencies, and start the local stack:
 
 ```bash
-git clone https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02.git
+git clone https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02.git
 cd ProjectPeerEvaluation-P25-02
 npm run setup
 npm run docker:up

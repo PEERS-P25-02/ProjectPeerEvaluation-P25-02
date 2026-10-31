@@ -34,9 +34,13 @@ The extended E2E-42-01 and E2E-42-03 assertions target REG-CW02-02, REG-CW05-01,
 
 ## 3. Test Results
 
-The implementation was verified locally on the issue #42 worktree based on the then-current main commit `8a563b2dc9408b571e6812c90658b3820a3a72cc`. The full command `npm run test:e2e -- --repeat-each=2` passed 26 tests in each cycle (52 executions total). Four journey cases also passed in focused runs. A preliminary repeated run exposed locator/flow assumptions; those were corrected before the final passing run. Cleanup was verified for the recorded final runs.
+On October 31, 2026, `npm run test:e2e` passed all 13 tests at revision
+`d0088f7` and exited successfully. The runner reported verified cleanup;
+the teardown log also recorded a container-stopping error.
 
-The same implementation handoff records passing frontend tests (63), backend tests (65), lint, formatting, frontend build, focused CSV export regression, and whitespace checks. The build emitted the existing large-chunk warning. These are historical results from that implementation work, not reruns for this documentation change. Hosted E2E CI has not been demonstrated.
+Local results and logs are under `test-results/e2e/24827da3ee772172/`,
+which is ignored by Git. This was a local run. See the
+[CI implementation record](../continuous-integration.md) for hosted evidence.
 
 The related CSV export defect (quoted delimiter, quote, and newline handling) was fixed and documented as BUG-021 in the known-bugs record. The browser journeys do not close all 74 regression-matrix targets. Remaining areas include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, inconsistent report source data, and other partial/missing matrix assertions. See the [regression coverage gaps](regression-coverage-gaps.md).
 
@@ -44,13 +48,8 @@ The related CSV export defect (quoted delimiter, quote, and newline handling) wa
 
 The existing instructor and results journeys were extended for REG-CW02-02, REG-CW05-01, and REG-CW09-01. The instructor now edits course number, section, and semester through the browser and verifies reloaded fields, persisted identity, and owner. After browser launch, captured invitations must expose the existing rubric title/criterion IDs/scales, edited course context, and exact peers from the reorganized teams. Stored evaluator tokens match the invitations; the other owner's course remains uninvited. The results journey now checks each student's rendered numeric mean score against the independent calculation already used for API/CSV checks.
 
-| Command | Actual result | Local evidence |
-| --- | --- | --- |
-| `npm run test:e2e -- instructor-setup-launch.spec.cjs results-export.spec.cjs` | Passed 2/2; exit 0; cleanup verified. | `test-results/e2e/a5f9762d6883293c/result.json` and runner/service logs. |
-| `npm run test:e2e` | Passed 13/13; exit 0; cleanup verified. | `test-results/e2e/fbb1652759a6f104/result.json` and runner/service logs. |
-| `npm run lint`, `npm run format:check`, `npm run build` | Passed; build retains the existing bundle-size warning. | Local command output; no hosted E2E claim. |
-
-Each browser command used a fresh guarded Compose/MongoDB/Mailpit stack and synthetic data. Evidence directories are local ignored artifacts. The gap inventory now marks REG-CW02-02 and REG-CW05-01 Present, for 57 Present, 8 Partial, and 9 Missing targets. REG-CW09-01 remains Present with the rendered-score assertion added. These are source classifications, not a coverage percentage or full-matrix completion. Unit and API/database integration suites were not rerun for this browser-only extension. Hosted E2E CI and the shared external Test Document remain unverified/deferred.
+See the [regression coverage gaps](regression-coverage-gaps.md) for
+current case mappings and incomplete or missing scenarios.
 
 ## Source Links
 

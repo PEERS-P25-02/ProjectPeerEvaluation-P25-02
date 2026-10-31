@@ -31,7 +31,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>UNIT-BE-001; UNIT-BE-002; UNIT-BE-003; UNIT-BE-014; UNIT-BE-015; UNIT-FE-001; OP-33-01; OP-33-34 through OP-33-36; REG-CW01-06</td>
 <td>Unit Test + Integration Test + End-to-End Test</td>
 <td>In Progress</td>
-<td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/unit-testing.md#initial-test-results">Initial recorded results</a>; <a href="../../modernization/implementation/testing/frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
+<td><a href="../../modernization/implementation/testing/backend-unit-testing.md#backend-unit-test-cases">Backend unit-test cases</a>; <a href="../../modernization/implementation/testing/unit-testing.md#test-results">Unit test results</a>; <a href="../../modernization/implementation/testing/frontend-unit-test-validation.md#frontend-unit-test-cases">Frontend validation</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Expanded integration cases and results</a></td>
 <td></td>
 <td>Four persisted-login and eight account-support integration cases are recorded. Credential-boundary and protected-route assertions are covered by the authentication/authorization suite. Browser owner login and course access are exercised by the E2E fixture journey; see the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a>, <a href="../../modernization/implementation/testing/authentication-authorization-integration.md">authentication and authorization record</a>, and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage gap inventory</a>.</td>
 </tr>
@@ -248,17 +248,17 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <tr>
 <td>FR-16</td>
 <td>Functional</td>
-<td>The project shall use Jest and React Testing Library for appropriate frontend automated tests.</td>
+<td>The project shall use Vitest and React Testing Library for appropriate frontend automated tests.</td>
 <td>High</td>
 <td>Client</td>
 <td>Vitest / React Testing Library / jsdom</td>
 <td><a href="../../../../package.json">Frontend package</a>; <a href="../../../../vite.config.mjs">Vitest configuration</a>; <a href="../../../../src/frontend/test/setup.js">DOM assertion setup</a>; <a href="../../../../src/frontend/tests/LoginPage.test.jsx">Frontend test</a></td>
 <td>UNIT-FE-001; UNIT-FE-002; UNIT-FE-003; UNIT-FE-004; UNIT-CI-001; UNIT-CI-002</td>
 <td>Unit Test + Integration Test</td>
-<td>In Progress</td>
-<td><a href="../../modernization/implementation/testing/unit-testing.md#initial-test-results">Initial recorded results</a>; <a href="../../modernization/implementation/testing/unit-testing.md#verification-after-runtime-alignment">Verification after runtime alignment</a></td>
+<td>Verified</td>
+<td><a href="../../modernization/implementation/testing/unit-testing.md#test-results">Unit test results</a></td>
 <td></td>
-<td>The project uses Vitest and React Testing Library rather than the Jest framework named in FR-16; this requirement conflict remains open. See the <a href="../../modernization/implementation/testing/unit-testing.md">unit-testing record</a>. End-to-end verification remains separately tracked under FR-17.</td>
+<td>The project uses Vitest and React Testing Library for frontend tests. See the <a href="../../modernization/implementation/testing/unit-testing.md">unit-testing record</a>. End-to-end verification remains separately tracked under FR-17.</td>
 </tr>
 <tr>
 <td>FR-17</td>

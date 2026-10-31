@@ -95,4 +95,4 @@ The SLA provides the current proposed priority workflow list. These workflows sh
 
 The implementation selected Vitest to share one runner across the Vite frontend and the CommonJS backend, with React Testing Library and jsdom for rendered frontend behavior. Framework configuration and the initial unit tests are implemented; broader coverage and CI execution remain planned. See [Unit Testing Implementation](../../implementation/testing/unit-testing.md) for the tooling decisions and verification evidence.
 
-The implementation uses Vitest in place of the original Jest proposal. FR-16 still specifies Jest; the selected runner does not itself amend that requirement. Reconciliation remains open in the [requirements tracker](../../../requirements/traceability/02-rtm.md).
+The original proposal specified Jest. FR-16 now specifies Vitest, matching the implementation; see the [requirements tracker](../../../requirements/traceability/02-rtm.md).

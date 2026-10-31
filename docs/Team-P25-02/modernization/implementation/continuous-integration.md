@@ -1,6 +1,6 @@
 # Continuous Integration: Build, Lint, Tests, and Coverage
 
-**Status:** At `origin/main` commit `cf046dc` (PR #154), the workflow handles pull requests and merge-group candidates. PR code changes retain selected API/E2E execution plus the complete unit suites and the 80% changed-line gate; merge-group code candidates run the full unit, API integration, and browser E2E suites plus separate 70% frontend and backend overall line floors. Push-to-main CI remains deferred to Milestone 3. This record does not claim hosted success evidence for PR #154 or the queue workflow.
+**Status:** At main revision `e549930`, the workflow handles pull requests and merge-group candidates. PR code changes run selected API/E2E tests and complete unit suites with an 80% changed-line gate. Merge-group code candidates run the full unit, API integration, and browser E2E suites with separate 70% frontend and backend overall line floors. Push-to-main CI remains deferred to Milestone 3. Hosted merge-group runs have succeeded for code and documentation candidates.
 
 ## 1. Event workflows
 
@@ -17,6 +17,17 @@ Selection, unit, selected integration, E2E, and coverage artifacts use SHA/run/a
 `CI Gate` evaluates every job and rejects unexpected skipped or failed work. Historical repository settings observations are not current verification of required-check or merge-queue enforcement; inspect live settings before making that claim.
 
 ## 2. Verification evidence and handoff
+
+Hosted merge-group verification succeeded for a
+[code candidate](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/41157763014):
+unit, integration, E2E, overall coverage, policy tests, and CI Gate passed.
+A [documentation candidate](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/41158570249)
+also passed CI Gate with application tests and coverage skipped.
+
+The latest local unit, API integration, and browser results are in the
+[unit](testing/unit-testing.md#test-results),
+[integration](testing/integration-testing.md#test-results), and
+[E2E](testing/end-to-end-testing.md#3-test-results) records.
 
 The [final PR run](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/41129935359) succeeded at `6f6a919`. Earlier hosted probes against the single-coverage-job revision verified documentation-only skipping, a measured coverage pass (100%, 1/1), a measured failure (0%, 0/1), full fallback, a renamed browser test, and a deliberate E2E failure that failed CI Gate despite passing coverage. A partial rerun also passed coverage using selection from attempt 2 and unit/API inputs from attempt 3 in consumer attempt 4. These probes predate the final removal of the temporary PR target. See [PR #141](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/pull/141) for the scenario details.
 
@@ -42,7 +53,7 @@ These are local observations of this implementation, not approved overall floors
 
 Historical hosted evidence: the [PR #141 run 40995431410](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/40995431410) completed at commit `19998219bd8ccd100e4bd2c66dd6c6b40bc19625`; all 11 required jobs succeeded, broadening was skipped, and `CI Gate` passed. It uploaded final coverage artifact `12950794807`. That earlier workflow used separate initial/final coverage stages; the result does not verify the current single Changed-Line Coverage job, later commits, or branch-protection enforcement. No CI-minute savings or merge enforcement is claimed here. The maintained selection map can miss dependencies; passing selected tests does not prove unselected tests pass. Service startup remains a fixed cost.
 
-The merged workflow now includes merge-group full-suite execution and a 70% overall line floor for each package. Hosted success/failure evidence for this revision and live verification of repository required-check/queue settings still need to be recorded before claiming those behaviors have been exercised or enforced. Preserve the current commands, manifest, source/provenance checks, and run-specific artifact contracts. Push-to-main CI, post-merge verification, and deployment remain deferred to Milestone 3.
+The merged workflow includes merge-group full-suite execution and a 70% overall line floor for each package. The hosted code and documentation candidate successes are linked above. Controlled merge-group failure behavior and repository required-check/queue settings require separate evidence. Preserve the current commands, manifest, source/provenance checks, and run-specific artifact contracts. Push-to-main CI, post-merge verification, and deployment remain deferred to Milestone 3.
 
 The following sections preserve earlier verification evidence and describe earlier workflow revisions. Their push triggers, nine/ten-job layouts, absent coverage jobs, and Regression Checks name are historical and do not describe the current workflow at `origin/main` `cf046dc`.
 
