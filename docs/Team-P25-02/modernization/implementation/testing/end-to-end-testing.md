@@ -42,7 +42,7 @@ Local results and logs are under `test-results/e2e/24827da3ee772172/`,
 which is ignored by Git. This was a local run. See the
 [CI implementation record](../continuous-integration.md) for hosted evidence.
 
-The related CSV export defect (quoted delimiter, quote, and newline handling) was fixed and documented as BUG-021 in the known-bugs record. The browser journeys do not close all 74 regression-matrix targets. Remaining areas include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, inconsistent report source data, and other partial/missing matrix assertions. See the [regression coverage gaps](regression-coverage-gaps.md).
+The related CSV export defect (quoted delimiter, quote, and newline handling) was fixed and documented as BUG-021 in the known-bugs record. The browser journeys do not close all 74 regression-matrix targets. Remaining browser-layer assertions include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, and inconsistent report source data. These areas have separate API/database or mocked component assertions; see the [regression coverage gaps](regression-coverage-gaps.md) for their mappings and the remaining cross-layer gap.
 
 ### Extended browser assertions — October 28, 2026
 

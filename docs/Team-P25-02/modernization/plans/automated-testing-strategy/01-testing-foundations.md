@@ -93,6 +93,6 @@ The SLA provides the current proposed priority workflow list. These workflows sh
 | Mailpit | Isolated local/CI SMTP capture with forwarding disabled and no SMTP credentials. |
 | Mailtrap Email Testing | Separate authenticated staging email sandbox. |
 
-The implementation selected Vitest to share one runner across the Vite frontend and the CommonJS backend, with React Testing Library and jsdom for rendered frontend behavior. Framework configuration and the initial unit tests are implemented; broader coverage and CI execution remain planned. See [Unit Testing Implementation](../../implementation/testing/unit-testing.md) for the tooling decisions and verification evidence.
+The implementation selected Vitest to share one runner across the Vite frontend and the CommonJS backend, with React Testing Library and jsdom for rendered frontend behavior. Expanded unit suites, service-backed integration tests, browser journeys, and CI execution are implemented; see the [integration record](../../implementation/testing/integration-testing.md), [browser record](../../implementation/testing/end-to-end-testing.md), and [CI record](../../implementation/continuous-integration.md) for current evidence and limits. See [Unit Testing Implementation](../../implementation/testing/unit-testing.md) for the tooling decisions and verification evidence.
 
 The original proposal specified Jest. FR-16 now specifies Vitest, matching the implementation; see the [requirements tracker](../../../requirements/traceability/02-rtm.md).

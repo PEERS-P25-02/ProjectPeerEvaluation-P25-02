@@ -1,5 +1,7 @@
 # PEERS Containerization Assessment
 
+**Scope:** This is the original containerization assessment and target design. For the implemented stack and recorded validation, see the [development-environment record](../../implementation/development-environment.md) and [Compose workflow](../../implementation/containerization/compose-workflow.md).
+
 for Dr. Geetika Vyas
 
 by

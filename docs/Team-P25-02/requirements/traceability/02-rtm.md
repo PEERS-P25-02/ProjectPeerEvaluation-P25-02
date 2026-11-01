@@ -2,7 +2,7 @@
 
 The recorded October 26, 2026 local integration results are two full runs passing 176 tests in 12 files with cleanup verified. This is historical execution evidence for the documented application and test sources; these earlier results are retained separately from the October 28 combined follow-up. It is not browser E2E, hosted integration CI, external email delivery, or code-coverage evidence. See the [API/database integration record](../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review), [authentication and authorization record](../../modernization/implementation/testing/authentication-authorization-integration.md), and [email integration record](../../modernization/implementation/testing/email-integration.md).
 
-On October 28, 2026, CI-46 local verification ran `npm run test:integration` (176/176 tests in 12 files; cleanup true) and `npm run test:e2e` (13/13 tests; cleanup true) on the issue branch. Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files record exit code 0 and `cleanupVerified: true`. The first hosted PR #138 run (40735605439) failed during MongoDB startup in both service-backed jobs; cleanup was verified and both artifacts uploaded. The jobs now use Ubuntu 22.04, and that compatibility outcome is pending. Hosted success, required-check enforcement, external email delivery, and code-coverage evidence are not established. No hosted controlled failure of Regression Checks is recorded. See the [CI verification record](../../modernization/implementation/continuous-integration.md).
+On October 28, 2026, CI-46 local verification ran `npm run test:integration` (176/176 tests in 12 files; cleanup true) and `npm run test:e2e` (13/13 tests; cleanup true) on the issue branch. Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files record exit code 0 and `cleanupVerified: true`. The first hosted PR #138 run (40735605439) failed during MongoDB startup in both service-backed jobs; cleanup was verified and both artifacts uploaded. At that checkpoint, the Ubuntu 22.04 compatibility outcome was pending and hosted success and coverage evidence were not established. Later hosted PR and merge-group code candidates passed unit, integration, browser E2E, coverage, and CI Gate checks; documentation candidates passed with the expected application-test skips. Those later results are recorded in the linked CI verification record. Repository required-check enforcement, controlled merge-group failures, and external email delivery require separate evidence. See the [CI verification record](../../modernization/implementation/continuous-integration.md).
 
 <table>
 <tr>
@@ -177,13 +177,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>Development Environment / Configuration</td>
-<td></td>
+<td><a href="../../developer-guides/local-development.md">Local development guide</a>; <a href="../../../../src/backend/scripts/setupEnv.js">Environment setup helper</a></td>
 <td></td>
 <td>Inspection + Demonstration</td>
-<td>Not Started</td>
+<td>Tested</td>
+<td><a href="../../modernization/implementation/development-environment.md">Development-environment implementation record</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Setup documentation and an environment helper exist. Final acceptance review remains pending.</td>
 </tr>
 <tr>
 <td>FR-12</td>
@@ -192,13 +192,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>Docker / Docker Compose Environment</td>
-<td></td>
+<td><a href="../../../../Dockerfile">Frontend Dockerfile</a>; <a href="../../../../src/backend/Dockerfile">Backend Dockerfile</a>; <a href="../../../../docker-compose.yml">Development Compose configuration</a></td>
 <td></td>
 <td>Integration Test + Demonstration</td>
-<td>Not Started</td>
+<td>Tested</td>
+<td><a href="../../modernization/implementation/containerization/compose-workflow.md">Compose implementation record</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Container configuration includes MongoDB and supporting application services. Final acceptance review remains pending.</td>
 </tr>
 <tr>
 <td>FR-13</td>
@@ -222,13 +222,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>CI Build / Lint / Formatting</td>
-<td></td>
+<td><a href="../../../../.github/workflows/ci.yml">CI workflow</a>; <a href="../../../../package.json">Build, lint, and formatting scripts</a></td>
 <td></td>
 <td>CI Validation</td>
-<td>Not Started</td>
+<td>Tested</td>
+<td><a href="../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff">Hosted CI verification evidence</a>; <a href="../../modernization/implementation/tooling/eslint-and-formatting.md">Lint/format implementation record</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Build, lint, and formatting jobs are configured and hosted successes are recorded. Final acceptance review remains pending.</td>
 </tr>
 <tr>
 <td>FR-15</td>
@@ -243,7 +243,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Local integration results</a></td>
 <td></td>
-<td>Integration Tests and Regression Checks are configured; local integration passed 176/176 tests in 12 files with cleanup true. The first hosted integration attempt failed during MongoDB startup, with cleanup verified and artifact uploaded; Ubuntu 22.04 compatibility is pending. Controlled-failure behavior and required-check enforcement remain unverified, so FR-15 remains In Progress. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
+<td>Integration Tests and CI Gate are configured. The historical CI-46 local run passed 176/176 tests in 12 files with cleanup true; its first hosted attempt failed during MongoDB startup, with cleanup verified and artifacts uploaded. Later hosted PR and merge-group code candidates passed integration and the other required workflow jobs, as recorded in the CI implementation record. Controlled merge-group failures and repository required-check enforcement remain unverified. The maintained requirement status remains In Progress pending a separate acceptance review. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
 </tr>
 <tr>
 <td>FR-16</td>
@@ -273,7 +273,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/testing/end-to-end-testing.md#3-test-results">Recorded local E2E results</a>; <a href="../../../../tests/e2e">Playwright browser specs</a></td>
 <td></td>
-<td>Selected isolated browser smoke, fixture, instructor, student, reset/relaunch, and results journeys are implemented and have historical local passing evidence. The implementation record documents four selected workflows; this does not mean every mapped workflow is a single test or that the full regression matrix is complete. Hosted E2E CI and remaining matrix gaps are open. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage inventory</a>.</td>
+<td>Selected isolated browser smoke, fixture, instructor, student, reset/relaunch, and results journeys are implemented and have historical local passing evidence. The implementation record documents four selected workflows; this does not mean every mapped workflow is a single test or that the full regression matrix is complete. Hosted E2E execution passed in the later PR and merge-group code-candidate runs documented in the <a href="../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff">CI verification record</a>. Remaining matrix gaps are open. See the <a href="../../modernization/implementation/testing/end-to-end-testing.md">E2E record</a> and <a href="../../modernization/implementation/testing/regression-coverage-gaps.md">coverage inventory</a>.</td>
 </tr>
 <tr>
 <td>FR-18</td>
@@ -282,13 +282,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>CI Security / Dependency Checks</td>
-<td></td>
+<td><a href="../../../../.github/workflows/ci.yml">Dependency and secret-scanning jobs</a>; <a href="../../../../.github/workflows/security.yml">Dependency database updater</a></td>
 <td></td>
 <td>CI Validation</td>
-<td>Not Started</td>
+<td>Tested</td>
+<td><a href="../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff">Hosted CI verification evidence</a>; <a href="../quality-gate-policy.md#5-security-findings-and-exceptions">Security policy and retained reports</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>OWASP Dependency-Check and Gitleaks jobs exist, with hosted outcomes recorded. Final acceptance review remains pending.</td>
 </tr>
 <tr>
 <td>FR-19</td>
@@ -357,13 +357,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>CI/CD Logging / Test &amp; Deployment Evidence</td>
-<td></td>
+<td><a href="../../../../.github/workflows/ci.yml">CI artifact uploads</a>; <a href="../../../../scripts/runE2ETests.cjs">E2E result/log capture</a></td>
 <td></td>
 <td>Inspection</td>
-<td>Not Started</td>
+<td>Tested</td>
+<td><a href="../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff">Retained CI/test/security evidence</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>CI, test, and security evidence is retained and linked in the implementation record. Deployment evidence remains pending Milestone 3.</td>
 </tr>
 <tr>
 <td>FR-24</td>

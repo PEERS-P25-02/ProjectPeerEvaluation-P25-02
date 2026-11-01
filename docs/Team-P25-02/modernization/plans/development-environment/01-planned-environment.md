@@ -2,6 +2,8 @@
 
 # Planned Development Environment
 
+**Scope:** This page preserves the planned environment design. Current setup and Compose validation are documented in the [development-environment implementation record](../../implementation/development-environment.md).
+
 [Back to validation overview](../../../inherited-application/development-environment/README.md)
 
 ## 5. Planned Development Environment

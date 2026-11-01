@@ -7,20 +7,20 @@
 [Back to validation overview](../../../inherited-application/development-environment/README.md)
 
 Local development and CI use MongoDB and Mailpit containers.
-Shared staging uses MongoDB Atlas and a separate Mailtrap Email Testing sandbox.
+The staging design uses MongoDB Atlas and a separate Mailtrap Email Testing sandbox; provisioning and hosted validation remain separate work.
 
 ### 5.2 Environment Configuration and Secret Management
 
-The native-local backend loads `src/backend/.env` because the root
-backend startup command runs from `src/backend`. Use `.env.example`
-as the template; preserve existing configuration.
+The native-local backend loads the repository-root `.env` independently of
+the working directory. Run `npm run setup:env` from the root to prepare it
+from the root `.env.example`; existing configured values are preserved.
 
 Local `.env` and `.env.*` files are ignored at every directory level.
 Examples remain tracked and must contain no real credentials.
 
 | Variable | Local value and behavior |
 | --- | --- |
-| MONGODB_URI | `mongodb://localhost:27017/peer-eval`; the database must be running. |
+| MONGODB_URI | `mongodb://localhost:27017/peer-eval?directConnection=true`; a replica set must be running. The option supports the supplied Compose member advertised as `mongodb:27017`. |
 | MONGO_URI | Legacy fallback; prefer MONGODB_URI. |
 | JWT_SECRET | Required configuration policy: replace the template placeholder with a random secret. The inherited code still has a hardcoded fallback. |
 | PORT | Backend defaults to `5000`. |
@@ -40,36 +40,38 @@ pairs, or invalid authentication flags stop startup with an error.
 Authenticated configuration also requires host/port or a service preset.
 
 The template does not create services. Restart the backend after changes.
-Planned setup automation will create missing local configuration, generate
-a cryptographically random JWT_SECRET, fill a missing/placeholder secret,
-and preserve configured values without printing secrets.
+Setup automation creates missing local configuration, generates
+a cryptographically random JWT_SECRET, fills a missing/placeholder secret,
+and preserves configured values without printing secrets.
 
 ### 5.3 Compose Configuration Contract
 
-The planned four-service stack contains frontend, backend, mongodb, and mailpit.
-The inherited Compose file does not implement this stack yet.
+The implemented four-service stack contains frontend, backend, mongodb, and mailpit.
+See the [development-environment implementation record](../../implementation/development-environment.md) for configuration and recorded validation.
 
 | Backend location | MongoDB URI | SMTP destination |
 | --- | --- | --- |
-| Developer computer | `mongodb://localhost:27017/peer-eval` | `localhost:1025` |
+| Developer computer | `mongodb://localhost:27017/peer-eval?directConnection=true` | `localhost:1025` |
 | Shared Compose network | `mongodb://mongodb:27017/peer-eval` | `mailpit:1025` |
 
 Inside a backend container, localhost refers to that container.
-The planned Compose backend must explicitly import configuration using
-`env_file: ./src/backend/.env` and override the MongoDB/SMTP addresses
-through `environment`. Environment entries take precedence over env_file.
+The Compose backend imports the optional root `.env` through `env_file`
+and overrides the MongoDB/SMTP addresses through `environment`.
+Environment entries take precedence over env_file.
 The Compose interpolation .env file alone does not inject backend settings.
 
-Preserve PORT=5000 for the planned backend port mapping.
+Preserve PORT=5000 for the backend port mapping.
 Keep FRONTEND_URL browser-reachable; it should not use the frontend's
 internal service hostname. Publish development ports on localhost,
 use a named MongoDB development volume, and leave Mailpit relay disabled.
 
 ### 5.4 CI Configuration Contract
 
-CI jobs and email integration assertions remain planned. The initial unit
-suites run without MongoDB, SMTP, or application startup. Planned unit jobs
-should run `npm test` and `npm --prefix src/backend test` separately.
+CI jobs and service-backed integration assertions are implemented; see the
+[CI record](../../implementation/continuous-integration.md) and
+[email integration record](../../implementation/testing/email-integration.md).
+Unit suites run without MongoDB, SMTP, or application startup. Local one-shot
+commands remain `npm test` and `npm --prefix src/backend test`.
 
 Integration test jobs must provision isolated MongoDB and Mailpit services,
 wait for readiness, seed synthetic data, and clean up even after failure.
@@ -107,11 +109,10 @@ Do not commit staging credential values. Staging provisioning is separate work.
 
 ### 5.6 Automated Testing Support
 
-Local frontend/backend unit-test tooling is implemented;
-see [Unit Testing Implementation](../../implementation/testing/unit-testing.md).
-The planned development environment still needs integration support using
-isolated configuration and controlled test data. GitHub Actions execution
-requires separate workflow implementation.
+Frontend/backend unit suites, isolated integration support, and GitHub Actions
+execution are implemented; see [Unit Testing Implementation](../../implementation/testing/unit-testing.md),
+[Integration Testing](../../implementation/testing/integration-testing.md), and
+[Continuous Integration](../../implementation/continuous-integration.md) for evidence and limits.
 
 Database tests will use reproducible seeding and reset procedures. Unit tests
 may mock email sending. SMTP integration tests will use isolated Mailpit services
@@ -132,6 +133,8 @@ separate Mailtrap Email Testing sandbox.
 
 ### 5.8 Verification and Limitations
 
+These observations describe the original configuration assessment only.
+
 - Thirteen controlled configuration checks passed, inspecting transporter
   options without connecting to an SMTP server.
 - JavaScript syntax, tracked-diff whitespace, and local environment ignore
@@ -144,8 +147,9 @@ separate Mailtrap Email Testing sandbox.
 - Authenticated local testing did not verify staging TLS or hosted services.
 - Password-reset routing and response-contract defects are tracked in
   [Known Bugs](../../../known-bugs.md); full password-reset completion is not claimed.
-- Setup automation, the integrated Compose stack, email test suites,
-  and CI jobs remain separate implementation work.
+- At that assessment, setup automation, the integrated Compose stack, email
+  test suites, and CI jobs remained separate implementation work. Their later
+  results are linked in the implementation records above.
 
 ## Related Documents
 

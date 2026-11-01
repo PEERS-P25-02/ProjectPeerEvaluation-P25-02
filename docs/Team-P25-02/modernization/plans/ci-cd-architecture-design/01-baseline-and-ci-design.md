@@ -105,4 +105,4 @@ Continuous Integration will validate proposed changes before they are merged int
 | Branch protection | Protect main so normal changes are merged through pull requests rather than direct unvalidated changes. |
 | Logs and reports | Retain logs/reports needed to demonstrate pipeline, test, security, and build results. |
 
-Unit-test commands and initial local results are documented in [Unit Testing Implementation](../../implementation/testing/unit-testing.md). The CI workflow and integration-service jobs described above remain planned; no workflow execution is claimed.
+Unit-test commands and initial local results are documented in [Unit Testing Implementation](../../implementation/testing/unit-testing.md). The workflow and service-backed test jobs are now implemented; see [Continuous Integration Implementation](../../implementation/continuous-integration.md) for current triggers, quality gates, hosted evidence, and remaining limits. The table above retains the target design, including push validation that remains deferred.
