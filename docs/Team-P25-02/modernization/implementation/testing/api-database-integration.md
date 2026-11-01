@@ -464,7 +464,7 @@ The browser runner rebuilt the application images; no separate native frontend
 build or frontend unit-suite rerun was performed. Hosted execution is not
 established by these local results.
 Remaining source gaps stay listed in the [coverage gap inventory](regression-coverage-gaps.md);
-BUG-017 and its frontend reset-confirmation coverage remain separate unmerged work.
+BUG-017 is fixed in the current source; its separate frontend reset-confirmation cases and October 28 results are recorded in the [frontend validation follow-up](frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes).
 
 
 ### Unit-test compatibility with merged main — October 28, 2026

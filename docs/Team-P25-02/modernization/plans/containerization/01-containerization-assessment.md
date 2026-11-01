@@ -4,6 +4,8 @@
 
 ## Purpose and Scope
 
+**Assessment scope:** The findings below describe the inherited setup at assessment time. Current container configuration and validation are recorded in the [development-environment implementation](../../implementation/development-environment.md) and [Compose workflow](../../implementation/containerization/compose-workflow.md).
+
 PEERS needs a repeatable runtime that matches its React, Node.js Express, and MongoDB architecture. The PEERS project specification, Containerization requirement, calls for Dockerfiles, Compose configuration, environment settings, health checks, and startup documentation. A Docker Compose design gives each required service a clear startup role while keeping the inherited three tier structure. That shared structure leads into the current findings that shape the target design.
 
 Container work must improve delivery, testability, and setup without becoming major feature work. The specification states that existing functionality should be preserved and that the technology stack should not be replaced without sponsor approval. The team should correct environment gaps without turning the backend into microservices or changing the database platform. Those limits guide the findings below.
@@ -34,7 +36,7 @@ Each supported machine must run the same PEERS components. The architecture revi
 
 ![](assets/container-design.png)
 
-Figure 1. Proposed local container arrangement for PEERS. The agreed local/CI email service is Mailpit; any older provider labels in the diagram are superseded by this configuration.
+Figure 1. Proposed local container arrangement for PEERS. The agreed local/CI email service is Mailpit; any older provider labels in the diagram are superseded by this configuration. The MongoDB data volume belongs to the MongoDB service; the diagram’s frontend-to-volume connector is incorrect.
 
 The frontend needs to present the existing user interface from a service that is separate from the API. The PEERS architecture review identifies React as the frontend tier that calls the backend REST API. The frontend configuration should use an API base URL that points to the backend service or approved local host route rather than a hard coded staging address. That separation allows the backend service to use its own image and dependency plan.
 

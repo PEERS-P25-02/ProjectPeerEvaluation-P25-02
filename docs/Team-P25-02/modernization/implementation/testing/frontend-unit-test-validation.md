@@ -1,6 +1,6 @@
 # Frontend Unit Test Validation
 
-**Status:** The latest recorded frontend suite has 68 tests across nine files. Test counts and coverage values below are dated snapshots.
+**Status:** The [October 31 unit-test record](unit-testing.md#test-results) reports 85 frontend tests across ten files. Test counts and coverage values below are dated snapshots.
 
 ## Goal
 

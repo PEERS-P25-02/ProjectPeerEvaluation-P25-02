@@ -33,7 +33,7 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 <tr>
 <td>Not Started</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;Not Started&quot;)">23</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;Not Started&quot;)">18</span></td>
 </tr>
 <tr>
 <td>In Progress</td>
@@ -45,7 +45,7 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 <tr>
 <td>Tested</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;Tested&quot;)">0</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;Tested&quot;)">5</span></td>
 </tr>
 <tr>
 <td>Verified</td>
@@ -69,4 +69,4 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 </table>
 
-The status counts reflect the maintained statuses in the current RTM; they are not an exhaustive fresh audit of every project requirement. FR-01 through FR-10 and FR-17 remain In Progress because relevant integration evidence exists while documented workflow, security, browser, or requirement-alignment gaps remain. FR-15 remains In Progress: integration CI is configured and local integration results are recorded, but hosted execution and required-check enforcement have not been verified. FR-16 is Verified.
+The status counts reflect the maintained statuses in the current RTM; they are not an exhaustive fresh audit of every project requirement. FR-01 through FR-10 and FR-17 remain In Progress because relevant integration evidence exists while documented workflow, security, browser, or requirement-alignment gaps remain. FR-15 remains In Progress pending a separate acceptance review. Integration CI is configured, and local and hosted PR/merge-group execution results are recorded in the [CI verification record](../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff); repository required-check enforcement and controlled merge-group failures still require separate evidence. FR-16 is Verified.

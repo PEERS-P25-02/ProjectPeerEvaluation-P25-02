@@ -9,7 +9,7 @@ The root `Dockerfile` has two stages:
 
 The `.dockerignore` file keeps local dependencies, generated output, backend source, Git metadata, and environment files out of the frontend build context. No runtime secret or local configuration is copied into the image.
 
-Nginx falls back to `index.html` for client-side routes, while returning `404` for unknown static assets. This lets a direct browser visit to a React Router route load the application.
+The [standalone Nginx configuration](../../../../../nginx/default.conf) falls back to `index.html` for unmatched paths, while returning `404` for missing files with CSS, JS, MJS, MAP, SVG, WOFF, or WOFF2 extensions. Other missing asset paths use the HTML fallback. This lets a direct browser visit to a React Router route load the application.
 
 ## Build and run
 
