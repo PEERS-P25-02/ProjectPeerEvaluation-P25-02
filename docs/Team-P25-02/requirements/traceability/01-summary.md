@@ -1,6 +1,6 @@
 # Summary
 
-The detailed requirement mappings and evidence are in the [Requirements Traceability Matrix](02-rtm.md). Browser journey scope, dated local results, and execution limits are documented in the [End-to-End Browser Testing implementation record](../../modernization/implementation/testing/end-to-end-testing.md).
+Current requirement statuses, applicable test case IDs, and evidence links are in the [Requirements Traceability Matrix](02-rtm.md). Browser journey scope, dated local results, and execution limits are documented in the [End-to-End Browser Testing implementation record](../../modernization/implementation/testing/end-to-end-testing.md).
 
 <table>
 <tr>

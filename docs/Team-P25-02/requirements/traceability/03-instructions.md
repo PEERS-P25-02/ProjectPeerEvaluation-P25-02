@@ -1,5 +1,7 @@
 # Instructions
 
+The functional section uses six columns. Guidance for Design / Component, Implementation / Artifact, Related Defect, and Notes applies to the unchanged nonfunctional section.
+
 <table>
 <tr>
 <td>Field / Topic</td>
