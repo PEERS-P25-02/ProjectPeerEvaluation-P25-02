@@ -2,7 +2,7 @@
 
 The recorded October 26, 2026 local integration results are two full runs passing 176 tests in 12 files with cleanup verified. This is historical execution evidence for the documented application and test sources; these earlier results are retained separately from the October 28 combined follow-up. It is not browser E2E, hosted integration CI, external email delivery, or code-coverage evidence. See the [API/database integration record](../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review), [authentication and authorization record](../../modernization/implementation/testing/authentication-authorization-integration.md), and [email integration record](../../modernization/implementation/testing/email-integration.md).
 
-On October 28, 2026, CI-46 local verification ran `npm run test:integration` (176/176 tests in 12 files; cleanup true) and `npm run test:e2e` (13/13 tests; cleanup true) on the issue branch. Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files record exit code 0 and `cleanupVerified: true`. The first hosted PR #138 run (40735605439) failed during MongoDB startup in both service-backed jobs; cleanup was verified and both artifacts uploaded. At that checkpoint, the Ubuntu 22.04 compatibility outcome was pending and hosted success and coverage evidence were not established. Later hosted PR and merge-group code candidates passed unit, integration, browser E2E, coverage, and CI Gate checks; documentation candidates passed with the expected application-test skips. Those later results are recorded in the linked CI verification record. Repository required-check enforcement, controlled merge-group failures, and external email delivery require separate evidence. See the [CI verification record](../../modernization/implementation/continuous-integration.md).
+On October 28, 2026, CI-46 local verification ran `npm run test:integration` (176/176 tests in 12 files; cleanup true) and `npm run test:e2e` (13/13 tests; cleanup true) on the issue branch. Integration run `0279194adb9f7006` is recorded in `test-results/integration/0279194adb9f7006/result.json`; E2E run `90c105b093714fd3` is recorded in `test-results/e2e/90c105b093714fd3/result.json`. Both result files record exit code 0 and `cleanupVerified: true`. The first hosted PR #138 run (40735605439) failed during MongoDB startup in both service-backed jobs; cleanup was verified and both artifacts uploaded. At that checkpoint, the Ubuntu 22.04 compatibility outcome was pending and hosted success and coverage evidence were not established. Later hosted PR and merge-group code candidates passed unit, integration, browser E2E, coverage, and CI Gate checks; documentation candidates passed with the expected application-test skips. Those later results are recorded in the linked CI verification record. The live main ruleset requires CI Gate; controlled failed-merge behavior, controlled merge-group failures, and external email delivery require separate evidence. See the [CI verification record](../../modernization/implementation/continuous-integration.md).
 
 <table>
 <tr>
@@ -207,13 +207,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>GitHub Actions / CI Pipeline</td>
-<td></td>
+<td><a href="../../../../.github/workflows/ci.yml">CI workflow</a></td>
 <td></td>
 <td>Integration Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../../modernization/implementation/continuous-integration.md#1-event-workflows">PR and merge-group CI implementation</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Pull requests and merge-group candidates trigger CI. Push-triggered CI required by this row remains pending.</td>
 </tr>
 <tr>
 <td>FR-14</td>
@@ -243,7 +243,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>In Progress</td>
 <td><a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a>; <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">Local integration results</a></td>
 <td></td>
-<td>Integration Tests and CI Gate are configured. The historical CI-46 local run passed 176/176 tests in 12 files with cleanup true; its first hosted attempt failed during MongoDB startup, with cleanup verified and artifacts uploaded. Later hosted PR and merge-group code candidates passed integration and the other required workflow jobs, as recorded in the CI implementation record. Controlled merge-group failures and repository required-check enforcement remain unverified. The maintained requirement status remains In Progress pending a separate acceptance review. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
+<td>Integration Tests and CI Gate are configured. The historical CI-46 local run passed 176/176 tests in 12 files with cleanup true; its first hosted attempt failed during MongoDB startup, with cleanup verified and artifacts uploaded. Later hosted PR and merge-group code candidates passed integration and the other required workflow jobs, as recorded in the CI implementation record. Live main ruleset settings require CI Gate; a controlled failed-merge blocking demonstration remains unverified. The maintained requirement status remains In Progress pending a separate acceptance review. See the <a href="../../modernization/implementation/continuous-integration.md">CI implementation and evidence</a> and <a href="../../modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review">local integration results</a>.</td>
 </tr>
 <tr>
 <td>FR-16</td>
@@ -297,13 +297,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>CI Quality Gates / Pull Requests</td>
-<td></td>
+<td><a href="../../../../.github/workflows/ci.yml">CI Gate workflow</a>; <a href="https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/rules/23362924">main ruleset</a></td>
 <td></td>
 <td>Functional Test</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/rules/23362924">Active required CI Gate setting</a>; <a href="https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/pull/159/checks">failed CI Gate probe</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>The active ruleset requires CI Gate and PR #159 shows a failed gate. A controlled failed-merge blocking demonstration remains pending.</td>
 </tr>
 <tr>
 <td>FR-20</td>
@@ -312,13 +312,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>GitHub Branch Protection / CI Quality Gates</td>
-<td></td>
+<td><a href="https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/rules/23362924">main ruleset</a></td>
 <td></td>
 <td>Inspection + Demonstration</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/rules/23362924">Active pull-request, required-check, and merge-queue settings</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Live settings require a pull request, CI Gate, and merge queue for main. Final enforcement demonstration remains pending.</td>
 </tr>
 <tr>
 <td>FR-21</td>
@@ -360,7 +360,7 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td><a href="../../../../.github/workflows/ci.yml">CI artifact uploads</a>; <a href="../../../../scripts/runE2ETests.cjs">E2E result/log capture</a></td>
 <td></td>
 <td>Inspection</td>
-<td>Tested</td>
+<td>In Progress</td>
 <td><a href="../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff">Retained CI/test/security evidence</a></td>
 <td></td>
 <td>CI, test, and security evidence is retained and linked in the implementation record. Deployment evidence remains pending Milestone 3.</td>
@@ -372,13 +372,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>Project Documentation</td>
-<td></td>
+<td><a href="../validation/02-acceptance-and-document-usage.md#06-exclusions">Approved staging-only scope</a></td>
 <td></td>
 <td>Inspection</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../validation/02-acceptance-and-document-usage.md#06-exclusions">Production deployment exclusion</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>The staging-only boundary is documented. Automated staging deployment remains pending.</td>
 </tr>
 <tr>
 <td>FR-25</td>
@@ -387,13 +387,13 @@ On October 28, 2026, CI-46 local verification ran `npm run test:integration` (17
 <td>High</td>
 <td>Client</td>
 <td>Project Documentation</td>
-<td></td>
+<td><a href="../../getting-started.md">Setup guide</a>; <a href="../../developer-guides/testing.md">Testing guide</a>; <a href="../../developer-guides/continuous-integration.md">CI guide</a></td>
 <td></td>
 <td>Inspection</td>
-<td>Not Started</td>
+<td>In Progress</td>
+<td><a href="../../getting-started.md">Published setup and troubleshooting guidance</a></td>
 <td></td>
-<td></td>
-<td></td>
+<td>Setup, configuration, testing, CI, and local troubleshooting are documented. Deployment, rollback, and release procedures remain pending.</td>
 </tr>
 <tr>
 <td>NFR-01</td>
