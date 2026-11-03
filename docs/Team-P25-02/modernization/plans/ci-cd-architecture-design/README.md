@@ -1,5 +1,7 @@
 # PEERS Milestone 1 - CI/CD Architecture Design
 
+**Scope:** Original assessment findings and delivery design are retained here. See [Continuous Integration Implementation](../../implementation/continuous-integration.md) for current workflow behavior, recorded execution, and remaining limits.
+
 Project 25 - PEERS Peer Evaluation System \| Team P25-02 \| Fall 2026<br>
 
 ## Table of contents

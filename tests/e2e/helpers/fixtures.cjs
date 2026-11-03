@@ -1,4 +1,4 @@
-const { test: base, expect } = require('@playwright/test');
+const { test: base, expect } = require('./runtimeCoverage.cjs');
 const { setTimeout } = require('node:timers/promises');
 const {
   validateTarget,

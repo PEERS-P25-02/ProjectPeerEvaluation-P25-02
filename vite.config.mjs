@@ -7,10 +7,28 @@
  */
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+const instrumentation = createRequire(import.meta.url)(
+  './scripts/frontendInstrumentation.cjs',
+);
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+const canonicalCoverage = {
+  name: 'peers-canonical-coverage',
+  enforce: 'pre',
+  transform(source, id) {
+    if (process.env.PEERS_COVERAGE !== '1' || id.includes('?')) return;
+    const relative = path.relative(root, id).split(path.sep).join('/');
+    if (!instrumentation.isFrontendProduction(relative)) return;
+    return instrumentation.instrumentSource(source, relative);
+  },
+};
 
 export default defineConfig({
   // Enable JSX handling and React refresh while developing.
-  plugins: [react()],
+  plugins: [canonicalCoverage, react()],
   build: {
     // Keep the production bundle compatible with the listed browser versions.
     outDir: 'build',

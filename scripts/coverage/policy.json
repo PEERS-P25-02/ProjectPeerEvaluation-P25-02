@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "patchThreshold": 80,
+  "overallLineThreshold": 70,
+  "productionRoots": [
+    "src/frontend",
+    "src/backend"
+  ],
+  "productionEntries": [
+    "src/index.jsx"
+  ],
+  "excludedDirectories": [
+    "tests",
+    "test",
+    "scripts",
+    "migrations",
+    "node_modules",
+    "coverage"
+  ],
+  "excludedBackendFiles": [
+    "debug_student.js",
+    "test_api.js",
+    "vitest.config.mjs",
+    "vitest.coverage.config.mjs",
+    "vitest.integration.config.mjs"
+  ]
+}

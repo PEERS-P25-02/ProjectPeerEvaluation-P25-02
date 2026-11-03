@@ -16,4 +16,4 @@ Build command:
 docker build -t peers-backend ./src/backend
 ```
 
-**Verification status:** This appendix contains no recorded build or runtime results; backend Dockerfile validation evidence remains incomplete.
+**Verification status:** This appendix contains no standalone build or runtime results. Backend image startup, MongoDB connectivity, and captured email are covered by the recorded [Compose verification](../development-environment.md#compose-verification).

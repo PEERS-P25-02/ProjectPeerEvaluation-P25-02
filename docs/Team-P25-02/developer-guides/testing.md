@@ -1,23 +1,37 @@
 # Testing
 
-Run the commands below from the repository root unless a command specifies a package path. One-shot commands return a nonzero exit status when a test fails.
+Run commands from the repository root unless a package path is shown.
+One-shot commands return a nonzero exit status when a test fails.
 
 ## Functional regression targets
 
-Plan functional regression checks against the [PEERS Functional Regression Test Matrix](../requirements/regression-test-matrix.md). Its stable IDs and expected outcomes define the target for CW-01 through CW-09; they do not claim current coverage or test results. Keep expected outcomes aligned with the validated requirements and critical workflows. Record implemented test mappings and run evidence in the [RTM](../requirements/traceability/README.md) and relevant implementation records. A coverage gap is not a reason to weaken a matrix outcome.
+The [functional regression matrix](../requirements/regression-test-matrix.md)
+defines expected outcomes for CW-01 through CW-09. It is a target, not
+evidence that a test exists or passed. Record mappings and run evidence in
+the [RTM](../requirements/traceability/README.md) and relevant records.
+A coverage percentage does not establish that a workflow outcome is asserted.
 
 ## Unit tests
 
-Run package-specific suites independently:
+Run the package suites independently:
 
 ```bash
 npm test
 npm --prefix src/backend test
 ```
 
-The frontend suite uses Vitest with jsdom, React Testing Library, and shared setup at `src/frontend/test/setup.js`. Frontend tests belong in `src/frontend/tests/` and use `.test.jsx` or `.spec.jsx` filenames. The backend suite uses Vitest in Node; backend tests belong in `src/backend/tests/` and use `.test.js` or `.spec.js` filenames.
+Frontend unit and component tests use Vitest, jsdom, React Testing Library,
+and mocked API boundaries. See the [frontend unit record](../modernization/implementation/testing/frontend-unit-test-validation.md)
+for cases and dated results.
 
-Run both suites concurrently as a local convenience with `npm run test:all`. CI runs package-specific commands separately so failures appear in their own jobs. Ordinary backend unit commands exclude `src/backend/tests/integration/`, so unit testing does not require Docker, MongoDB, or SMTP. Keep unit tests independent of live services unless a test is explicitly an integration test. Use React Testing Library for rendered frontend behavior and import Vitest helpers explicitly.
+Backend unit tests use Vitest in Node with mocks and synthetic inputs.
+They exclude integration tests and need no running MongoDB, SMTP, or
+application server. See the [backend unit record](../modernization/implementation/testing/backend-unit-testing.md)
+for cases and dated results.
+
+Run both suites concurrently with `npm run test:all`. CI runs them
+separately. Keep unit tests independent of live services and import Vitest
+helpers explicitly.
 
 ## Coverage
 
@@ -27,7 +41,22 @@ npm --prefix src/backend run test:coverage
 npm run test:all:coverage
 ```
 
-Coverage reports are written to `coverage/` and `src/backend/coverage/`. These commands measure the separate unit/component suites; they do not include execution in the integration API server or browser. CI uploads coverage as workflow artifacts. Frontend coverage explicitly includes unimported frontend application sources and the entry point and also writes JSON/JSON-summary reports. See the [priority unit/component follow-up](../modernization/implementation/testing/priority-unit-coverage.md) for the proposed backend function-scope diagnostic, updated tests, measured results, and remaining 70% scope-review work. Coverage is informational; no minimum threshold is enforced. Combined scoped frontend/backend reporting remains deferred; implementing browser E2E does not by itself combine coverage reports.
+Local reports are written to `coverage/` and `src/backend/coverage/`.
+They measure unit and component execution, not API integration or browser
+execution. These local commands do not apply the CI coverage gates.
+
+CI combines unit coverage with selected API runtime coverage. Browser E2E
+tests do not contribute to the line-coverage report:
+
+- Code pull requests require **80% of changed executable lines** to be covered.
+- Merge-group code candidates require **70% overall line coverage in each
+  package**, using the full unit and API integration suites.
+
+Coverage measures execution; it does not establish that tests passed or
+that functional regression outcomes were verified. See the
+[CI guide](continuous-integration.md) and
+[quality-gate policy](../requirements/quality-gate-policy.md) for the
+gate rules and evidence.
 
 ## Isolated backend integration environment
 
@@ -39,11 +68,12 @@ npm run test:integration
 
 The runner starts a backend with disposable transaction-capable MongoDB and Mailpit services, generates isolated settings rather than reading the development `.env`, runs the backend integration suite, saves logs and a result summary under the ignored `test-results/integration/` directory, and cleans up its Compose project and volumes after success, failure, or a handled interrupt. It publishes no host ports. If Docker or the computer stops unexpectedly, inspect for leftover Compose resources before retrying.
 
-The October 26 baseline contained 176 tests in 12 files: four environment checks, 69 original API/database cases, 96 authentication/authorization cases, and seven invitation-email cases. It exercises stored course, roster, team, evaluation, and report state; professor ownership and student-recipient access; and actual SMTP content, links, rejection, and recovery through Mailpit. The [API/database record](../modernization/implementation/testing/api-database-integration.md) and [email record](../modernization/implementation/testing/email-integration.md) retain dated passing results and verified cleanup; these are recorded outcomes, not a new execution claim.
+Integration cases cover API/database operations, authorization, and email
+handling. See the [integration testing record](../modernization/implementation/testing/integration-testing.md)
+for the case map, results, and links to detailed records.
 
-The [priority regression follow-up](../modernization/implementation/testing/api-database-integration.md#6-priority-workflow-regression-follow-up) retains PR #134’s original 184-pass/10-failure run and PR #137’s separate 188-pass run as dated evidence. The combined follow-up reuses the submission-integrity suite for overlapping CW-08 cases, adds distinct participation-0/communication-0 checks, and repairs CSV error disclosure and reset completion. Run it with `npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js`. The combined source passed 24 focused checks, all 200 integration tests, and 13 Chromium tests with cleanup verified on October 28, 2026; exact run IDs and commands are in the linked record. Remaining matrix gaps are distinct from those passing results.
-
-All three supplied Compose stacks initialize the single-node `peers-rs` replica set and gate backend startup on its writable primary. Submission transactions require a replica set or sharded MongoDB deployment. A native backend connecting to the development Compose published port needs `directConnection=true`; see the [local development guide](local-development.md). Unit tests remain independent of live services.
+For development Compose setup and native backend connections, see the
+[local development guide](local-development.md).
 
 Run focused groups through the same isolated runner:
 
@@ -52,7 +82,13 @@ npm run test:integration -- authentication.test.js authenticationAccess.test.js 
 npm run test:integration -- emailIntegration.test.js evaluationManagement.test.js
 ```
 
-These tests do not start the frontend or establish complete browser journeys, external email delivery, or exhaustive failure handling. The CI workflow has an Integration Tests job that invokes this command and uploads `test-results/integration/` after the test step runs or fails. Its first hosted PR #138 attempt (run 40735605439) failed during MongoDB startup, but cleanup was verified and the result artifact uploaded. The job now uses Ubuntu 22.04; the compatibility rerun is pending. Use the [regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md) to distinguish existing assertions from incomplete and missing scenarios; keep the stable regression matrix's expected outcomes unchanged.
+These tests do not establish complete browser journeys, external email
+delivery, or exhaustive failure handling. CI runs selected integration
+tests for code pull requests and the full suite for merge-group code
+candidates. See the [CI implementation record](../modernization/implementation/continuous-integration.md)
+for dated hosted results and the
+[regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md)
+for incomplete and missing scenarios.
 
 ## End-to-end browser tests
 
@@ -64,7 +100,13 @@ npm run test:e2e
 
 The runner builds a disposable frontend/backend/MongoDB/Mailpit stack, seeds guarded synthetic fixtures, runs Playwright sequentially, preserves logs and failure artifacts, and verifies cleanup. It does not read the development `.env` or publish ports. See the [end-to-end implementation record](../modernization/implementation/testing/end-to-end-testing.md) for prerequisites, cases, historical results, and coverage limits.
 
-The CI workflow has an End-to-End Tests job that invokes this command and uploads `test-results/e2e/` after the test step runs or fails. Its first hosted PR #138 attempt (run 40735605439) failed during MongoDB startup, but cleanup was verified and the result artifact uploaded. The job now uses Ubuntu 22.04; the compatibility rerun is pending. Regression Checks reports the unit, integration, and E2E job outcomes and fails if any did not succeed; it does not rerun tests. Regression Checks behavior and required-check configuration have not been verified. These checks do not establish complete functional regression-matrix coverage; see the [coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
+CI runs selected browser tests for code pull requests and the full suite
+for merge-group code candidates. The runner saves results under
+`test-results/e2e/`. See the
+[CI implementation record](../modernization/implementation/continuous-integration.md)
+for dated hosted results. These checks do not establish complete
+functional regression coverage; see the
+[coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
 
 ## Linting and formatting
 
@@ -82,7 +124,7 @@ See the [ESLint migration notes](../modernization/implementation/tooling/eslint-
 
 These project documents describe existing test implementations, evidence, and limitations:
 
-- [Frontend unit testing implementation](../modernization/implementation/testing/unit-testing.md#initial-unit-test-cases)
+- [Unit testing implementation](../modernization/implementation/testing/unit-testing.md#test-cases)
 - [Backend unit testing implementation](../modernization/implementation/testing/backend-unit-testing.md)
 - [CI build, lint, and unit verification](../modernization/implementation/continuous-integration.md)
 - [Integration test environment](../modernization/implementation/testing/integration-test-environment.md)

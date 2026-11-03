@@ -97,8 +97,9 @@ checks, not functional approval. Existing account-recovery tests remain in the
 full suite; account-support expansion is outside this test scope.
 
 Recipient authorization is checked for the whole submission before saving.
-General all-or-nothing behavior for later rating/feedback errors, duplicate
-recipients, concurrent submissions, and database failures remains separate work.
+Later rating/feedback errors, duplicate recipients, concurrent submissions,
+and database rollback are covered separately by the [submission-integrity
+cases and recorded results](api-database-integration.md#5-submission-integrity).
 JWT logout remains a client-side operation and does not revoke an issued token.
 The current tests do not promise immediate revocation after account deletion or
 password changes. See [Known Bugs](../../../known-bugs.md) for recorded defects.

@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/runtimeCoverage.cjs');
 
 test('frontend renders and backend health is reachable through the same origin', async ({
   page,

@@ -28,6 +28,7 @@ The [quality gate policy](docs/Team-P25-02/requirements/quality-gate-policy.md) 
 - [Local development and command reference](docs/Team-P25-02/developer-guides/local-development.md)
 - [Testing](docs/Team-P25-02/developer-guides/testing.md)
 - [Continuous integration](docs/Team-P25-02/developer-guides/continuous-integration.md)
+- [Student roster CSV format](docs/Team-P25-02/developer-guides/csv-upload-format.md)
 - [Team P25-02 documentation index](docs/Team-P25-02/README.md)
 - [Vite migration notes](docs/Team-P25-02/modernization/implementation/tooling/vite-migration.md)
-- [Historical README](README-historical.md), which preserves earlier plans and proposed features
+- [Historical README](docs/historical/README-historical.md), which preserves earlier plans and proposed features

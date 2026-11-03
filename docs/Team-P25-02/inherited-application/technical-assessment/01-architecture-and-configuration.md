@@ -27,7 +27,7 @@ This structure is appropriate for the current project size and is not planned fo
 
 ### 4.2 Planned Supporting Technologies
 
-The core application stack will be preserved. The supporting stack below reflects the SLA and project specification together with Milestone 2 implementation decisions. The original FR-16 wording specifies Jest; the implementation selected Vitest, and requirement reconciliation remains open. The strategy is maintained in [Automated Testing Strategy](../../modernization/plans/automated-testing-strategy/README.md), with concrete tooling and evidence in [Unit Testing Implementation](../../modernization/implementation/testing/unit-testing.md).
+The core application stack will be preserved. The supporting stack below reflects the SLA and project specification together with Milestone 2 implementation decisions. The original FR-16 wording specified Jest; FR-16 now specifies Vitest. The strategy is maintained in [Automated Testing Strategy](../../modernization/plans/automated-testing-strategy/README.md), with concrete tooling and evidence in [Unit Testing Implementation](../../modernization/implementation/testing/unit-testing.md).
 
 | Technology | Planned Role |
 | --- | --- |

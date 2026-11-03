@@ -26,6 +26,8 @@ const config = [
       '**/build/**',
       '**/dist/**',
       '**/coverage/**',
+      '!scripts/coverage/',
+      '!scripts/coverage/**',
       '**/.*',
     ],
   },
