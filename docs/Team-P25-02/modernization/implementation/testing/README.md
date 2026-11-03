@@ -1,0 +1,93 @@
+# Testing Implementation
+
+This folder records implemented automated tests, how to run them, dated
+verification results, and remaining gaps. Test source and CI configuration
+are authoritative for what is implemented and configured. The
+[regression matrix](../../../requirements/regression-test-matrix.md) defines
+the 74 expected critical-workflow outcomes.
+
+## Testing layers and navigation
+
+| Layer or reference | Document |
+| --- | --- |
+| Frontend unit and component tests | [Frontend unit testing](frontend-unit-test-validation.md) |
+| Backend unit tests | [Backend unit testing](backend-unit-testing.md) |
+| Shared isolated integration services | [Integration test environment](integration-test-environment.md) |
+| API and database integration | [API and database integration](api-database-integration.md) |
+| Authentication and authorization integration | [Authentication and authorization integration](authentication-authorization-integration.md) |
+| Invitation email integration | [Email integration](email-integration.md) |
+| Browser journeys and smoke checks | [End-to-end testing](end-to-end-testing.md) |
+| Cross-layer scenario mappings and remaining gaps (temporary audit) | [Regression coverage gaps](regression-coverage-gaps.md) |
+| API operation traceability reference | [API/database operation inventory](api-database-operation-inventory.md) |
+
+The operation inventory's `OP-33` identifiers name API operations, not
+individual test cases. The regression gap record classifies source
+assertions against matrix targets; those classifications are not run
+results or code-coverage percentages.
+
+## Evidence terms
+
+- **Implemented:** Test source and assertions exist.
+- **Verified:** A test was executed and its result recorded with a date
+  and revision.
+- **CI-enforced:** The corresponding check is confirmed to be required
+  before merging. A local pass or a configured CI job alone does not
+  establish this status.
+
+## Run the suites
+
+Use Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` and npm 9 or newer.
+Run commands from the repository root:
+
+```bash
+npm test
+npm --prefix src/backend test
+npm run test:integration
+npm run test:e2e
+```
+
+The unit suites use isolated mocks. Integration and E2E execution require
+Docker and Compose; see the shared environment and E2E records for their
+specific prerequisites. The commands can also be run independently.
+
+## Latest recorded local verification
+
+At revision `d0088f7` on October 31, 2026, the existing records report:
+
+| Suite | Recorded result | Detailed record |
+| --- | --- | --- |
+| Frontend unit/component | 85 passed in 10 files | [Unit testing](unit-testing.md#test-results) |
+| Backend unit | 143 passed in 16 files | [Unit testing](unit-testing.md#test-results) |
+| Integration | 200 passed in 15 files; cleanup verified | [Integration testing](integration-testing.md#test-results) |
+| Browser E2E | 13 passed; runner reported cleanup verified | [End-to-end testing](end-to-end-testing.md#3-test-results) |
+
+These are dated local results, not a new run at this branch's revision.
+The backend unit record also contains older 45- and 49-test snapshots;
+the category records will distinguish those from the latest result.
+
+## Category document structure
+
+As part of the documentation reorganization, each frontend unit,
+backend unit, API/database integration, authentication integration,
+email integration, and E2E record will be standardized around
+these sections in order:
+
+1. Purpose and Scope
+2. Testing Environment and Tools
+3. Test Organization
+4. Test Cases
+5. Execution Instructions
+6. Verification Results
+7. Limitations and Remaining Work
+
+Keep stable case IDs, source links, expected outcomes, and dated results
+when reorganizing a record. Place tests under the behavior they cover
+and execution evidence under Verification Results.
+
+## Related records
+
+The [requirements traceability matrix](../../../requirements/traceability/README.md)
+links requirements to test evidence. The
+[CI implementation record](../continuous-integration.md) describes
+configured jobs and dated hosted results; required-check settings need
+their own confirmation.
