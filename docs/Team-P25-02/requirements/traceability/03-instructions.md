@@ -1,6 +1,6 @@
 # Instructions
 
-The functional section uses six columns. Guidance for Design / Component, Implementation / Artifact, Related Defect, and Notes applies to the unchanged nonfunctional section.
+Both RTM sections use the same six columns. A dash means no test case ID or evidence link is recorded.
 
 <table>
 <tr>
@@ -10,14 +10,6 @@ The functional section uses six columns. Guidance for Design / Component, Implem
 <tr>
 <td>Requirement IDs</td>
 <td>FR-## identifies functional requirements; NFR-## identifies nonfunctional requirements.</td>
-</tr>
-<tr>
-<td>Design / Component</td>
-<td>Enter the subsystem, architecture component, workflow, or design element that addresses the requirement.</td>
-</tr>
-<tr>
-<td>Implementation / Artifact</td>
-<td>Enter the relevant code module, configuration, workflow, GitHub issue/PR, Dockerfile, workflow file, or other artifact.</td>
 </tr>
 <tr>
 <td>Test Case ID(s)</td>
@@ -34,10 +26,6 @@ The functional section uses six columns. Guidance for Design / Component, Implem
 <tr>
 <td>Evidence / Link</td>
 <td>Add a link or reference to the test report, GitHub item, CI run, documentation, or other evidence.</td>
-</tr>
-<tr>
-<td>Related Defect</td>
-<td>Add a link or reference to any failed verification to corresponding defects when applicable.</td>
 </tr>
 <tr>
 <td>Source basis</td>
