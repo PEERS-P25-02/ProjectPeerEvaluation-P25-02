@@ -1,83 +1,82 @@
 # Frontend Unit Testing
 
-## Purpose and Scope
+## 1. Overview
 
-This record documents frontend unit and component test organization, case
-coverage, execution instructions, the latest dated verification result, and
-remaining limitations. Tests use Vitest and React Testing Library to exercise
-frontend behavior with synthetic data and mocked API boundaries where needed.
+This record describes frontend unit and component test organization, cases,
+execution, the latest dated result, and known coverage limits. Tests use Vitest,
+jsdom, and React Testing Library with synthetic data and mocked API boundaries.
 They do not establish backend behavior, database persistence, email delivery,
 or full browser end-to-end behavior.
 
-## Testing Environment and Tools
+## 2. Testing Strategy
 
-The frontend tests use Vitest, jsdom, React Testing Library,
-`@testing-library/user-event`, `@testing-library/jest-dom`, mocked Axios/API
-responses, and React Router `MemoryRouter` where routing is needed. Mocks keep
-the unit/component checks independent of MongoDB, SMTP, and a running backend.
+Tests exercise components and frontend services at their unit/component
+boundaries. API responses and browser storage are controlled in tests; routing
+uses `MemoryRouter` where needed. This keeps the suite independent of MongoDB,
+SMTP, and running application services. The suite uses
+`@testing-library/user-event` for interactions and
+`@testing-library/jest-dom` for DOM assertions. The tests check rendered
+behavior, requests, and response handling, rather than server-side effects.
 
-## Test Organization
+## 3. Test Organization
 
-The current frontend test inventory contains ten files:
+The maintained frontend test inventory contains ten files:
 
 | Test file | Recorded coverage |
 | --- | --- |
-| [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) | Login and registration form behavior, successful login, mode switching and field clearing, password reset outcomes, and the initial route formerly tested in `App.test.jsx`. |
-| [AuthContext.test.jsx](../../../../../src/frontend/tests/AuthContext.test.jsx) | Saving and restoring a user, malformed saved-user data, and logout. |
-| [ApiService.test.js](../../../../../src/frontend/tests/ApiService.test.js) | Course requests and authentication-token behavior in API requests. |
-| [Settings.test.jsx](../../../../../src/frontend/tests/Settings.test.jsx) | Loading and adding flagged words and handling loading errors. |
-| [StudentEvaluation.test.jsx](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) | Evaluation loading, invalid links, completed evaluations, input validation, submission, and retry behavior. |
+| [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) | Initial route, login and registration forms, successful login, mode switching and field clearing, password reset outcomes. |
+| [AuthContext.test.jsx](../../../../../src/frontend/tests/AuthContext.test.jsx) | Save and restore user state, malformed saved-user data, and logout. |
+| [ApiService.test.js](../../../../../src/frontend/tests/ApiService.test.js) | Course requests, token selection, configured API destination, and request/response errors. |
+| [Settings.test.jsx](../../../../../src/frontend/tests/Settings.test.jsx) | Load and add flagged words; loading error. |
+| [StudentEvaluation.test.jsx](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) | Evaluation loading, invalid links, completed state, validation, multiple submissions, and failed-submission retry. |
 | [TeamAssignment.test.jsx](../../../../../src/frontend/tests/TeamAssignment.test.jsx) | Rendering the current Team Assignment page. |
-| [Reports.test.jsx](../../../../../src/frontend/tests/Reports.test.jsx) | Course loading/filtering and report display, generation, and download behavior. |
-| [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) | Course loading/refresh, course and team operations, roster behavior, launch/invitation/reminder requests, and reset-prompt cases. |
+| [Reports.test.jsx](../../../../../src/frontend/tests/Reports.test.jsx) | Course loading/filtering and report display, generation, retry, and CSV download. |
+| [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) | Course, roster, team, invitation, launch, status, reminder, and reset-prompt UI operations. |
 | [CourseManagement.resetSequencing.test.jsx](../../../../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx) | Required reset ordering for queued team additions and removals. |
 | [setup.test.js](../../../../../src/frontend/test/setup.test.js) | Confirms that a per-file coverage snapshot can be empty. |
 
-`App.test.jsx` is no longer maintained; its initial-route test was merged into
+The former `App.test.jsx` initial-route case is maintained in
 `LoginPage.test.jsx`.
 
-## Test Cases
+<a id="test-cases"></a>
 
-| Case or area | Behavior checked | Source |
-| --- | --- | --- |
-| UNIT-FE-001: Initial login route | Run `npm test`; render `App` at the initial route inside `AuthProvider`. The Professor Login heading, email field, password field, and Login button are present. | [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) |
-| Authentication | Login and registration behavior, successful login storage, switching modes and clearing fields, password-reset success/failure/cancel, saved-user restoration, malformed persisted data, and logout. | [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx), [AuthContext.test.jsx](../../../../../src/frontend/tests/AuthContext.test.jsx) |
-| API service | Course retrieval, local-token precedence over session token, configured API destination, request/response passthrough, and timeout/network/server/validation errors. | [ApiService.test.js](../../../../../src/frontend/tests/ApiService.test.js) |
-| Settings, evaluation, and team assignment | Flagged-word load/add/error; evaluation loading, invalid/completed states, required ratings and feedback, distinct multi-teammate submissions, failed-submission retry and success; current Team Assignment page rendering. | [Settings.test.jsx](../../../../../src/frontend/tests/Settings.test.jsx), [StudentEvaluation.test.jsx](../../../../../src/frontend/tests/StudentEvaluation.test.jsx), [TeamAssignment.test.jsx](../../../../../src/frontend/tests/TeamAssignment.test.jsx) |
-| Reports | Course loading and active-course filtering, errors, rendered results, generation retry, and CSV download success/failure and URL cleanup. | [Reports.test.jsx](../../../../../src/frontend/tests/Reports.test.jsx) |
-| Course management | Course load/refresh, empty/error states, create/edit/delete and cancel/retry, student and CSV behavior, team/membership updates, invitation requests, launch health check/status, reminders, and completion progress. Mocked reminder confirmation does not establish backend recipient selection or actual email delivery. | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
-| REG-CW05-07: Reset prompt canceled | Canceling the reset prompt for a queued team add issues neither reset nor membership request and retains the original team/available-student counts. | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
-| REG-CW05-08: Reset failure and sequencing | If a required reset fails for a queued add or removal, no membership mutation follows and membership remains. Pending-reset cases verify add/remove requests follow only a successful reset. | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx), [CourseManagement.resetSequencing.test.jsx](../../../../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx) |
+## 4. Test Cases
 
-The rendered reset checks exercise the UI/API boundary; they do not prove
-MongoDB persistence.
+Each case summarizes representative test steps and assertions in its linked
+source. Regression IDs are included where the case directly covers that
+recorded regression.
 
-### Priority-workflow baseline
+| Case | Objective | Steps | Expected result | Regression target | Source |
+| --- | --- | --- | --- | --- | --- |
+| TC-UNIT-FE-001 | Verify initial app route. | Render `App` at the initial route inside `AuthProvider`. | Professor Login heading and email, password, and Login controls appear. | — | [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) |
+| TC-UNIT-FE-002 | Verify login and registration forms. | Enter credentials; submit successful login; switch modes, check cleared fields, and submit registration. | Login stores successful user data; mode changes show the relevant form and registration sends entered information. | — | [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) |
+| TC-UNIT-FE-003 | Verify password reset dialog outcomes. | Request a reset under success and failure responses; cancel the dialog. | Success and failure feedback appear and cancel closes the dialog. | — | [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) |
+| TC-UNIT-FE-004 | Verify authentication state lifecycle. | Call login, initialize with saved and malformed user data, then log out. | User state is saved/restored; malformed data is cleared without breaking the provider; logout removes the user. | — | [AuthContext.test.jsx](../../../../../src/frontend/tests/AuthContext.test.jsx) |
+| TC-UNIT-FE-005 | Verify API service request and token/error handling. | Request a course; vary local/session tokens; exercise request/response passthrough and error responses; configure API destination. | Correct token/header and configured destination are used; successful values and rejected errors are preserved with user messages. | — | [ApiService.test.js](../../../../../src/frontend/tests/ApiService.test.js) |
+| TC-UNIT-FE-006 | Verify Settings flagged-word UI. | Load words, add a word, and reject the load request. | Existing/new words render and load failure shows an error. | — | [Settings.test.jsx](../../../../../src/frontend/tests/Settings.test.jsx) |
+| TC-UNIT-FE-007 | Verify StudentEvaluation form states. | Load an evaluation, simulate load failure, and render invalid-link and already-completed responses. | Evaluation details or the corresponding error, invalid-link, or completed state renders. | — | [StudentEvaluation.test.jsx](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) |
+| TC-UNIT-FE-008 | Verify required rating and feedback validation. | Submit without ratings, then with feedback shorter than ten characters. | Each invalid submission is rejected and no submission request is sent. | REG-CW08-12 | [StudentEvaluation.test.jsx](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) |
+| TC-UNIT-FE-009 | Verify multi-peer submission and retry. | Submit distinct teammate ratings/feedback; then fail a submission and retry with the entered evaluations. | Each teammate's data is submitted; failed submission retains input and permits retry. | REG-CW08-13 | [StudentEvaluation.test.jsx](../../../../../src/frontend/tests/StudentEvaluation.test.jsx) |
+| TC-UNIT-FE-010 | Verify current TeamAssignment rendering. | Render the TeamAssignment page. | Team Assignment page is shown. | — | [TeamAssignment.test.jsx](../../../../../src/frontend/tests/TeamAssignment.test.jsx) |
+| TC-UNIT-FE-011 | Verify reports load, filter, generate, retry, and export. | Load courses and report data, filter active courses, trigger generation failure/retry, and download CSV. | Active-course choices and report results render; retry works; CSV success/failure is reported and temporary URL is released. | — | [Reports.test.jsx](../../../../../src/frontend/tests/Reports.test.jsx) |
+| TC-UNIT-FE-012 | Verify course lifecycle UI. | Load/refresh, create, edit, and delete a course; cancel deletion and simulate create failure. | Refreshed course details render; cancellation makes no delete request; failed creation retains entered details. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
+| TC-UNIT-FE-013 | Verify roster operations and CSV handling. | Add, edit, delete, search roster students; upload CSV and simulate processing failure. | Roster updates/filtering render; CSV result/error appears and selected file remains available for retry. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
+| TC-UNIT-FE-014 | Verify teams and membership operations. | Create/edit/delete teams; add and remove students and clear teams. | Team list and membership counts refresh to reflect confirmed operations. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
+| TC-UNIT-FE-015 | Verify invitation, launch, status, reminder, and reset UI. | Send invitations, exercise health-check and send failures, launch evaluations, view status, request reminders, and reset evaluations. | UI reports outcomes and refreshed completion status; failed actions do not claim success. Mocked reminder confirmation does not establish recipient selection or email delivery. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
+| TC-UNIT-FE-016 | Verify cancellation of a required reset. | Queue a team add after evaluations were sent, then cancel the reset prompt. | Neither reset nor membership request is sent; displayed membership counts remain unchanged. | REG-CW05-07 | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
+| TC-UNIT-FE-017 | Verify required-reset failure blocks membership add/removal. | Attempt add and removal when evaluations were sent; reject the required reset. | Membership mutation is not sent and membership UI remains; failure is shown. | REG-CW05-08 | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx), [CourseManagement.resetSequencing.test.jsx](../../../../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx) |
+| TC-UNIT-FE-018 | Verify pending reset ordering before membership add/removal. | Queue each membership action and confirm reset; inspect the request order. | Add/removal request follows only a successful reset. | REG-CW05-08 | [CourseManagement.resetSequencing.test.jsx](../../../../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx) |
 
-This frontend baseline is partial evidence for the identified workflows, not
-complete cross-layer verification.
+The reset cases exercise the UI/API boundary and do not prove MongoDB
+persistence.
 
-| Workflow | Frontend unit evidence |
-| --- | --- |
-| CW-01 Professor authentication and authorized access | Login success/failure, authentication state/storage, navigation, and API authorization headers; server authorization needs backend verification. |
-| CW-02 Course creation and management | Load/refresh, create/edit/delete, cancel, and failed-create retry. |
-| CW-03 Roster upload and processing | Required student data, student creation, CSV FormData, result/error feedback; parsing and persistence are backend responsibilities. |
-| CW-04 Team organization | Team creation/counts and membership add/remove with refresh. |
-| CW-05 Evaluation setup and launch | Supplied rubric rendering/submission and launch request, confirmation, refreshed status; this does not imply rubric-editing functionality. |
-| CW-06 Individualized link/token access | Token-specific form request, supplied details, failed access, and completed response; token rules need backend verification. |
-| CW-07 Invitation distribution | Course/team send requests, success feedback, and student-specific completion status. |
-| CW-08 Evaluation submission | Required feedback/ratings, distinct multi-teammate input, success, and retained-input retry. |
-| CW-09 Results review/export | Report settings/results, generation retry, and CSV download success/failure. |
-| SW-04 Reminders | Selected-course reminder request, refreshed status, and returned confirmation. |
+## 5. Execution Instructions
 
-Backend rules, MongoDB relationships/persistence, SMTP delivery, and full
-browser journeys require their respective backend, integration, or E2E
-evidence. This baseline is not exhaustive and introduces no numerical coverage
-target.
+Prerequisites: Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`, npm 9 or newer,
+and frontend dependencies installed. The tests require no running backend,
+database, SMTP server, or other application service.
 
-## Execution Instructions
-
-Run the frontend unit/component suite from the repository root:
+Run the frontend suite from the repository root:
 
 ```bash
 npm test
@@ -89,7 +88,9 @@ Run the focused reset-sequencing suite with:
 npx vitest run src/frontend/tests/CourseManagement.resetSequencing.test.jsx
 ```
 
-## Verification Results
+<a id="verification-results"></a>
+
+## 6. Test Results
 
 Latest recorded local verification: October 31, 2026, revision `d0088f7`.
 
@@ -97,20 +98,19 @@ Latest recorded local verification: October 31, 2026, revision `d0088f7`.
 | --- | --- | --- |
 | `npm test` | 10 frontend test files, 85 tests passed | [October 31 recorded unit results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results) |
 
-This is existing dated documentation evidence; no test run was performed for
-this document update or at the current branch revision. A local pass does not
-establish that the corresponding CI check is required before merging.
+This table records the October 31 local result; no local unit-suite run was
+performed for this documentation edit, and the table does not report current
+PR CI results. A local pass does not establish whether the corresponding CI
+check is required before merging.
 
-## Limitations and Remaining Work
+## 7. Limitations and Remaining Coverage
 
 - Frontend mocks verify UI requests and response handling, not backend
   authorization, persistence, email recipient selection/delivery, or live
   service behavior.
-- The recorded test pass count does not establish assertion quality,
-  complete workflow verification, a CI threshold, or fulfillment of a
-  numerical workflow-coverage target.
-- The [regression coverage gap record](regression-coverage-gaps.md) tracks
-  current cross-layer gaps; broader integration, regression, end-to-end, and
-  live-service validation remain separate from these frontend unit tests.
-- Settings/AuthContext/current Team Assignment placeholder tests are retained
-  without adding AI settings or automatic-assignment functionality.
+- The recorded pass count does not establish assertion quality, complete
+  workflow verification, a CI threshold, or fulfillment of a numerical
+  workflow-coverage target.
+- Settings has only flagged-word load/add/error coverage, and TeamAssignment
+  only verifies the current page render; neither establishes AI settings or
+  automatic assignment behavior.
