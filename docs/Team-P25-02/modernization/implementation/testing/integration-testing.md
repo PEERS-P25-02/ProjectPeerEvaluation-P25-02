@@ -1,29 +1,22 @@
-# Integration Testing
+# Integration Testing — Legacy Link
+
+The maintained testing index is [Testing Implementation](README.md).
 
 ## Testing Strategy
 
-Run `npm run test:integration` from the repository root with Docker and
-Compose available. The runner uses an isolated backend, transaction-capable
-MongoDB, and Mailpit with synthetic data. It saves results under
-`test-results/integration/` and verifies cleanup.
+See [Run the suites](README.md#run-the-suites) for the command and the
+[integration environment](integration-test-environment.md) for isolated
+services, prerequisites, diagnostics, and cleanup.
 
 ## Test Cases
 
-| Case group | Detailed record |
-| --- | --- |
-| Isolated environment and cleanup | [Integration environment](integration-test-environment.md) |
-| API and database operations | [API/database integration](api-database-integration.md) |
-| Authentication and authorization | [Authentication and authorization](authentication-authorization-integration.md) |
-| Invitation email and failure handling | [Email integration](email-integration.md) |
+The maintained case records are [API/database integration](api-database-integration.md#test-cases),
+[authentication and authorization](authentication-authorization-integration.md#test-cases),
+and [email integration](email-integration.md#test-cases).
 
 ## Test Results
 
-On October 31, 2026, `npm run test:integration` passed 200 tests across
-15 files at revision `d0088f7`. The runner exited successfully and verified
-cleanup. The local result and logs are under
-`test-results/integration/555f8a8978c6d439/`; this directory is ignored
-by Git and is not shared with the repository.
-
-The suite checks API and database behavior, authorization, and captured
-email. It does not establish complete browser journeys, external email
-delivery, or every functional regression outcome.
+The latest documented result is summarized in the [testing index](README.md#latest-recorded-local-verification)
+and the maintained [API/database verification record](api-database-integration.md#verification-results).
+The original October 31 result remains available at
+[commit `dd7d26d`](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/integration-testing.md#test-results).
