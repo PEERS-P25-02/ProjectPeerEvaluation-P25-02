@@ -4,7 +4,7 @@
 
 ## Purpose and Scope
 
-This document records backend unit-test behaviors, organization, cases, dated verification results, and remaining coverage. The latest documented suite result is October 31, 2026 at `d0088f7`; earlier snapshots are labeled under Verification Results. The initial test in `auth.test.js` was retained and expanded with valid, invalid, and empty-token cases; it is included alongside the additional backend test files documented here.
+This document records backend unit-test behaviors, organization, cases, the latest dated verification result, and remaining coverage. The initial test in `auth.test.js` was retained and expanded with valid, invalid, and empty-token cases; it is included alongside the additional backend test files documented here.
 
 The tests are intentionally isolated from MongoDB, SMTP, Mailpit, and live
 Express startup. They use synthetic in-memory requests, model and email mocks,
@@ -96,31 +96,19 @@ The backend package runs `vitest run`; a failed assertion exits nonzero. The int
 
 ## Verification Results
 
-The latest documented result is a dated local run, not a new execution at this branch's revision.
+The latest documented local verification was performed on October 31, 2026,
+at revision `d0088f7`.
 
-| Date / revision | Command | Recorded outcome | Source |
-| --- | --- | --- | --- |
-| October 31, 2026, `d0088f7` | `npm --prefix src/backend test` | 16 files, 143 tests passed | [Project-level unit result](unit-testing.md#test-results) |
-| October 21, 2026 snapshot | `npm --prefix src/backend test` | 9 files, 45 tests passed | Command output below |
+| Command | Recorded result |
+| --- | --- |
+| `npm --prefix src/backend test` | 16 files, 143 tests passed |
 
-An intervening version of this record mentioned 49 passing tests in nine files without a date, revision, or retained run output. That count remains historical and is not treated as verified by this record.
+Source: [Project-level unit testing results](unit-testing.md#test-results).
 
-The October 31 project-level record also reports clean installations and passing unit suites on Node 22.22.2, 24.15.0, and 26.0.0. It does not establish a new run here.
-
-### October 21 command output
-
-```powershell
-npm --prefix src/backend test
-```
-
-```text
-Test Files  9 passed (9)
-Tests       45 passed (45)
-```
-
-The suite completed without requiring MongoDB, SMTP, Mailpit, or a running
-backend process. Root frontend validation also passed with one test file and
-one test.
+The project-level record also reports clean installations and passing unit
+suites on Node 22.22.2, 24.15.0, and 26.0.0. These are previously recorded
+results, not a new execution at this branch's revision. A local pass does
+not establish that the corresponding CI check is required before merging.
 
 ## Limitations and Remaining Work
 
