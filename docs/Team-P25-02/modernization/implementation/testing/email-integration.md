@@ -1,101 +1,65 @@
-# Evaluation Invitation Email Integration
+# Email Integration Testing Implementation
 
-## 1. Testing Strategy
+## Purpose and Scope
 
-These checks follow the invitation targets REG-CW07-01 through REG-CW07-04
-in the [regression matrix](../../../requirements/regression-test-matrix.md),
-with supporting checks for REG-CW06-02. They use actual HTTP requests through
-Express, persisted synthetic students/tokens in MongoDB, and real SMTP captured
-by the isolated Mailpit service. Email sending is not mocked.
+This record describes implementation and testing for course and team evaluation invitations sent through the configured SMTP service. The tests cover regression targets REG-CW07-01 through REG-CW07-04, with link-resolution support for REG-CW06-02, as mapped in the [regression matrix](../../../requirements/regression-test-matrix.md).
 
-The existing [evaluation-management cases](../../../../../src/backend/tests/integration/evaluationManagement.test.js)
-already assert course/team selection, individualized tokens, excluded recipients,
-and captured invitations. The [email integration suite](../../../../../src/backend/tests/integration/emailIntegration.test.js)
-adds message content, link/context checks, deterministic SMTP rejection, retry,
-and acceptance-state verification. Standalone reminders and account recovery
-remain outside the matrix target; their existing tests must still pass.
+The backend integration tests exercise actual Express routes, MongoDB records, and SMTP captured by Mailpit. They verify invitation content and recipient selection, stored token links, SMTP rejection behavior, retry, and recorded SMTP acceptance. They do not establish external email delivery or browser navigation.
 
-Use the prerequisites in the [integration environment guide](integration-test-environment.md).
-Docker must already be running. From the repository root:
+## Testing Environment and Tools
+
+The tests use the isolated Docker environment described in the [integration test environment record](integration-test-environment.md). The root runner starts a disposable backend, MongoDB database, and Mailpit inbox with synthetic data. Each run has isolated resources and no published host ports or external SMTP forwarding.
+
+Mailpit’s Chaos API injects deterministic SMTP 451 rejection at the sender or recipient stage. Rejection probability is set to 100% for the targeted test, then the original configuration is restored and verified in a `finally` block before retry. See the [pinned Mailpit Chaos API](https://github.com/axllent/mailpit/blob/v1.27.4/server/apiv1/chaos.go) and [Chaos configuration documentation](https://mailpit.axllent.org/docs/integration/chaos/).
+
+## Test Organization
+
+**Backend integration:** [`emailIntegration.test.js`](../../../../../src/backend/tests/integration/emailIntegration.test.js) tests invitation message content, context, SMTP rejection, retry, and acceptance state through the actual API and Mailpit. [`evaluationManagement.test.js`](../../../../../src/backend/tests/integration/evaluationManagement.test.js) supplies related checks for course/team selection, individualized tokens, recipient exclusion, and captured invitations.
+
+**Frontend unit:** [`CourseManagement.test.jsx`](../../../../../src/frontend/tests/CourseManagement.test.jsx) covers how invitation status and acceptance information are presented, including legacy records with unknown acceptance. This is source-level test organization; the backend integration result below does not verify the frontend suite.
+
+## Test Cases
+
+The backend email suite has seven expanded cases: two content/context cases, four SMTP rejection-and-retry cases, and one failed-resend-after-acceptance case.
+
+| Case group | Actions and expected outcome | Source |
+| --- | --- | --- |
+| Course invitation content and context | Send course invitations and inspect the captured messages, stored tokens, and API context returned for each token. Each message has the intended recipient and sender, no CC/BCC, expected subject and course details, and clickable and fallback hash-route links resolving to the correct evaluator, course, and eligible peers. Unrelated course records remain unchanged. | [`emailIntegration.test.js`](../../../../../src/backend/tests/integration/emailIntegration.test.js) |
+| Team invitation content and context | Send to one selected team while another same-course team and a foreign course exist. Only the selected student receives an invitation; unselected and foreign-course students and records remain unchanged. | [`emailIntegration.test.js`](../../../../../src/backend/tests/integration/emailIntegration.test.js) |
+| Course/team sender-stage rejection | For both course and team sends, configure 100% sender-stage 451 rejection. The endpoint returns HTTP 502 with truthful failed-recipient details; no failed message or SMTP acceptance is recorded. The retained token is reused on retry, which succeeds and records acceptance. | [`emailIntegration.test.js`](../../../../../src/backend/tests/integration/emailIntegration.test.js) |
+| Course/team recipient-stage rejection | Repeat the course and team scenarios with 100% recipient-stage 451 rejection. Failure and retry outcomes match the sender-stage cases. | [`emailIntegration.test.js`](../../../../../src/backend/tests/integration/emailIntegration.test.js) |
+| Failed resend after prior acceptance | First send successfully, then reject a resend. The resend returns HTTP 502; prior tokens, acceptance timestamps, status, and captured messages remain unchanged. | [`emailIntegration.test.js`](../../../../../src/backend/tests/integration/emailIntegration.test.js) |
+
+Successful invitation requests return HTTP 200. The `invitation_accepted_at`
+timestamp is recorded only after SMTP acceptance and while the emailed token is
+still current. A rejected send leaves its generated token available for retry;
+token existence alone does not mark invitations as sent. Roster replacement and
+evaluation reset clear acceptance with the old token. Existing tokens without a
+recorded acceptance are not assigned guessed delivery history.
+
+## Execution Instructions
+
+Run from the repository root with Docker and Compose available:
 
 ```bash
 npm run test:integration -- emailIntegration.test.js evaluationManagement.test.js
 npm run test:integration
 ```
 
-The standalone test Compose project starts Mailpit with
-`MP_ENABLE_CHAOS=true`; all rejection probabilities initially remain zero.
-The tests save `/api/v1/chaos`, PUT a sender or recipient trigger with SMTP
-code 451 and probability 100, check the configuration, and restore/read it back
-in `finally` before retrying. This exercises real rejection at `MAIL FROM` or
-`RCPT TO` without restarting services or injecting random failures. The mechanism
-is supported by the [pinned Mailpit API](https://github.com/axllent/mailpit/blob/v1.27.4/server/apiv1/chaos.go)
-and [Chaos configuration](https://mailpit.axllent.org/docs/integration/chaos/).
+The first command runs the focused invitation suites within the isolated environment lifecycle. The second runs the complete integration suite. The root command creates a fresh run and retains logs and cleanup results under ignored `test-results/integration/<run-id>/`.
 
-Each invocation owns a database, inbox, internal network, and ephemeral settings;
-no host ports or external SMTP forwarding/relay are enabled. Fixtures use
-invented addresses only. Concurrent root invocations must remain independent,
-including when one run rejects SMTP while another sends successfully.
-The runner retains logs and cleanup results in ignored
-`test-results/integration/<run-id>/` and removes only that run's resources.
+For a service-backed run, check the runner output and `result.json` for test completion and cleanup. A dated result tied to a known source revision is **verified** evidence. A local pass alone does not establish that every case is **CI-enforced**.
 
-## 2. Test Cases
+## Verification Results
 
-These purposes, actions, and expected results were recorded before execution.
-The new file contains seven cases; parameterized SMTP failures expand to four
-individually named cases.
+The October 31, 2026 full integration run passed 200 tests across 15 files at revision `d0088f7`; the runner exited successfully and verified cleanup. The email integration suite is part of the integration suite. The run summary is recorded in the [integration test results at commit dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/integration-testing.md#test-results).
 
-| Case | Purpose and steps | Expected result |
-| --- | --- | --- |
-| Course invitation content/context | Send to Course A; inspect both captured messages, persisted tokens, and the form returned for each emailed token. | Exact intended recipient/sender, no CC/BCC, correct subject/greeting/course/deadline, matching clickable and fallback hash-route URLs, and the correct evaluator/course/eligible peers. Course B remains unchanged. |
-| Team invitation content/context | Place another Course A student on an unselected team; send only to the selected team and inspect the message/context. | Only the selected student receives the personalized invitation; unselected and foreign-course students are excluded and unchanged. |
-| Course/team sender rejection | Configure 100% sender-stage 451 rejection, attempt invitations, inspect response, stored state, status, and inbox; restore SMTP and retry. | HTTP 502 with truthful failed counts and no captured failed message or acceptance marker; status does not claim sent. Retry succeeds with the retained tokens, captured messages, and recorded SMTP acceptance. |
-| Course/team recipient rejection | Repeat at the recipient stage rather than sender stage. | The same failure/recovery invariants hold for real recipient rejection. |
-| Failed resend after prior acceptance | Send successfully, retain accepted timestamps/tokens and captured messages, then reject a resend. | HTTP 502 truthfully reports this attempt's failures; previous acceptance/tokens remain unchanged and the inbox contains only the original messages. |
+The integration test source and SMTP assertions are **implemented**. The cited run provides dated local **verification** of the full backend integration suite, including this email suite. The run does not establish that every email case is separately selected or **CI-enforced** on every change.
 
-Existing fixture tests additionally distinguish a legacy token from recorded
-SMTP acceptance and verify that roster replacement and evaluation reset clear
-acceptance along with the token while preserving unrelated-course state.
+## Limitations and Remaining Work
 
-## 3. Results and Limits
-
-Verification completed October 26, 2026 using Node 24.21.0, npm 11.19.0,
-Docker Engine 29.9.2, and Compose 5.6.1. The seven new cases extend the
-existing 169-case integration suite; existing tests remain required to pass.
-
-| Command or experiment | Actual result |
-| --- | --- |
-| `npm run test:integration`, twice after the final application/integration-test changes | Both runs passed 176 tests in 12 files, exited 0, and verified cleanup. |
-| Concurrent `npm run test:integration` and `npm run test:integration -- emailIntegration.test.js` | The full 176-case run and the focused seven-case run both passed in distinct projects/databases/inboxes, with cleanup verified independently. |
-| New email suite against an isolated copy of the original backend, with Chaos enabled | All seven cases failed as expected: two missing hash-route links, four false HTTP-success responses under real SMTP rejection, and missing recorded acceptance. The command exited nonzero and verified cleanup. |
-| `npm --prefix src/backend test` | All 64 tests in 10 files passed, including the token-matched acceptance-update guards. |
-| `npm test` and `npm run build` | All 63 frontend tests passed and the production build succeeded; the existing large-chunk warning remains. The status heading now says "No Sent Invitations Recorded" so legacy unknown acceptance is not presented as proof that a message was never sent. |
-| `npm run lint` and `npm run format:check` | Passed. |
-
-The original assertions remain active with the repairs; no defect is hidden
-with a skipped or expected-failure test. This is local service-backed evidence,
-not a new coverage percentage or proof of a hosted CI integration job.
-
-`invitation_accepted_at` records successful acceptance by the configured SMTP
-service, not external delivery or whether a student read the email. It is set
-only after SMTP success and only while the emailed token is still current.
-Generated tokens remain available for retry after rejection; their existence
-alone does not set `evaluations_sent`. A previous acceptance survives a failed
-resend. Reset/import clear acceptance with the old tokens. Existing tokens
-without a recorded acceptance are not backfilled with guessed delivery history;
-they remain valid access credentials and a successful resend records acceptance.
-
-Both invitation endpoints return HTTP 502 when any intended send fails, with
-the accepted count and failed-recipient details retained in the response.
-Full success retains HTTP 200. The integration suite deterministically rejects
-every targeted send during each injected outage; it does not claim mixed
-recipient rejection from a probabilistic trigger.
-
-Invitation URLs use the configured frontend origin/path and a
-`#/evaluate/<token>` fragment matching HashRouter. The suite inspects the URL and
-resolves its token through the real API; it does not open a browser. Actual
-navigation remains REG-CW06-01 browser E2E work. External delivery, authenticated
-staging SMTP, provider outages/timeouts, reminder/reset-email expansion, and the
-known password-reset defects remain separate verification concerns. See
-[Known Bugs](../../../known-bugs.md) and the temporary
-[coverage gap record](regression-coverage-gaps.md).
+- SMTP acceptance means the configured SMTP server accepted the message. It does not prove external delivery, inbox placement, or that a student read it.
+- Browser navigation is documented separately in the [end-to-end testing record](end-to-end-testing.md).
+- The SMTP rejection cases deterministically reject all targeted sends during each injected outage. They do not test mixed recipient outcomes, provider timeouts, or authenticated staging SMTP.
+- Standalone reminders and account recovery are outside this record’s invitation scope.
+- Frontend status presentation has separate unit tests; the cited integration run does not report their execution.
