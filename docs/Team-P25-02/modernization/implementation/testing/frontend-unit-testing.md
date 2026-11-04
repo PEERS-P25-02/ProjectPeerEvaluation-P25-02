@@ -98,10 +98,18 @@ Latest recorded local verification: October 31, 2026, revision `d0088f7`.
 | --- | --- | --- |
 | `npm test` | 10 frontend test files, 85 tests passed | [October 31 recorded unit results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results) |
 
-This table records the October 31 local result; no local unit-suite run was
-performed for this documentation edit, and the table does not report current
-PR CI results. A local pass does not establish whether the corresponding CI
-check is required before merging.
+The October 28, 2026 reset-sequencing follow-up at revision `4721cbf`
+recorded a focused pass (1 file, 3 tests) and a full frontend pass (9 files,
+68 tests) on Node 24.21.0 and npm 11.19.0. Lint, formatting, and the frontend
+build also passed. Before the fix, the queued add/remove rejection checks
+failed because membership requests followed a failed reset. These were
+mocked component checks without running application services. See the
+[dated reset verification at revision 4721cbf](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/4721cbfbf683064351dc65d377fe8b3c4aac5ca9/docs/Team-P25-02/modernization/implementation/testing/frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes).
+
+The October 31 table is the latest recorded local frontend result. No local
+unit-suite run was performed for this documentation edit; this section does
+not report current PR CI results. A local pass does not establish whether
+the corresponding CI check is required before merging.
 
 ## 7. Limitations and Remaining Coverage
 

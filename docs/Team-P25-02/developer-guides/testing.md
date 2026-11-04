@@ -21,8 +21,8 @@ npm --prefix src/backend test
 ```
 
 Frontend unit and component tests use Vitest, jsdom, React Testing Library,
-and mocked API boundaries. See the [frontend unit record](../modernization/implementation/testing/frontend-unit-test-validation.md)
-for cases and dated results.
+and mocked API boundaries. See the [frontend unit cases](../modernization/implementation/testing/frontend-unit-testing.md#4-test-cases)
+and [dated results](../modernization/implementation/testing/frontend-unit-testing.md#6-test-results).
 
 Backend unit tests use Vitest in Node with mocks and synthetic inputs.
 They exclude integration tests and need no running MongoDB, SMTP, or
