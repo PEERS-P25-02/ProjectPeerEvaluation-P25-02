@@ -1,68 +1,41 @@
-# Backend API and Database Integration Tests
+# Backend API and Database Integration Testing Implementation
 
-The integration suite covers all [36 inventoried operations](api-database-operation-inventory.md)
-through actual HTTP requests and MongoDB persistence. The October 26, 2026 recorded
-suite contained 12 files and 176 tests: the original 73, 96 authentication and
-authorization cases, and seven email integration cases. That snapshot contained
-the integration environment, eleven application suites, and four application
-repairs described in this record. The submission integrity extension is recorded in Section 5; priority regressions
-and the combined follow-up are recorded in Section 6. The detailed course and database
-verification below preserves the October 24, 2026 snapshot; later full-suite
-and focused email results are recorded separately below and in
-[email integration](email-integration.md).
+## Purpose and Scope
 
-## 1. Testing Strategy
+This record describes selected backend API and database integration scenarios using actual Express requests and independent MongoDB queries. The case tables map scenarios to the 36 operations in the separate [API/database operation inventory](api-database-operation-inventory.md). Scenario counts exceed operation counts; coverage of each operation does not establish exhaustive inputs, failure paths, or workflows.
 
-The [integration suites](../../../../../src/backend/tests/integration)
-send actual HTTP requests through the mounted Express routes and independently
-query MongoDB using the fixture helper's separate Mongoose connection.
-Controllers, HTTP responses, and database operations are not mocked. Both the
-response contract and the resulting stored state must agree with each case.
+The record covers API/database operations, authentication and account support, submission integrity, and selected priority workflow regressions. It does not replace validated requirements, the operation inventory, the regression matrix, or browser end-to-end records.
 
-Before each case, the existing guarded fixture helpers reset this run's data,
-seed the invented professor/course/team/students, and log in through the API
-where the case needs authentication. Login/account/public-student suites can
-disable setup login.
-Cases and files execute sequentially because they share one run database.
-Final teardown resets records/inbox and closes the test connection; the root
-runner removes the disposable stack and verifies resource cleanup.
+<a name="1-testing-strategy"></a>
 
-Use the Node/npm versions in the [repository README](../../../../../README.md),
-Docker with Compose v2.24+, and Linux container support. Docker must be running.
-The [integration environment guide](integration-test-environment.md#1-testing-strategy) describes
-the exact run-only settings, destination guards, readiness checks, diagnostics,
-and cleanup. No developer `.env`, Atlas account, or Mailtrap credentials are
-needed. Image builds need network access. The original suite introduced no
-dependencies or configuration changes. The submission integrity extension
-requires transaction-capable MongoDB; see Section 5.
+## Testing Environment and Tools
 
-From the repository root, run the complete environment and application checks:
+The suites use actual HTTP requests through mounted Express routes and independent MongoDB queries; controllers, responses, and database operations are not mocked. Guarded fixtures seed synthetic professors, courses, teams, and students, reset run-owned data between cases, and log in through the API when needed. Cases that share a run database execute sequentially. Teardown resets records and inbox state and closes the database connection.
 
-```bash
-npm run test:integration
-```
+Run with the repository-supported Node/npm versions, Docker, Compose v2.24 or later, and Linux container support. The [integration test environment record](integration-test-environment.md#1-testing-strategy) documents run-only settings, destination safeguards, readiness, diagnostics, and cleanup. No developer `.env`, Atlas account, or Mailtrap credentials are needed; the first image build requires network access. Submission-integrity cases require transaction-capable MongoDB. The supplied stacks configure a single-node replica set; native backend connections through the published port need `directConnection=true` because MongoDB advertises the Compose hostname.
 
-To select only these course cases while retaining the same environment lifecycle:
+## Test Organization
 
-```bash
-npm run test:integration -- courses.test.js
-```
+The case tables below retain their stable scenario IDs and map application cases to operation IDs. The separate [operation inventory](api-database-operation-inventory.md) remains the canonical 36-operation catalog.
 
-Run the complete command twice to check repeatability. Each invocation must use
-a different run ID, pass its selected cases, exit 0, and report verified cleanup.
-Read `runner.log`, `services.log`, and `result.json` under ignored
-`test-results/integration/<run-id>/`. Keep the logs with review evidence; a
-checked-in result summary does not make those local artifacts portable.
+| Section | Operations | Source |
+| --- | --- | --- |
+| Professor login | OP-33-01 | [authentication.test.js](../../../../../src/backend/tests/integration/authentication.test.js) |
+| Courses | OP-33-02–06 | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| Rosters | OP-33-07–13 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| Teams | OP-33-14–20 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| Evaluation management | OP-33-21–25 | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js) |
+| Student evaluation | OP-33-26–28 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| Reporting | OP-33-29–33 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| Account support | OP-33-34–36 | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
 
-Ordinary `npm --prefix src/backend test` excludes the integration directory and
-requires no running services. Maintain these assertions alongside the implementation. Record observed failures and suspected defects separately in [Known Bugs](../../../known-bugs.md).
-No coverage percentage or new merge gate is introduced.
+Additional backend regression suites cover [submission integrity](../../../../../src/backend/tests/integration/submissionIntegrity.test.js), [priority roster workflows](../../../../../src/backend/tests/integration/priorityRoster.test.js), and [priority lifecycle workflows](../../../../../src/backend/tests/integration/priorityLifecycle.test.js). Browser behavior is documented separately in the end-to-end testing record.
 
-## 2. Test Cases
+## Test Cases
 
-The initial course cases and expected outcomes were recorded before live execution. Each
-case starts from independently seeded data, rather than depending on a prior
-case. All paths in the initial table are under `/api/courses`.
+These API-33 cases describe course behavior and expected outcomes. Each case
+starts from independently seeded data rather than depending on a prior case.
+All paths in the initial table are under `/api/courses`.
 
 ### Initial Course Cases
 
@@ -77,10 +50,10 @@ case. All paths in the initial table are under `/api/courses`.
 | API-33-07 | Snapshot stored courses; PUT a syntactically valid but nonexistent course ID; compare stored state afterward. | HTTP 404 with NOT_FOUND; no upsert or change to existing courses. |
 
 
-### Expanded Section Case Plans
+### Expanded Application Cases
 
-These section plans were recorded before their live execution. OP IDs map to
-the inventory; scenario counts exceed operation counts.
+These rows describe current application assertions. OP IDs map to the separate
+operation inventory; scenario counts exceed operation counts.
 
 #### Authentication
 
@@ -191,137 +164,9 @@ the inventory; scenario counts exceed operation counts.
 | ACCOUNT-07 | OP-33-36 | Arrange a stored unexpired reset credential; submit a different token; compare professor snapshots and password hashes. | HTTP 400/TOKEN_ERROR; password and stored reset credentials unchanged. |
 | ACCOUNT-08 | OP-33-36 | Arrange an expired reset credential; submit its token; compare professor snapshots and password hashes. | HTTP 400/TOKEN_ERROR; password and stored reset credentials unchanged. |
 
-## 3. Recorded Initial Course Results
+<a name="5-submission-integrity"></a>
 
-The initial seven course cases were recorded as passing on October 23, 2026.
-The execution used Node 24.21.0, npm 11.19.0, and Docker Compose 5.1.1; the
-application and runner images used Node 24.22.0. These results are a dated
-snapshot from the initial course slice, not a current execution claim.
-
-| Case | Recorded actual result | Status |
-| --- | --- | --- |
-| API-33-01 | HTTP 201; independent query confirmed fields, Active/default counts and professor; GET returned the created course. | Passed |
-| API-33-02 | With cached counts set to 99, the list returned the actual 1 team and detail returned the actual 2 students; identifiers/details matched MongoDB. | Passed |
-| API-33-03 | HTTP 200; edited name/semester were stored and returned by GET; other checked course fields and owner were preserved. | Passed |
-| API-33-04 | HTTP 200; course remained Inactive with 2 students/1 team; active list excluded it and inactive list included it. | Passed |
-| API-33-05 | HTTP 200; original ID reactivated and course count remained 1. | Passed |
-| API-33-06 | HTTP 400/VALIDATION_ERROR; stored courses matched the pre-request snapshot. | Passed |
-| API-33-07 | HTTP 404/NOT_FOUND; stored courses matched the pre-request snapshot, with no inserted record. | Passed |
-
-The recorded initial course runs passed all seven selected cases, and the
-service-free backend suite (10 files, 62 tests), lint, and formatting checks also
-passed at that snapshot. Frontend build, hosted CI, new coverage measurement, mutation testing,
-and deliberate application-failure checks were not run for that initial slice.
-
-The full application case inventories are preserved in Section 2 and Section 4.
-The separate shared SWE4724 Test Document/template was not present in the
-reviewed checkout. This repository record therefore does not claim that the
-course submission document was updated.
-
-
-## 4. Expanded Verification and Review
-
-The initial implementation record covered eight application suites for all 36
-inventoried operations. Plans above precede execution; operation IDs are
-included in test titles. This is selected scenario coverage for every
-inventoried operation, not exhaustive verification of every input or failure
-path.
-
-| Section | Operations | Application tests | Suite |
-| --- | --- | --- | --- |
-| Professor login | OP-33-01 | 4 | authentication.test.js |
-| Courses | OP-33-02–06 | 7 | courses.test.js |
-| Rosters | OP-33-07–13 | 12 | roster.test.js |
-| Teams | OP-33-14–20 | 13 | teams.test.js |
-| Evaluation management | OP-33-21–25 | 8 | evaluationManagement.test.js |
-| Student evaluation | OP-33-26–28 | 10 | studentEvaluation.test.js |
-| Reporting | OP-33-29–33 | 7 | reports.test.js |
-| Account support | OP-33-34–36 | 8 | accountSupport.test.js |
-| Total | 36 | 69 | Plus the 4 existing environment checks |
-
-### Verified Repairs
-
-The expanded regression cases exposed four defects, and the retained assertions
-passed after the corresponding controller repairs:
-
-1. Details-only student edits retain existing team membership.
-2. Individual deletion removes evaluations received and authored by the student.
-3. Bulk deletion removes evaluations in both directions within the selected course.
-4. Course reports correctly associate populated team references and calculate team membership and averages.
-
-The October 24 recorded full-suite results passed after these controller repairs.
-Earlier filtered results identified the defects and confirmed the retained
-assertions after repair. See BUG-005–008 in [Known Bugs](../../../known-bugs.md). Review also strengthened recipient
-cardinality, foreign-course exclusion from completion totals, and course-filter
-and read-only assertions. No new dependencies or configuration were added.
-
-### Current Recorded Integration Results — October 26, 2026
-
-Two complete local integration runs passed 176 tests in 12 files: the original
-73, 96 authentication/authorization cases, and seven email cases. Both runs
-verified cleanup. The focused and concurrent email runs are recorded in
-[email integration](email-integration.md). Current source review confirms
-dedicated assertions for invitation-link shape and SMTP rejection/retry,
-professor ownership, and student-recipient authorization. This documentation
-update did not rerun those suites. These local results do not establish hosted
-CI execution.
-
-### Recorded Full-Suite Results — October 24, 2026
-
-These dated results are an earlier snapshot.
-
-| Check | Actual result |
-| --- | --- |
-| `npm --prefix src/backend test` | 10 files / 62 tests passed with the controller repairs. |
-| `npm test` | 8 files / 63 frontend tests passed. |
-| `npm run test:all` | Both service-free suites passed. |
-| `npm run lint` | Passed, zero diagnostics. |
-| `npm run format:check` | Passed. |
-| Operation-ID audit | All 36 IDs present across the eight application suites. |
-| `git diff --check` | Passed. |
-| `npm run test:integration` | 9 files / 73 tests passed (69 application + 4 environment); exit 0; cleanup verified. |
-| `npm run test:integration` (repeat) | 9 files / 73 tests passed; exit 0; independent fresh database; cleanup verified. |
-
-The two complete runs included all 36 operation IDs and verified cleanup. They
-used Node 24.21.0, npm 11.19.0, and Docker Compose 5.6.1; application and test
-images used Node 24.22.0. Logs and JSON exit/cleanup records were retained in
-ignored per-run directories.
-No frontend build, browser journey, hosted CI or new coverage measurement was
-performed for the expanded backend change.
-
-### Remaining Limits
-
-- The original course-scoped sentinel checks do not establish cross-professor
-  access control. The subsequent [authentication and authorization tests](authentication-authorization-integration.md)
-  cover professor ownership, credential rejection, child-resource isolation,
-  and student-recipient permissions; consult that record for execution results
-  and remaining access-control limits.
-- Captured SMTP establishes recipients, token association, invitation link
-  shape, and deterministic rejection/retry behavior, not provider delivery or
-  browser navigation. Known account-recovery defects remain separate concerns.
-- Self/foreign recipients are addressed in the access-control record above.
-  Submission duplicate-recipient, later-entry validation, concurrency, and
-  database write rollback assertions are added in Section 5, with execution
-  verification recorded there separately. Token uniqueness/security, deadline
-  enforcement, and arbitrary database outages remain outside those cases.
-- Evaluation reset clears tokens/records and is tested to invalidate the old
-  student capability. Section 6 adds a real submission/reset lifecycle assertion
-  and records the cached-completion defect and its follow-up; the full UI
-  reset-confirmation sequence remains separate work. The status endpoint still reports `evaluations_sent: true`
-  when at least one student has recorded SMTP acceptance; partial-roster
-  acceptance and its aggregate status are not fully covered. Token existence
-  does not establish successful SMTP delivery.
-- Roster reassignment/reimport variations, malformed streams/filesystem failures,
-  arbitrary CSV escaping, every grading boundary, and unrestricted update-field
-  variants outside the fields specifically protected by authorization tests
-  are outside these bounded cases. Protected ownership and operator-field
-  handling on selected updates is covered in the
-  [authorization integration record](authentication-authorization-integration.md).
-- Browser navigation/end-to-end behavior, service-backed CI, and the unavailable
-  separate shared SWE4724 Test Document remain separate work. No requirement text
-  or historical implementation assessment is rewritten to match current code.
-
-## 5. Submission Integrity
+### Submission Integrity
 
 The [submission integrity suite](../../../../../src/backend/tests/integration/submissionIntegrity.test.js)
 extends OP-33-27 through real HTTP requests and independent MongoDB queries.
@@ -347,44 +192,9 @@ advertises the Compose hostname `mongodb`.
 | REG-CW08-06 | Send eight concurrent two-peer requests with distinct request/recipient feedback markers and ratings, with false and stale-true initial completion flags. | Exactly one HTTP 201 and seven HTTP 409 `ALREADY_COMPLETED`; exactly two response records from one winning request and only its evaluator completion/version update. |
 | REG-CW08-07 / database rollback | Temporarily add a disposable collection validator rejecting the second recipient, submit two otherwise-valid entries, restore the validator, then retry. | HTTP 500 and unchanged students/evaluations after rejection; corrected retry returns HTTP 201 and stores both responses. Validator restoration runs even on failure. |
 
-### Historical PR #137 execution results
+<a name="6-priority-workflow-regression-follow-up"></a>
 
-The original implementation failed 12 original integrity assertions in an
-isolated baseline run; cleanup was verified. Duplicate recipients were accepted
-with HTTP 201; later missing-rating/short-feedback rejection left the first
-response stored; out-of-range, nonnumeric/null rating and feedback-type errors
-returned HTTP 500. Concurrent submissions with a stale-true completion flag
-produced six successes instead of one, and a later database validator failure
-also left the first response stored.
-
-Repaired-source verification on October 28, 2026, recorded on PR #137
-at `649dc6f` before integration with PR #134:
-
-| Command | Actual result |
-| --- | --- |
-| `npm run test:integration -- submissionIntegrity.test.js` | 12/12 passed; exit 0; cleanup verified. |
-| `npm run test:integration` | 188/188 passed across 13 files; exit 0; cleanup verified. |
-| `npm --prefix src/backend test` | 79/79 passed across 11 files. |
-| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; cleanup verified. |
-| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
-
-This historical browser run verifies existing journeys against the replica-set stack; the
-new integrity cases execute at the API/database layer. Earlier dated run records
-above remain historical. The separate shared SWE4724 Test Document is
-unavailable/deferred; this repository update does not claim to update it.
-
-The cases establish bounded submission integrity assertions. They do not
-establish general database-outage handling, token uniqueness/security, deadline
-enforcement, historical duplicate cleanup, or every concurrent reset/relaunch
-interaction. No requirement text or requirement-wide status is changed.
-
-## 6. Priority workflow regression follow-up
-
-These cases use the existing guarded API/MongoDB/Mailpit environment, synthetic
-fixtures, sequential isolation and independent database reads. The original
-PR #134 test-only snapshot and its failures are retained below; source repairs
-and consolidated test mappings are a separate follow-up. No numerical coverage
-gate or approved matrix outcome changes here.
+### Priority Workflow Regression Follow-up
 
 | Test source | Matrix cases and expected outcomes |
 | --- | --- |
@@ -392,105 +202,50 @@ gate or approved matrix outcome changes here.
 | [Priority lifecycle](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) | REG-CW05-02 empty roster does not launch; REG-CW05-04 submission/reset clears completion, tokens and responses, revokes old access and preserves roster/teams/other course; REG-CW06-03 altered known-good token denied without writes; REG-CW06-04 token constrains recipient and saved identity/course despite supplied foreign context; REG-CW09-04 deleted response stays absent in report/CSV while a retained reverse response stays attributed correctly. |
 | [Submission integrity](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) | REG-CW08-04 duplicate recipient rejected with HTTP 400 and no writes; REG-CW08-06 concurrent submissions retain one complete response set; REG-CW08-07 later missing rating and short feedback each leave no earlier writes; REG-CW08-11 professionalism 0/6, participation 0/5, and communication 0 return validation errors without response/completion changes. |
 
-Run focused cases with the same cleanup safeguards:
+### Current Priority Regression Behavior
+
+The current source validates complete submission batches before writing, uses a MongoDB transaction to commit responses and evaluator completion together, and serializes concurrent submissions for one evaluator. The priority regression cases also assert CSV partial-error disclosure and evaluation-reset completion cleanup. Their case mappings remain in the priority table above.
+
+## Execution Instructions
+
+Run the complete isolated integration suite from the repository root:
+
+```bash
+npm run test:integration
+```
+
+To select only the initial course cases while retaining environment setup and cleanup:
+
+```bash
+npm run test:integration -- courses.test.js
+```
+
+For the priority workflow regression cases:
 
 ```bash
 npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js
 ```
 
-### Historical PR #134 execution results
+The ordinary backend unit command, `npm --prefix src/backend test`, excludes integration files and needs no running services. For an integration run, inspect `runner.log`, `services.log`, and `result.json` under ignored `test-results/integration/<run-id>/`; each completed run should exit successfully and report cleanup verification. Local execution does not by itself establish CI enforcement.
 
-At `9d05881`, the original three-file extension included the now-consolidated
-`prioritySubmission.test.js`. The first focused run on October 28, 2026 ran 18 tests: six passed and twelve
-failed, exit 1 with verified cleanup. Review corrected two overstrict test
-oracles (partial-result wording and no-response report schema) and strengthened
-fixtures; that initial run is superseded by the full run below.
+## Verification Results
 
-Final baseline full run on October 28, 2026 (before repairs): `npm run test:integration` ran 194 tests
-in 15 files: **184 passed, 10 failed**, exit 1, cleanup verified true
-(run ID `155d058f8d739ea3`). All 176 pre-existing tests passed; the 18 added
-cases produced eight passes and ten failures. Failures cover undisclosed CSV
-processing errors, retained reset completion, duplicate/concurrent submissions,
-two later-entry partial writes, and four invalid-scale server errors. See
-[BUG-018](../../../known-bugs.md#bug-018-evaluation-submissions-can-persist-partial-or-duplicate-responses),
-[BUG-019](../../../known-bugs.md#bug-019-csv-processing-failures-omit-partial-import-errors), and
-[BUG-020](../../../known-bugs.md#bug-020-evaluation-reset-retains-completed-student-flags).
-The intermediate full run had 183 passes/11 failures before the remaining
-partial-result wording assertion was corrected. No failure is skipped or marked
-as expected. Those failures are historical reproduction evidence; source fixes
-alone do not establish complete verified behavior.
+The October 31, 2026 full integration run passed 200 tests across 15 files at revision `d0088f7`; the command exited 0 and verified cleanup. The email, authentication, API/database, submission-integrity, and priority regression suites are part of the integrated backend suite. See the [recorded integration result at commit dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/integration-testing.md#test-results).
 
-Backend unit tests: `npm --prefix src/backend test`, 65/65 passed. Root
-`npm run lint`, `npm run format:check`, and `git diff --check` passed.
-The first lint attempt used an incomplete reused dependency directory and failed
-module resolution; a clean lockfile install in this worktree resolved it.
-In that baseline follow-up, no frontend source changed and no browser or
-production-build rerun was performed.
+The test cases and assertions are **implemented**. This dated full-suite run is local **verified** evidence for revision `d0088f7`; it does not establish that every case is selected or CI-enforced on every change.
 
-Partial-invitation aggregate status has separate implementation/evidence on an
-unmerged branch; this follow-up neither duplicates that repair nor claims its
-results on this baseline. The external shared Test Document remains deferred
-and was not updated. Existing historical runs above remain dated evidence.
+<a name="4-expanded-verification-and-review"></a>
 
-### Current combined follow-up
+Historical expanded-verification detail is preserved in the [original record at commit dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review).
 
-The follow-up imports PR #137's batch validation, transaction, and replica-set
-configuration; repairs CSV partial-error disclosure (BUG-019) and reset
-completion (BUG-020); and reuses `submissionIntegrity.test.js` for the overlapping
-CW-08 targets instead of retaining duplicate tests. Separate participation-0 and
-communication-0 assertions preserve all four original invalid-scale probes.
-The lifecycle snapshot permits the evaluator version increment introduced by
-the successful submission transaction. All regression assertions remain active.
+<a name="current-combined-follow-up"></a>
 
-October 28, 2026 combined follow-up verification:
+Historical combined-follow-up detail is preserved in the [original record at commit dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/api-database-integration.md#current-combined-follow-up).
 
-| Command | Actual result |
-| --- | --- |
-| `npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js` | 24/24 passed across 3 files; exit 0; run `63648dd86c861ec2`; cleanup verified true. |
-| `npm --prefix src/backend test` | 79/79 passed. |
-| `npm run test:integration` | 200/200 passed across 15 files; exit 0; run `ec91818f4cb97e1e`; cleanup verified true. |
-| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; run `e969367672baa346`; cleanup verified true. |
-| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
+## Limitations and Remaining Work
 
-These runs tested the PR #134 working tree combining `9d05881` and PR #137
-`649dc6f`, with the CSV/reset repairs and consolidated tests described above.
-The tested application and test files are recorded in commit `27a7861`; merge
-`57d76d2` incorporates the defect-ID correction without changing that tree.
-The current 200-test result independently verifies that combined source; the
-historical 184/10 and 188/188 results above remain evidence for their separate
-snapshots. Logs and `result.json` are retained under ignored
-`test-results/integration/<run-id>/` and `test-results/e2e/<run-id>/`.
-The browser runner rebuilt the application images; no separate native frontend
-build or frontend unit-suite rerun was performed. Hosted execution is not
-established by these local results.
-Remaining source gaps stay listed in the [coverage gap inventory](regression-coverage-gaps.md);
-BUG-017 is fixed in the current source; its separate frontend reset-confirmation cases and October 28 results are recorded in the [frontend validation follow-up](frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes).
-
-
-### Unit-test compatibility with merged main — October 28, 2026
-
-The [hosted run 40781814676](https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02/actions/runs/40781814676)
-tested merge commit `f2d7d8293d6534ef502440bcdee98906b0a38ea0`, combining
-PR head `911328a` with main `726b17c`. Its newer `workflowTransitions.test.js`
-expected a token-only reset update and failed because BUG-020 correctly also
-sets `evaluation_completed` to false. Both backend unit jobs failed on that
-assertion; missing coverage artifacts were a consequence of the failed tests.
-The integration and browser jobs succeeded in that run.
-
-The branch now carries the same [cleanup unit-test file](../../../../../src/backend/tests/workflowTransitions.test.js)
-with the reset assertion updated to require completion reset alongside token
-and SMTP-marker removal. Exact selected-course filters, call counts,
-evaluation deletion, and response assertions remain intact. Production code,
-matrix outcomes, and source-coverage classifications are unchanged.
-
-- Reproduced the original failure against that exact CI merge source: one
-  failed and ten passed in the focused cleanup file.
-- Updated merged-source backend unit suite: 143/143 passed in 16 files.
-- Updated merged-source `test:coverage`: 143/143 passed; report-integrity guard
-  passed and backend coverage artifacts were generated.
-- Standalone PR branch backend suite: 90/90 passed in 12 files.
-- Root lint, formatting, and whitespace checks passed. Integration/browser
-  suites were not rerun for this unit-test-only correction.
-
-These local results verify the corrected assertion against both source
-contexts; the hosted rerun remains separate verification.
+- The case set is bounded. It does not establish every input variant, all resource permissions, every grading boundary, or arbitrary application/database failure behavior.
+- Captured SMTP verifies selected recipient, token association, link shape, and deterministic rejection/retry assertions; it does not prove provider delivery or browser navigation. Partial invitation acceptance and its aggregate status remain incompletely covered; token existence does not prove SMTP acceptance.
+- Submission integrity cases cover duplicate recipients, selected later-entry validation failures, bounded concurrent submission, and rollback after an injected write failure. They do not establish arbitrary database-outage behavior or every concurrent reset/relaunch interaction.
+- Roster cases do not exhaust reassignment/reimport variants, malformed CSV streams or filesystem failures, arbitrary CSV escaping, or all processing failures.
+- Browser navigation and hosted CI execution are separate verification concerns. The October 31 local result does not establish either.
