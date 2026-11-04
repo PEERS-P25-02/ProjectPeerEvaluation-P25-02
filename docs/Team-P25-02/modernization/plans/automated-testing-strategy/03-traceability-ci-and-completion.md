@@ -100,7 +100,7 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 | Frontend baseline | Initial baseline recorded | The initial login-rendering case is documented in [Unit Testing Implementation](../../implementation/testing/unit-testing.md#test-cases). Maintain that baseline as coverage grows. |
 | Backend framework | Implemented | Vitest and one-shot/watch scripts are configured. Maintain the expanded [backend unit suite](../../implementation/testing/backend-unit-testing.md). |
 | Unit and integration coverage | In Progress | Expanded [unit suites](../../implementation/testing/unit-testing.md) and [service-backed integration tests](../../implementation/testing/integration-testing.md) exist; retain evidence as coverage grows. |
-| Regression coverage | In Progress | Maintain implemented assertions and close the [remaining regression gaps](../../implementation/testing/regression-coverage-gaps.md). |
+| Regression coverage | In Progress | Maintain implemented assertions and close the [partial REG-CW05-09 invitation-status gap](../../implementation/testing/email-integration.md#7-limitations-and-remaining-coverage). |
 | End-to-end coverage | In Progress | Maintain the implemented [Playwright journeys](../../implementation/testing/end-to-end-testing.md) and their recorded validation limits. |
 | Milestone 2 CI integration | Implemented | See the [CI implementation record](../../implementation/continuous-integration.md) for test execution, quality gates, hosted evidence, and external enforcement limits. |
 | Milestone 3 staging validation | Planned | Implement staging health and smoke testing in Milestone 3. |

@@ -15,15 +15,13 @@ the 74 expected critical-workflow outcomes.
 | Shared isolated integration services | [Integration test environment](integration-test-environment.md) |
 | API and database integration | [API and database integration](api-database-integration.md) |
 | Authentication and authorization integration | [Authentication and authorization integration](authentication-authorization-integration.md) |
-| Invitation email integration | [Email integration](email-integration.md) |
+| Email integration: invitations, reminders, reset links | [Email integration](email-integration.md) |
 | Browser journeys and smoke checks | [End-to-end testing](end-to-end-testing.md) |
-| Cross-layer scenario mappings and remaining gaps (temporary audit) | [Regression coverage gaps](regression-coverage-gaps.md) |
 | API operation traceability reference | [API/database operation inventory](api-database-operation-inventory.md) |
 
 The operation inventory's `OP-33` identifiers name API operations, not
-individual test cases. The regression gap record classifies source
-assertions against matrix targets; those classifications are not run
-results or code-coverage percentages.
+individual test cases. The [email limitations](email-integration.md#7-limitations-and-remaining-coverage)
+retain the outstanding REG-CW05-09 mixed-acceptance gap.
 
 ## Evidence terms
 
@@ -65,12 +63,13 @@ At revision `d0088f7` on October 31, 2026, the existing records report:
 
 | Suite | Recorded result | Detailed record |
 | --- | --- | --- |
-| Frontend unit/component | 85 passed in 10 files | [Frontend unit testing](frontend-unit-testing.md#verification-results) |
-| Backend unit | 143 passed in 16 files | [Backend unit testing](backend-unit-testing.md#verification-results) |
-| Integration | 200 passed in 15 files; cleanup verified | [API/database integration](api-database-integration.md#verification-results) |
-| Browser E2E | 13 passed; runner reported cleanup verified | [End-to-end testing](end-to-end-testing.md#verification-results) |
+| Frontend unit/component | 85 passed in 10 files | [Frontend unit testing](frontend-unit-testing.md#6-test-results) |
+| Backend unit | 143 passed in 16 files | [Backend unit testing](backend-unit-testing.md#6-test-results) |
+| Integration | 200 passed in 15 files; cleanup verified | [API/database integration](api-database-integration.md#6-test-results) |
+| Browser E2E | 13 passed; cleanup verified; teardown log recorded a container-stopping error | [End-to-end testing](end-to-end-testing.md#6-test-results) |
 
 These are dated local results, not a new run at this branch's revision.
+
 ## Command verification cases
 
 These retained IDs describe historical command-level verification checks,
@@ -88,17 +87,17 @@ were rerun.
 The frontend unit, backend unit, API/database integration, authentication
 integration, email integration, and E2E records use these sections in order:
 
-1. Purpose and Scope
-2. Testing Environment and Tools
+1. Overview
+2. Testing Strategy
 3. Test Organization
 4. Test Cases
 5. Execution Instructions
-6. Verification Results
-7. Limitations and Remaining Work
+6. Test Results
+7. Limitations and Remaining Coverage
 
 Keep stable case IDs, source links, expected outcomes, and dated results
 when reorganizing a record. Place tests under the behavior they cover
-and execution evidence under Verification Results.
+and execution evidence under Test Results.
 
 ## Related records
 

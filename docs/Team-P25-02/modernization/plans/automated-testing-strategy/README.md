@@ -29,5 +29,5 @@ Project 25 - PEERS Peer Evaluation System \| Team P25-02 \| Fall 2026
 - [Backend Unit Testing Implementation](../../implementation/testing/backend-unit-testing.md), including the retained and expanded authentication test, backend test cases, limitations, and results.
 - [Integration Testing](../../implementation/testing/integration-testing.md), including service-backed results.
 - [End-to-End Testing](../../implementation/testing/end-to-end-testing.md), including browser journeys and limits.
-- [Regression Coverage Gaps](../../implementation/testing/regression-coverage-gaps.md), tracking remaining workflow assertions.
+- [Email Integration Limitations](../../implementation/testing/email-integration.md#7-limitations-and-remaining-coverage), including the remaining REG-CW05-09 invitation-status gap.
 - [Continuous Integration](../../implementation/continuous-integration.md), including workflow behavior and hosted evidence.

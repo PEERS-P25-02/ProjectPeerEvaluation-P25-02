@@ -1,6 +1,6 @@
 # Isolated Integration Test Environment
 
-This record describes the isolated Docker environment used by the API/database integration suites. It does not establish complete application integration, email delivery, or browser end-to-end coverage.
+This record describes the isolated Docker environment shared by the backend API/database, authentication/authorization, and email integration suites. Browser E2E uses a separate stack. These environment checks establish service isolation and lifecycle behavior, not complete application behavior or external email delivery.
 This implementation supports FR-11/FR-12 and NFR-02/NFR-05/NFR-07 from the
 [validated requirements](../../../requirements/validation/01-requirements-and-constraints.md).
 
