@@ -10,7 +10,7 @@ the 74 expected critical-workflow outcomes.
 
 | Layer or reference | Document |
 | --- | --- |
-| Frontend unit and component tests | [Frontend unit testing](frontend-unit-test-validation.md) |
+| Frontend unit and component tests | [Frontend unit testing](frontend-unit-testing.md) |
 | Backend unit tests | [Backend unit testing](backend-unit-testing.md) |
 | Shared isolated integration services | [Integration test environment](integration-test-environment.md) |
 | API and database integration | [API and database integration](api-database-integration.md) |
