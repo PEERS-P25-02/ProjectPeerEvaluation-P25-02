@@ -1,105 +1,63 @@
-# Authentication and Authorization Integration Tests
+# Authentication and Authorization Integration Testing Implementation
 
-## 1. Testing Strategy
+## Purpose and Scope
 
-These tests exercise actual Express routes, JWT verification, MongoDB records,
-and the isolated Mailpit inbox. They supplement the existing login, student
-evaluation, and API/database tests without mocking authentication middleware or
-persistence. They implement the access boundaries in
-[CW-01, CW-02, CW-06, CW-08, and CW-09](../../../requirements/workflows/04-critical-peers-workflows.md).
+This record describes backend integration checks for professor authentication and resource authorization, and student evaluation-link capabilities. It covers the access boundaries in [CW-01, CW-02, CW-06, CW-08, and CW-09](../../../requirements/workflows/04-critical-peers-workflows.md).
 
-The two access models are professor accounts authenticated by login-issued JWTs,
-and students authorized by individual evaluation-link tokens. There is no
-implemented administrator/student JWT role hierarchy. Each case starts from
-fresh synthetic data; authorization cases add a second independently logged-in
-professor with a separate course, team, and students. Denied requests must return
-the expected error without disclosing protected records or changing application
-collections. Invitation denials must also leave the captured inbox empty.
+The application uses two access models: professor accounts authenticate with login-issued JWTs, while students use individual evaluation-link tokens. There is no administrator/student JWT role hierarchy. These tests exercise Express routes, JWT verification, MongoDB records, and side effects through the isolated integration environment.
 
-Course resources return `404 NOT_FOUND` for both absent and other-professor
-courses. Authentication failures return `401 UNAUTHORIZED`. Student submissions
-with recipients outside the token holder's eligible peer set return
-`400 VALIDATION_ERROR` before any evaluation is saved. Course and team updates
-accept supported editable fields while preserving ownership and relationships.
+## Testing Environment and Tools
 
-Use the prerequisites and isolation safeguards in the
-[integration environment guide](integration-test-environment.md). Docker must
-already be running. From the repository root, run the focused access checks:
+The tests use actual HTTP requests and database state rather than mocked authentication middleware or persistence. Authorization scenarios use synthetic accounts and create a second professor with a separate course, team, and students. Mailpit checks confirm invitation denials do not send messages.
+
+Use the prerequisites and isolation safeguards in the [integration test environment record](integration-test-environment.md). Docker and Compose must be available. The root runner provides each invocation with an isolated database and inbox and an ephemeral JWT secret. Tests use that secret for expired credentials and valid controls; wrong-signature credentials use a separate synthetic key. Do not print tokens or secrets.
+
+## Test Organization
+
+**Backend integration:** [`authentication.test.js`](../../../../../src/backend/tests/integration/authentication.test.js) checks persisted professor login and credential rejection. [`authenticationAccess.test.js`](../../../../../src/backend/tests/integration/authenticationAccess.test.js) checks credential validation, protected-route boundaries, logout behavior, and professor/student credential separation. [`authorization.test.js`](../../../../../src/backend/tests/integration/authorization.test.js) checks professor resource isolation, protected fields, student recipients, and invalidated evaluation-link tokens.
+
+**Frontend unit:** [`LoginPage.test.jsx`](../../../../../src/frontend/tests/LoginPage.test.jsx) and [`AuthContext.test.jsx`](../../../../../src/frontend/tests/AuthContext.test.jsx) cover login and client authentication state. This source organization does not imply that the frontend suites ran as part of the backend integration result below.
+
+## Test Cases
+
+| Case group | Actions and expected outcome | Source |
+| --- | --- | --- |
+| Persisted professor login | Log in with saved credentials, check identity and `last_login`, and use the returned token on a protected course request. Try a wrong password, unknown email, and missing credentials. Successful login returns a usable token and updates intended login state; failures disclose no identity or token and leave stored state unchanged. | [`authentication.test.js`](../../../../../src/backend/tests/integration/authentication.test.js) |
+| Credential validation | Attempt a protected course read and course-name update with missing, empty, malformed, wrong-scheme, tampered, expired, or wrongly signed credentials. Each request returns 401 without protected data, stored mutation, or inbox change. | [`authenticationAccess.test.js`](../../../../../src/backend/tests/integration/authenticationAccess.test.js) |
+| Mounted-route protection | Omit credentials on mounted protected course, roster, team, evaluation-management, reporting/export, logout, settings, and AI routes. Requests return 401 before protected data or side effects are exposed. These are access-boundary checks, not AI or migration behavior checks. | [`authenticationAccess.test.js`](../../../../../src/backend/tests/integration/authenticationAccess.test.js) |
+| JWT controls and logout | Access an owned course with a valid control JWT and a login-issued token, log out, then reuse the login-issued token. Valid, unexpired JWTs are accepted; expired JWTs are rejected. Logout does not revoke an issued JWT server-side, and the same token remains usable afterward. | [`authenticationAccess.test.js`](../../../../../src/backend/tests/integration/authenticationAccess.test.js) |
+| Credential separation | Use a student evaluation-link token as professor Bearer authorization, then use a professor JWT on student form, status, and submission endpoints. Credentials are not interchangeable; denied requests do not mutate state. | [`authenticationAccess.test.js`](../../../../../src/backend/tests/integration/authenticationAccess.test.js) |
+| Professor and child-resource isolation | Each professor reads and updates owned course resources, then attempts foreign-course and foreign-child reads or writes, including roster, team, invitation, reset, report, and export operations. Owned operations succeed; foreign-course and foreign-child requests return 404 without disclosure, stored changes, or sent invitations. | [`authorization.test.js`](../../../../../src/backend/tests/integration/authorization.test.js) |
+| Protected fields and relationships | Submit identity, ownership, relationship, counter, capability-token, completion, and MongoDB operator fields alongside supported edits or creation. Supported edits persist while protected values and unrelated records remain unchanged. | [`authorization.test.js`](../../../../../src/backend/tests/integration/authorization.test.js) |
+| Student recipient and link-token boundaries | Try submissions to self, foreign-course, nonexistent, and ineligible team recipients, including a valid peer before a forbidden recipient. Try a supported teamless same-course recipient, then reset a course and reuse its old token. Forbidden submissions return 400 without writes; the supported fallback succeeds; reset invalidates old form, status, and submission access with 404 responses. | [`authorization.test.js`](../../../../../src/backend/tests/integration/authorization.test.js) |
+
+## Execution Instructions
+
+Run focused access checks from the repository root:
 
 ```bash
 npm run test:integration -- authentication.test.js authenticationAccess.test.js authorization.test.js
 ```
 
-Run all integration suites to check compatibility with authorized workflows:
+Run the complete service-backed suite to check compatibility with other integration workflows:
 
 ```bash
 npm run test:integration
 ```
 
-The root runner supplies a fresh database/inbox and ephemeral JWT secret for
-each run. The test container receives that same secret as `TEST_JWT_SECRET` to
-construct deterministically expired credentials and an unexpired control;
-wrong-signature credentials use a different synthetic key. No development
-credentials or configuration are required. Do not print tokens or secrets.
-Logs and cleanup outcomes remain under ignored
-`test-results/integration/<run-id>/`. Run the complete command twice to verify
-repeatability and inspect `result.json` for successful, verified cleanup.
+Review the runner output and `result.json` under ignored `test-results/integration/<run-id>/` for completion and cleanup. A local pass alone does not establish CI enforcement.
 
-## 2. Test Cases
+## Verification Results
 
-The following purposes, steps, and expected outcomes were recorded before live
-execution. Parameterized rows expand into individually named tests; the source
-files contain the exact method/path and input combinations.
+The October 31, 2026 full integration run passed 200 tests across 15 files at revision `d0088f7`; the runner exited successfully and verified cleanup. The run summary is recorded in the [integration test results at commit dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/integration-testing.md#test-results). The integration suite includes the authentication and authorization test files.
 
-| Group | Purpose and steps | Expected result |
-| --- | --- | --- |
-| Persisted login | Use saved credentials; check identity and `last_login`, then access the protected course list. Try wrong password, unknown email, and missing credentials. | Valid login returns a usable JWT and updates only intended login state; rejected credentials return no identity/token and cause no stored changes. Existing `authentication.test.js` cases are reused. |
-| Credential failures | Attempt a protected course read and a real course-name update with missing, empty, malformed, wrong-scheme, tampered, expired, and wrongly signed credentials. | Each returns 401 with no course disclosure, stored mutation, or inbox change. |
-| Mounted-route protection | Omit credentials across every mounted protected route, including course, roster, team, evaluation-management, report/export, logout, professor settings, and AI endpoints. | Each returns 401 before its handler can return protected data or perform side effects. This checks access boundaries, not AI business behavior or migration correctness. |
-| JWT controls and logout | Access an owned course using both a manually signed unexpired control and a real login token; log out and retry the login token. | Both valid controls succeed. Logout succeeds without stored mutations; the existing stateless JWT remains valid until expiration. Server-side token revocation is not claimed. |
-| Credential separation | Send a stored student link token as professor Bearer authorization; use a professor JWT as a student URL token on form, status, and submission endpoints. | Neither credential substitutes for the other; requests are denied without mutation. |
-| Professor isolation | Log in as both professors, list courses, read owned courses/rosters/teams, and edit owned course details. Attempt the other professor's course-scoped read/write operations, including roster upload, invitations, reset, and CSV export. | Own operations succeed; lists are isolated; every foreign-course request returns 404 with unchanged application/report collections and an empty inbox. |
-| Child-resource isolation | Place foreign student/team identifiers under an owned course URL in roster edits, team edits/membership, and student/team reports. | 404; no foreign record disclosure or stored changes. |
-| Protected fields | Submit ownership, identity, relationship, count, capability-token, completion, and MongoDB operator fields alongside legitimate course/team/student edits; try overriding ownership on course/team creation. | Legitimate edits persist; protected fields and foreign course/team/student records remain intact; new courses belong to the authenticated professor and new teams to the selected owned course. |
-| Student recipients | Submit to self, a foreign-course student, a nonexistent student, a different team's student, or a valid peer followed by a forbidden recipient. Also submit as a teamless student to an eligible course peer. | Forbidden recipients return 400 without any writes; the teamless fallback permits the supported same-course peer submission. |
-| Revoked student capability | Assign a link token, reset its course through the authorized API, then reuse the old token for form, status, and submission. | All three old-token requests return 404 and leave post-reset state unchanged. |
+The test sources and assertions are **implemented**. This dated full-suite result is local **verified** evidence for that revision. It does not establish that every authentication and authorization case is selected or CI-enforced on every change.
 
-## 3. Results and Limits
+## Limitations and Remaining Work
 
-Verification completed October 26, 2026 with Node 24.21.0, npm 11.19.0,
-Docker Engine 29.9.2, and Compose 5.6.1. The two new files add 96 cases:
-48 authentication-boundary cases and 48 resource/capability authorization cases.
-The existing four persisted-login cases remain unchanged.
-
-The [email integration record](email-integration.md) documents later full
-integration runs including these authorization cases, as well as focused and
-concurrent SMTP verification. The results predate this source/documentation
-review; this update did not rerun tests.
-
-| Command or experiment | Actual result |
-| --- | --- |
-| New authorization suite against an isolated copy of the original backend | 40 failed and 8 passed out of 48. This expected nonzero run exposed missing ownership/recipient checks, foreign-team report access, and unprotected request fields; cleanup was verified. |
-| `npm run test:integration`, twice after the final source/test changes | Both fresh runs passed all 169 tests in 11 files: the original 73 plus 96 new cases. Both exited 0 and verified cleanup. |
-| `npm --prefix src/backend test` | All 62 tests in 10 files passed; integration files remained excluded from this service-free suite. |
-| `npm run lint` and `npm run format:check` | Passed with no lint diagnostics and all checked files formatted. |
-
-The baseline failures were retained as normal assertions and pass with the
-repairs; no access-control defect is hidden by an expected-failure or skipped
-test. The full runs also verify that existing authorized API/database and
-captured-email workflows continue to pass. These results do not establish a
-new coverage percentage or a hosted CI integration job.
-
-These checks do not establish browser login/navigation, real invitation-link
-navigation, token entropy/uniqueness, MFA, refresh tokens, external email
-delivery, or exhaustive resource permissions outside the covered routes. The legacy
-migration and automatic-assignment endpoints receive authentication-boundary
-checks, not functional approval. Existing account-recovery tests remain in the
-full suite; account-support expansion is outside this test scope.
-
-Recipient authorization is checked for the whole submission before saving.
-Later rating/feedback errors, duplicate recipients, concurrent submissions,
-and database rollback are covered separately by the [submission-integrity
-cases and recorded results](api-database-integration.md#5-submission-integrity).
-JWT logout remains a client-side operation and does not revoke an issued token.
-The current tests do not promise immediate revocation after account deletion or
-password changes. See [Known Bugs](../../../known-bugs.md) for recorded defects.
+- Logout is client-side and does not revoke an issued JWT. Tests do not promise immediate revocation after account deletion or password changes.
+- MFA, refresh tokens, exhaustive permissions beyond covered routes, token entropy/uniqueness, and browser login or student-link navigation are not established here.
+- Mailpit captures invitation messages but does not establish external email delivery. Browser behavior is documented separately in the [end-to-end testing record](end-to-end-testing.md).
+- Legacy migration and automatic-assignment routes receive authentication-boundary checks, not functional approval.
+- Account recovery remains a separate test scope.
+- Recipient eligibility is checked before submission writes. Later rating/feedback validation, duplicate recipients, concurrent submissions, and database rollback are covered by the [submission-integrity cases and results](api-database-integration.md#5-submission-integrity).
