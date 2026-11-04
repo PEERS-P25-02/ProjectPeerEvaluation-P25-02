@@ -1,6 +1,6 @@
 # Instructions
 
-Both RTM sections use the same six columns. A dash means no test case ID or evidence link is recorded.
+Both RTM sections use the same six columns. A dash means no traceability ID or evidence link is recorded.
 
 <table>
 <tr>
@@ -12,8 +12,8 @@ Both RTM sections use the same six columns. A dash means no test case ID or evid
 <td>FR-## identifies functional requirements; NFR-## identifies nonfunctional requirements.</td>
 </tr>
 <tr>
-<td>Test Case ID(s)</td>
-<td>Enter one or more test case identifiers that provide evidence for the requirement.</td>
+<td>Traceability IDs</td>
+<td>Enter documented UNIT, API, and E2E cases or groups; UNIT-CI IDs identify command checks, REG-CW IDs identify workflow scenarios and outcomes, and OP-33 IDs identify API operations. CI-* IDs identify issue-scoped historical CI verification cases (<a href="https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/09cd15b6e1da1c11ed2269847eb1f8f178f15680/docs/Team-P25-02/modernization/implementation/continuous-integration.md#2-verification-cases">historical case definitions</a>). An ID alone does not prove current execution; consult the linked evidence and its date, revision, and limits.</td>
 </tr>
 <tr>
 <td>Verification Method</td>

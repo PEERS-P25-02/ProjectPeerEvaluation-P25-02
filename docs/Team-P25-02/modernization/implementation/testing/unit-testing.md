@@ -13,8 +13,7 @@ the runtime range; their `.npmrc` files enable strict engine checks.
 ## Test Cases
 
 - [Frontend unit cases](frontend-unit-testing.md#test-cases) include
-  UNIT-FE-001. The RTM's UNIT-FE-002 through UNIT-FE-004 references
-  remain undefined in the existing testing records.
+  UNIT-FE-001.
 - [Backend unit cases](backend-unit-testing.md#test-cases) retain
   UNIT-BE-001 through UNIT-BE-016.
 - [Command verification cases](README.md#command-verification-cases)

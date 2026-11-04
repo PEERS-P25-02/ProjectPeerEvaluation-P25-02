@@ -52,10 +52,6 @@ The current frontend test inventory contains ten files:
 The rendered reset checks exercise the UI/API boundary; they do not prove
 MongoDB persistence.
 
-The requirements traceability matrix also references UNIT-FE-002,
-UNIT-FE-003, and UNIT-FE-004. Their definitions were not found in the existing
-frontend unit records; this document does not assign new meanings to those IDs.
-
 ### Priority-workflow baseline
 
 This frontend baseline is partial evidence for the identified workflows, not
