@@ -94,7 +94,13 @@ no numerical coverage threshold is introduced.
 
 ## 2. Test Cases
 
-Cases were recorded before live environment execution. Use synthetic data only.
+ENV-32-01 through ENV-32-04 are automated service-backed cases in
+[environment.test.js](../../../../../src/backend/tests/integration/environment.test.js).
+ENV-32-05 describes unit safeguards in
+[integrationTarget.test.js](../../../../../src/backend/tests/integrationTarget.test.js).
+ENV-32-06 through ENV-32-09 are manually exercised lifecycle checks
+recorded in the dated results below. These nine IDs do not represent
+nine automated integration tests. Use synthetic data only.
 
 | ID | Purpose and steps | Expected result |
 | --- | --- | --- |
@@ -124,17 +130,11 @@ checks from that snapshot.
 | ENV-32-08 | A deliberately short timeout produced expected test timeouts, a nonzero exit, retained logs, and verified cleanup. This was an intentional failure case. | Passed |
 | ENV-32-09 | SIGINT exited 130 and SIGTERM exited 143 after backend readiness; both retained evidence and verified cleanup. | Passed |
 
-Additional recorded documented-command checks passed: root integration command,
-backend unit suite (58 tests), frontend suite (62 tests), repository lint,
-formatting, and whitespace checks. A later October 23 snapshot after environment
-changes recorded 63 frontend and 62 backend tests passing, four environment
-checks passing, lint/format/whitespace checks passing, and a successful frontend
-build with an existing bundle-size warning. These are historical results; they
-do not establish a current hosted CI result or a fresh test run after subsequent
-changes. Replica-set stack execution is separately recorded in
-[submission integrity](api-database-integration.md#5-submission-integrity) and
-the [combined follow-up](api-database-integration.md#current-combined-follow-up);
-the October 22/23 environment results above remain historical.
+The October 22/23 lifecycle checks above are historical. A later October 23
+environment snapshot again passed the four environment checks. The latest
+documented full integration-suite result is in the
+[testing index](README.md#latest-recorded-local-verification). This
+reorganization does not establish a new environment or suite run.
 
 ### Remaining verification and scope limits
 
@@ -147,8 +147,5 @@ the October 22/23 environment results above remain historical.
   evaluation, reporting, or email-content correctness. The later invitation
   suite checks message content/link shape and deterministic SMTP rejection and
   retry; it does not establish browser navigation or external delivery. Account
-  recovery remains separately tested, with known recovery defects still open.
-
-This is a repository Test Document record. The separate shared SWE4724
-Test Document/template was not present in the reviewed checkout, so this record
-does not claim that the course submission document was updated.
+  recovery is covered separately; these environment cases do not establish its
+  behavior.
