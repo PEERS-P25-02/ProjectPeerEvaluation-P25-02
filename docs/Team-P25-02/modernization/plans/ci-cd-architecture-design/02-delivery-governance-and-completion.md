@@ -4,7 +4,7 @@
 
 # Continuous Delivery Design
 
-**Scope:** The risk and decision tables retain the original assessment context. Current container, testing, and CI progress is recorded in [Development Environment Implementation](../../implementation/development-environment.md), [Unit Testing Implementation](../../implementation/testing/unit-testing.md), and [Continuous Integration Implementation](../../implementation/continuous-integration.md). Staging delivery remains separate work.
+**Scope:** The risk and decision tables retain the original assessment context. Current container, testing, and CI progress is recorded in [Development Environment Implementation](../../implementation/development-environment.md), the [testing implementation index](../../implementation/testing/README.md#testing-layers-and-navigation), and [Continuous Integration Implementation](../../implementation/continuous-integration.md). Staging delivery remains separate work.
 
 Continuous Delivery begins after a change has passed CI and has been approved for merge. The automated delivery target for this project is staging only.
 
@@ -107,7 +107,7 @@ Continuous Delivery begins after a change has passed CI and has been approved fo
 | Milestone | Next Step |
 | --- | --- |
 | Milestone 2 | Review the implemented container/development environment and its remaining validation limits in the [implementation record](../../implementation/development-environment.md). |
-| Milestone 2 | Maintain and extend the implemented [unit suites](../../implementation/testing/unit-testing.md), [integration suites](../../implementation/testing/integration-testing.md), and [browser journeys](../../implementation/testing/end-to-end-testing.md); close the [remaining REG-CW05-09 invitation-status gap](../../implementation/testing/email-integration.md#7-limitations-and-remaining-coverage). |
+| Milestone 2 | Maintain and extend the implemented [unit and integration suites](../../implementation/testing/README.md#testing-layers-and-navigation) and [browser journeys](../../implementation/testing/end-to-end-testing.md); close the [remaining REG-CW05-09 invitation-status gap](../../implementation/testing/email-integration.md#7-limitations-and-remaining-coverage). |
 | Milestone 2 | Maintain the implemented [GitHub Actions workflow and quality gates](../../implementation/continuous-integration.md); verify external merge enforcement separately. |
 | Milestone 2 | Establish branch protection and required-check enforcement. |
 | Milestone 3 | Implement automated staging deployment. |

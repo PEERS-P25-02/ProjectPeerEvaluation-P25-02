@@ -22,7 +22,7 @@ Use repository-supported Node.js and npm, Docker with Linux container support, a
 
 ## 4. Test Cases
 
-Each row describes one observable behavior. TC-INT-100 through TC-INT-103 correspond one-to-one, in order, to historical AUTH-33-01 through AUTH-33-04; retain that mapping when updating the RTM. The incoming `#test-cases` anchor is retained for the RTM and [integration testing record](integration-testing.md#test-cases). REG-CW01-01 is supported by the login API case, while its planned browser journey remains separate.
+Each row describes one observable behavior. TC-INT-100 through TC-INT-103 correspond one-to-one, in order, to historical AUTH-33-01 through AUTH-33-04; retain that mapping when updating the RTM. The incoming `#test-cases` anchor is retained for the RTM; the test cases remain in this record. REG-CW01-01 is supported by the login API case, while its planned browser journey remains separate.
 
 | Test Case | Objective | Steps | Expected Result | Regression Target | Source |
 | --- | --- | --- | --- | --- | --- |

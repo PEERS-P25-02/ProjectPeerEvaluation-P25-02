@@ -110,9 +110,9 @@ Do not commit staging credential values. Staging provisioning is separate work.
 ### 5.6 Automated Testing Support
 
 Frontend/backend unit suites, isolated integration support, and GitHub Actions
-execution are implemented; see [Unit Testing Implementation](../../implementation/testing/unit-testing.md),
-[Integration Testing](../../implementation/testing/integration-testing.md), and
-[Continuous Integration](../../implementation/continuous-integration.md) for evidence and limits.
+execution are implemented; see the [testing implementation index](../../implementation/testing/README.md#testing-layers-and-navigation)
+for unit and integration records, and [Continuous Integration](../../implementation/continuous-integration.md)
+for evidence and limits.
 
 Database tests will use reproducible seeding and reset procedures. Unit tests
 may mock email sending. SMTP integration tests will use isolated Mailpit services

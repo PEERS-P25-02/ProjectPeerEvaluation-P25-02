@@ -25,9 +25,10 @@ A [documentation candidate](https://github.com/PEERS-P25-02/ProjectPeerEvaluatio
 also passed CI Gate with application tests and coverage skipped.
 
 The latest local unit, API integration, and browser results are in the
-[unit](testing/unit-testing.md#test-results),
-[integration](testing/integration-testing.md#test-results), and
-[E2E](testing/end-to-end-testing.md#3-test-results) records.
+[frontend unit](testing/frontend-unit-testing.md#6-test-results),
+[backend unit](testing/backend-unit-testing.md#6-test-results),
+[API/database integration](testing/api-database-integration.md#6-test-results), and
+[E2E](testing/end-to-end-testing.md#6-test-results) records.
 
 The [final PR run](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/41129935359) succeeded at `6f6a919`. Earlier hosted probes against the single-coverage-job revision verified documentation-only skipping, a measured coverage pass (100%, 1/1), a measured failure (0%, 0/1), full fallback, a renamed browser test, and a deliberate E2E failure that failed CI Gate despite passing coverage. A partial rerun also passed coverage using selection from attempt 2 and unit/API inputs from attempt 3 in consumer attempt 4. These probes predate the final removal of the temporary PR target. See [PR #141](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/pull/141) for the scenario details.
 
@@ -65,7 +66,7 @@ Historical workflow evidence was a visible Checks screenshot reporting successfu
 
 At that historical checkpoint, the proposed workflow source had nine jobs. Hosted probe PRs #142–#146 verified selector skip, targeted execution, full fallback, and a deliberately failing selected test against the earlier ten-job version; the final nine-job version still needs a hosted run. `npm run lint` does not set `--max-warnings=0`, so warnings alone do not fail its job. Coverage collection remains available locally without an active floor or CI artifact in this branch. The source selector can miss an affected workflow if its maintained map is wrong; broad fallback reduces that risk but cannot prove mapping completeness. A selected service-backed file still pays the Compose startup cost. The workflow remains active on pushes and pull requests, so the same head commit can produce two runs. No post-change CI-minute savings are claimed.
 
-Functional regression-matrix completeness and staging deployment are outside this workflow's configured jobs. The integration and E2E jobs do not establish complete regression-matrix coverage. Security scanning is configured in separate jobs; branch-protection and required-check enforcement remain repository settings. See the [unit-testing record](testing/unit-testing.md) for the unit-suite scope and historical results.
+Functional regression-matrix completeness and staging deployment are outside this workflow's configured jobs. The integration and E2E jobs do not establish complete regression-matrix coverage. Security scanning is configured in separate jobs; branch-protection and required-check enforcement remain repository settings. See the [testing implementation index](testing/README.md) for the unit-suite scope and result records.
 
 ## 4. Historical selective-regression validation
 
