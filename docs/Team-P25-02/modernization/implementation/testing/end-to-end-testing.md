@@ -1,24 +1,36 @@
 # End-to-End Browser Testing
 
-This record documents the isolated Playwright implementation and its local verification. It covers the browser smoke check, repeatable synthetic fixtures, and four instructor/student/report/reset journeys. It does not claim hosted E2E CI, full regression-matrix completion, or external email delivery.
+## Purpose and Scope
 
-## 1. Testing Strategy
+This record documents the isolated Playwright implementation and its local verification. It covers the browser smoke check, repeatable synthetic fixtures, and four instructor/student/report/reset journeys. The browser suite adds evidence for selected journeys without changing expected outcomes in the [regression matrix](../../../requirements/regression-test-matrix.md). It does not claim full regression-matrix completion or external email delivery.
 
-Run the complete stack from the repository root with:
+<a id="1-testing-strategy"></a>
+## Testing Environment and Tools
 
-```bash
-npm run test:e2e
-```
-
-Use Node.js and npm versions specified in the [repository README](../../../../../README.md), Docker with Compose v2, and an available Chromium image build. The runner builds and starts the disposable stack in `compose.e2e.yml`; it does not use the developer `.env`, start a development server, or publish service ports. The browser uses the frontend at `http://frontend`, which calls the backend through the Compose network.
+Use Node.js and npm versions specified in the [repository README](../../../../../README.md), Docker with Compose v2, and an available Chromium image build. The runner builds and starts the disposable stack in [`compose.e2e.yml`](../../../../../compose.e2e.yml); it does not use the developer `.env`, start a development server, or publish service ports. The browser uses the frontend at `http://frontend`, which calls the backend through the Compose network.
 
 Each invocation receives a random run ID, Compose project, database, and JWT secret. MongoDB and Mailpit are isolated to that stack. Fixture helpers reject unexpected database targets and enforce a collection allowlist and ownership marker before reset. Fixtures contain invented professors, students, courses, teams, invitations, and responses only. Tests run sequentially with one worker; retries are disabled. Independent invocations use separate projects and data.
 
-The suite separates environment/smoke checks, fixture lifecycle checks, and complete browser workflows. Playwright drives actual Chromium pages; tests also inspect real API responses and disposable MongoDB state to verify final persisted outcomes. API setup is used only for prerequisites where appropriate. Invitation URLs are captured from the isolated Mailpit inbox. The regression matrix remains the authority for expected outcomes; the browser suite adds evidence for selected journeys without changing those outcomes.
+The suite separates environment/smoke checks, fixture lifecycle checks, and complete browser workflows. Playwright drives actual Chromium pages; tests also inspect real API responses and disposable MongoDB state to verify final persisted outcomes. API setup is used only for prerequisites where appropriate. Invitation URLs are captured from the isolated Mailpit inbox. The runner saves test-runner and service logs, verifies cleanup of run-owned resources, and writes a result summary. A failed build, readiness check, test, or cleanup returns nonzero. SIGINT and SIGTERM initiate cleanup; abrupt host or Docker daemon failure may prevent cleanup.
 
-The runner saves test-runner and service logs, verifies cleanup of run-owned resources, and writes a result summary. A failed build, readiness check, test, or cleanup returns nonzero. SIGINT and SIGTERM initiate cleanup; abrupt host or Docker daemon failure may prevent cleanup.
+## Test Organization
 
-## 2. Test Cases
+The Playwright suite and its supporting files are:
+
+- [Playwright configuration](../../../../../playwright.config.cjs)
+- [E2E runner and lifecycle](../../../../../scripts/runE2ETests.cjs)
+- [Compose E2E environment](../../../../../compose.e2e.yml)
+- [Browser smoke test](../../../../../tests/e2e/smoke.spec.cjs)
+- [Fixture lifecycle tests](../../../../../tests/e2e/fixtures.spec.cjs)
+- [Instructor setup and launch](../../../../../tests/e2e/instructor-setup-launch.spec.cjs)
+- [Student invitation and submission](../../../../../tests/e2e/student-invitation-submission.spec.cjs)
+- [Results and CSV export](../../../../../tests/e2e/results-export.spec.cjs)
+- [Reset and relaunch](../../../../../tests/e2e/reset-relaunch.spec.cjs)
+
+The six spec files cover smoke, fixture lifecycle, and four selected user journeys. The regression matrix remains the authority for expected outcomes; individual browser journeys do not substitute for linked matrix outcomes unless they observe those outcomes.
+
+<a id="2-test-cases"></a>
+## Test Cases
 
 | ID | Purpose and steps | Expected result |
 | --- | --- | --- |
@@ -30,36 +42,37 @@ The runner saves test-runner and service logs, verifies cleanup of run-owned res
 | E2E-42-03 | Create varied ratings, review results in the instructor UI, compare each rendered numeric score and API/CSV score to independently calculated expectations, attempt foreign-owner access, and download CSV. | Results and CSV reflect stored data and expected scores; foreign-owner access is denied. |
 | E2E-42-04 | Reset the evaluation, verify old response/token state and unrelated course/roster/team preservation, then relaunch and submit through a fresh invitation. | Old invitations no longer permit submission; fresh invitations work; unrelated data remains intact. |
 
-The extended E2E-42-01 and E2E-42-03 assertions target REG-CW02-02, REG-CW05-01, and REG-CW09-01 without adding duplicate journeys.
+The instructor and results journeys also cover these regression-matrix concerns:
 
-## 3. Test Results
+- **REG-CW02-02:** The instructor edits course number, section, and semester through the browser; reloaded fields persist with the same course ID and owner.
+- **REG-CW05-01:** Captured invitations resolve to the existing rubric title, criterion IDs and scales, edited course context, intended evaluators, and exact peers from reorganized teams. Stored evaluator tokens match invitations, and the other owner's course remains uninvited.
+- **REG-CW09-01:** Each student's rendered numeric mean score matches the independent calculation also used for API/CSV checks.
 
-On October 31, 2026, `npm run test:e2e` passed all 13 tests at revision
-`d0088f7` and exited successfully. The runner reported verified cleanup;
-the teardown log also recorded a container-stopping error.
+These extended assertions were added October 28, 2026, without adding duplicate journeys.
 
-Local results and logs are under `test-results/e2e/24827da3ee772172/`,
-which is ignored by Git. This was a local run. See the
-[CI implementation record](../continuous-integration.md) for hosted evidence.
+## Execution Instructions
 
-The related CSV export defect (quoted delimiter, quote, and newline handling) was fixed and documented as BUG-021 in the known-bugs record. The browser journeys do not close all 74 regression-matrix targets. Remaining browser-layer assertions include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, and inconsistent report source data. These areas have separate API/database or mocked component assertions; see the [regression coverage gaps](regression-coverage-gaps.md) for their mappings and the remaining cross-layer gap.
+From the repository root, run the isolated browser suite:
 
-### Extended browser assertions — October 28, 2026
+```bash
+npm run test:e2e
+```
 
-The existing instructor and results journeys were extended for REG-CW02-02, REG-CW05-01, and REG-CW09-01. The instructor now edits course number, section, and semester through the browser and verifies reloaded fields, persisted identity, and owner. After browser launch, captured invitations must expose the existing rubric title/criterion IDs/scales, edited course context, and exact peers from the reorganized teams. Stored evaluator tokens match the invitations; the other owner's course remains uninvited. The results journey now checks each student's rendered numeric mean score against the independent calculation already used for API/CSV checks.
+<a id="3-test-results"></a>
+## Verification Results
 
-See the [regression coverage gaps](regression-coverage-gaps.md) for
-current case mappings and incomplete or missing scenarios.
+The latest documented local run was October 31, 2026, at revision `d0088f7`:
 
-## Source Links
+| Command | Result |
+| --- | --- |
+| `npm run test:e2e` | 13 tests passed; runner exited successfully and reported verified cleanup. |
 
-- [Playwright configuration](../../../../../playwright.config.cjs)
-- [E2E runner and lifecycle](../../../../../scripts/runE2ETests.cjs)
-- [Compose E2E environment](../../../../../compose.e2e.yml)
-- [Browser smoke test](../../../../../tests/e2e/smoke.spec.cjs)
-- [Fixture lifecycle tests](../../../../../tests/e2e/fixtures.spec.cjs)
-- [Instructor setup and launch](../../../../../tests/e2e/instructor-setup-launch.spec.cjs)
-- [Student invitation and submission](../../../../../tests/e2e/student-invitation-submission.spec.cjs)
-- [Results and CSV export](../../../../../tests/e2e/results-export.spec.cjs)
-- [Reset and relaunch](../../../../../tests/e2e/reset-relaunch.spec.cjs)
-- [Known bugs](../../../known-bugs.md)
+The teardown log also recorded a container-stopping error; the successful result does not mean the log was error-free. This is a previously recorded result, not a rerun for this documentation update. The record at [revision `dd7d26d`](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/end-to-end-testing.md#3-test-results) preserves this report. Local results and logs are under `test-results/e2e/24827da3ee772172/`, which is ignored by Git. For hosted execution evidence, see the [CI implementation record](../continuous-integration.md).
+
+## Limitations and Remaining Work
+
+The selected browser journeys do not complete all 74 regression-matrix targets. Remaining browser-layer assertions include malformed roster-row outcomes, empty-roster launch, complete reset-prompt behavior, duplicate/concurrent submission and later-entry validation atomicity, and inconsistent report source data. Some behaviors have API/database or mocked component assertions, but those assertions do not establish the same cross-layer browser journey. See the [regression coverage gaps](regression-coverage-gaps.md) for target mappings and remaining cross-layer gaps.
+
+Hosted E2E execution is documented separately in the [CI implementation record](../continuous-integration.md); the October 31 local run does not itself establish hosted execution or required-check enforcement. External email delivery is not tested; invitations are captured by isolated Mailpit.
+
+The related CSV export defect involving quoted delimiters, quotes, and newlines was fixed and documented as [BUG-021](../../../known-bugs.md). The browser journey verifies quoted-delimiter and quote handling; newline-containing values remain untested.

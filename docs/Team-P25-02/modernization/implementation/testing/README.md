@@ -68,7 +68,7 @@ At revision `d0088f7` on October 31, 2026, the existing records report:
 | Frontend unit/component | 85 passed in 10 files | [Frontend unit testing](frontend-unit-testing.md#verification-results) |
 | Backend unit | 143 passed in 16 files | [Backend unit testing](backend-unit-testing.md#verification-results) |
 | Integration | 200 passed in 15 files; cleanup verified | [Integration testing](integration-testing.md#test-results) |
-| Browser E2E | 13 passed; runner reported cleanup verified | [End-to-end testing](end-to-end-testing.md#3-test-results) |
+| Browser E2E | 13 passed; runner reported cleanup verified | [End-to-end testing](end-to-end-testing.md#verification-results) |
 
 These are dated local results, not a new run at this branch's revision.
 ## Command verification cases
