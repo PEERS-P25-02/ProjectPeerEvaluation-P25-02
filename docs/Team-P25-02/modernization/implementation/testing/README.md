@@ -37,14 +37,23 @@ results or code-coverage percentages.
 ## Run the suites
 
 Use Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` and npm 9 or newer.
+Both packages use Vitest `^5.0.5`. Frontend tests use jsdom `^30.1.3`
+and React Testing Library; backend unit tests use Vitest's Node
+environment and exclude the separate integration suite.
 Run commands from the repository root:
 
 ```bash
 npm test
 npm --prefix src/backend test
+npm run test:all
 npm run test:integration
 npm run test:e2e
 ```
+
+For unit-test watch mode, use:
+
+- Frontend: `npm run test:watch`
+- Backend: `npm --prefix src/backend run test:watch`
 
 The unit suites use isolated mocks. Integration and E2E execution require
 Docker and Compose; see the shared environment and E2E records for their
@@ -56,14 +65,23 @@ At revision `d0088f7` on October 31, 2026, the existing records report:
 
 | Suite | Recorded result | Detailed record |
 | --- | --- | --- |
-| Frontend unit/component | 85 passed in 10 files | [Unit testing](unit-testing.md#test-results) |
-| Backend unit | 143 passed in 16 files | [Unit testing](unit-testing.md#test-results) |
+| Frontend unit/component | 85 passed in 10 files | [Frontend unit testing](frontend-unit-testing.md#verification-results) |
+| Backend unit | 143 passed in 16 files | [Backend unit testing](backend-unit-testing.md#verification-results) |
 | Integration | 200 passed in 15 files; cleanup verified | [Integration testing](integration-testing.md#test-results) |
 | Browser E2E | 13 passed; runner reported cleanup verified | [End-to-end testing](end-to-end-testing.md#3-test-results) |
 
 These are dated local results, not a new run at this branch's revision.
-The backend unit record also contains older 45- and 49-test snapshots;
-the category records will distinguish those from the latest result.
+## Command verification cases
+
+These retained IDs describe historical command-level verification checks,
+not individual automated Vitest tests. Their earlier observations remain
+preserved in Git history. This reorganization does not claim that the checks
+were rerun.
+
+| ID | Check and expected outcome | Relevant implementation |
+| --- | --- | --- |
+| UNIT-CI-001 | A deliberately incorrect frontend assertion makes `npm test` exit nonzero; restoring it makes the command pass. | [LoginPage.test.jsx](../../../../../src/frontend/tests/LoginPage.test.jsx) |
+| UNIT-CI-002 | `npm run test:all` runs both package suites once and returns success when both pass. | [Root package scripts](../../../../../package.json) |
 
 ## Category document structure
 

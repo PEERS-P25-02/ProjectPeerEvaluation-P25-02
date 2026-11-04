@@ -99,7 +99,7 @@ Latest recorded local verification: October 31, 2026, revision `d0088f7`.
 
 | Command | Recorded result | Detailed record |
 | --- | --- | --- |
-| `npm test` | 10 frontend test files, 85 tests passed | [Unit test results](unit-testing.md#test-results) |
+| `npm test` | 10 frontend test files, 85 tests passed | [October 31 recorded unit results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results) |
 
 This is existing dated documentation evidence; no test run was performed for
 this document update or at the current branch revision. A local pass does not
