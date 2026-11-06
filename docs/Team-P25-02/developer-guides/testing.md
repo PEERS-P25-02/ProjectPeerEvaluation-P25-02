@@ -21,8 +21,8 @@ npm --prefix src/backend test
 ```
 
 Frontend unit and component tests use Vitest, jsdom, React Testing Library,
-and mocked API boundaries. See the [frontend unit record](../modernization/implementation/testing/frontend-unit-test-validation.md)
-for cases and dated results.
+and mocked API boundaries. See the [frontend unit cases](../modernization/implementation/testing/frontend-unit-testing.md#4-test-cases)
+and [dated results](../modernization/implementation/testing/frontend-unit-testing.md#6-test-results).
 
 Backend unit tests use Vitest in Node with mocks and synthetic inputs.
 They exclude integration tests and need no running MongoDB, SMTP, or
@@ -69,8 +69,8 @@ npm run test:integration
 The runner starts a backend with disposable transaction-capable MongoDB and Mailpit services, generates isolated settings rather than reading the development `.env`, runs the backend integration suite, saves logs and a result summary under the ignored `test-results/integration/` directory, and cleans up its Compose project and volumes after success, failure, or a handled interrupt. It publishes no host ports. If Docker or the computer stops unexpectedly, inspect for leftover Compose resources before retrying.
 
 Integration cases cover API/database operations, authorization, and email
-handling. See the [integration testing record](../modernization/implementation/testing/integration-testing.md)
-for the case map, results, and links to detailed records.
+handling. See the [testing index](../modernization/implementation/testing/README.md)
+for category records and dated results.
 
 For development Compose setup and native backend connections, see the
 [local development guide](local-development.md).
@@ -79,7 +79,7 @@ Run focused groups through the same isolated runner:
 
 ```bash
 npm run test:integration -- authentication.test.js authenticationAccess.test.js authorization.test.js
-npm run test:integration -- emailIntegration.test.js evaluationManagement.test.js
+npm run test:integration -- emailIntegration.test.js evaluationManagement.test.js accountSupport.test.js
 ```
 
 These tests do not establish complete browser journeys, external email
@@ -87,8 +87,8 @@ delivery, or exhaustive failure handling. CI runs selected integration
 tests for code pull requests and the full suite for merge-group code
 candidates. See the [CI implementation record](../modernization/implementation/continuous-integration.md)
 for dated hosted results and the
-[regression coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md)
-for incomplete and missing scenarios.
+[email integration limitations](../modernization/implementation/testing/email-integration.md#7-limitations-and-remaining-coverage)
+for the remaining partial REG-CW05-09 invitation-status gap.
 
 ## End-to-end browser tests
 
@@ -106,7 +106,7 @@ for merge-group code candidates. The runner saves results under
 [CI implementation record](../modernization/implementation/continuous-integration.md)
 for dated hosted results. These checks do not establish complete
 functional regression coverage; see the
-[coverage gaps](../modernization/implementation/testing/regression-coverage-gaps.md).
+[E2E limitations](../modernization/implementation/testing/end-to-end-testing.md#7-limitations-and-remaining-coverage).
 
 ## Linting and formatting
 
@@ -124,7 +124,7 @@ See the [ESLint migration notes](../modernization/implementation/tooling/eslint-
 
 These project documents describe existing test implementations, evidence, and limitations:
 
-- [Unit testing implementation](../modernization/implementation/testing/unit-testing.md#test-cases)
+- [Frontend unit testing implementation](../modernization/implementation/testing/frontend-unit-testing.md#4-test-cases)
 - [Backend unit testing implementation](../modernization/implementation/testing/backend-unit-testing.md)
 - [CI build, lint, and unit verification](../modernization/implementation/continuous-integration.md)
 - [Integration test environment](../modernization/implementation/testing/integration-test-environment.md)
