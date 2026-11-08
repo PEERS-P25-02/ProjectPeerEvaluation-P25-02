@@ -15,7 +15,7 @@ added Vitest and replaced inline ESLint configuration with ESLint 9 flat
 configuration, recommended presets, and Prettier commands. The later lint migration
 recorded zero errors and zero warnings; the earlier eight-warning result below
 is historical. See [ESLint Upgrade and Flat Configuration](eslint-and-formatting.md)
-and [Unit Testing Implementation](../testing/unit-testing.md)
+and the [testing implementation index](../testing/README.md)
 for the implemented follow-up tooling and its remaining limitations.
 
 ## Configuration Changes
@@ -42,7 +42,7 @@ Production builds passed, the Vite development server served HTML and React modu
 
 At migration time, CRA's test runner was removed with `react-scripts`, while Testing Library remained installed. The migration-time checks did not establish Vitest behavior, browser/backend workflows, Docker implementation, deployment runtime/settings, or real-browser compatibility. Production browser targets were configured, but their compatibility was not verified. Dependency changes and accepted tooling risks are recorded in [dependency-updates.md](dependency-updates.md).
 
-**Milestone 2 follow-up:** Subsequent work implemented Vitest for both packages, with jsdom for frontend tests and two initial unit tests. See [Unit Testing Implementation](../testing/unit-testing.md) for cases, results, and remaining verification. The runtime range in the migration table records the original migration; the packages now require Node `^22.22.2 || ^24.15.0 || >=26.0.0` to support the test tooling. The migration-time results above do not verify the later Vitest setup. Broader browser/backend workflow testing, deployment verification, and real-browser compatibility remain unverified; Docker work is documented separately.
+**Milestone 2 follow-up:** Subsequent work implemented Vitest for both packages, with jsdom for frontend tests and two initial unit tests. See the [initial unit-test cases](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/a7fe7f1d740df2323b303e2a42aa4b233060bf90/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#initial-unit-test-cases) and [initial results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/a7fe7f1d740df2323b303e2a42aa4b233060bf90/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#initial-test-results). Current testing layers and verification are indexed in the [testing implementation index](../testing/README.md). The runtime range in the migration table records the original migration; the packages now require Node `^22.22.2 || ^24.15.0 || >=26.0.0` to support the test tooling. The migration-time results above do not verify the later Vitest setup. Broader browser/backend workflow testing, deployment verification, and real-browser compatibility remain unverified; Docker work is documented separately.
 
 ## Possible Future Update: Use Vite's Default Output Directory
 

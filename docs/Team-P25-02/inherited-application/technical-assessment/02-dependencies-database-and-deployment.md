@@ -23,7 +23,7 @@ The inherited system relies on external packages and services for frontend build
 
 ### 7.2 Planned Direction
 
-The planned CRA-to-Vite migration has been implemented while retaining React; see the [migration record](../../modernization/implementation/tooling/vite-migration.md). Vitest was subsequently added to both packages and jsdom to the frontend. Dependency additions, removals, and runtime alignment are recorded in [Dependency Updates](../../modernization/implementation/tooling/dependency-updates.md), with testing evidence in [Unit Testing Implementation](../../modernization/implementation/testing/unit-testing.md).
+The planned CRA-to-Vite migration has been implemented while retaining React; see the [migration record](../../modernization/implementation/tooling/vite-migration.md). Vitest was subsequently added to both packages and jsdom to the frontend. Dependency additions, removals, and runtime alignment are recorded in [Dependency Updates](../../modernization/implementation/tooling/dependency-updates.md), with test-layer navigation in the [testing implementation index](../../modernization/implementation/testing/README.md).
 
 Dependency management should be simplified by removing or justifying unused declarations, ensuring both frontend and backend installations are reproducible from lockfiles, and adding automated dependency/security checking as part of the CI process. The specific scanning configuration will be defined in the CI/CD Architecture Design.
 

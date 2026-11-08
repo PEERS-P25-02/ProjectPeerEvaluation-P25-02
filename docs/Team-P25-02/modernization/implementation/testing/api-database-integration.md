@@ -1,496 +1,143 @@
-# Backend API and Database Integration Tests
+# Backend API and Database Integration Testing
 
-The integration suite covers all [36 inventoried operations](api-database-operation-inventory.md)
-through actual HTTP requests and MongoDB persistence. The October 26, 2026 recorded
-suite contained 12 files and 176 tests: the original 73, 96 authentication and
-authorization cases, and seven email integration cases. That snapshot contained
-the integration environment, eleven application suites, and four application
-repairs described in this record. The submission integrity extension is recorded in Section 5; priority regressions
-and the combined follow-up are recorded in Section 6. The detailed course and database
-verification below preserves the October 24, 2026 snapshot; later full-suite
-and focused email results are recorded separately below and in
-[email integration](email-integration.md).
+## 1. Overview
 
-## 1. Testing Strategy
+This record documents integration scenarios that send real HTTP requests through Express and verify persisted state with independent MongoDB queries. It covers course, roster, team, evaluation, report, account-support, submission-integrity, and selected priority regressions; scenario coverage does not prove every input or failure path. Browser behavior and detailed email behavior have separate records.
 
-The [integration suites](../../../../../src/backend/tests/integration)
-send actual HTTP requests through the mounted Express routes and independently
-query MongoDB using the fixture helper's separate Mongoose connection.
-Controllers, HTTP responses, and database operations are not mocked. Both the
-response contract and the resulting stored state must agree with each case.
+The ten suites listed below use synthetic fixtures and the actual API/database boundary. The historical October 31, 2026 run at revision `d0088f7` passed 200 tests across 15 files, exited 0, and verified cleanup. This document rewrite did not run the application suite; that result is historical evidence, not a new verification.
 
-Before each case, the existing guarded fixture helpers reset this run's data,
-seed the invented professor/course/team/students, and log in through the API
-where the case needs authentication. Login/account/public-student suites can
-disable setup login.
-Cases and files execute sequentially because they share one run database.
-Final teardown resets records/inbox and closes the test connection; the root
-runner removes the disposable stack and verifies resource cleanup.
+<a name="1-testing-strategy"></a>
 
-Use the Node/npm versions in the [repository README](../../../../../README.md),
-Docker with Compose v2.24+, and Linux container support. Docker must be running.
-The [integration environment guide](integration-test-environment.md#1-testing-strategy) describes
-the exact run-only settings, destination guards, readiness checks, diagnostics,
-and cleanup. No developer `.env`, Atlas account, or Mailtrap credentials are
-needed. Image builds need network access. The original suite introduced no
-dependencies or configuration changes. The submission integrity extension
-requires transaction-capable MongoDB; see Section 5.
+## 2. Testing Strategy
 
-From the repository root, run the complete environment and application checks:
+Vitest cases seed guarded, synthetic professors, courses, teams, and students; authenticate through the API where appropriate; issue HTTP requests to mounted Express routes; and query MongoDB independently to verify both successful persistence and rejected-request non-mutation. Application controllers and database operations are not mocked. Related state is compared across courses, students, teams, and evaluations where relevant. Shared-database cases run sequentially, and teardown resets run-owned records and closes the connection. Each behavior case has a stable ID; separate assertions within that behavior do not receive separate IDs.
+
+Run with the repository-supported Node.js and npm versions, Docker, Docker Compose v2.24 or later, and Linux container support. The [integration test environment record](integration-test-environment.md#1-testing-strategy) describes run-only settings, destination safeguards, readiness, diagnostics, and cleanup. No developer `.env`, Atlas account, or Mailtrap credentials are needed; the first image build requires network access. Submission-integrity cases require transaction-capable MongoDB. Supplied Compose stacks start a single-node replica set; a native backend connecting through the published port needs `directConnection=true`, because MongoDB advertises the Compose hostname.
+
+## 3. Test Organization
+
+These are the ten API/database and regression test files. The authentication/login suite is intentionally excluded: AUTH-33 login belongs to the later authentication document. Detailed email-message assertions, reminders, and SMTP behavior belong to the later email document.
+
+| Suite | Scope | Source |
+| --- | --- | --- |
+| Courses | Create, list, read, edit, deactivate, reactivate, reject invalid writes | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| Roster | CSV import, listing, manual add/edit/delete, clear | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| Teams | List, create, edit, delete, clear, membership changes | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| Evaluation management | Invitations, status, reminders, reset | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js) |
+| Student evaluation | Form, submission, status, validation | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| Reports | Course, CSV, individual, team, generated reports | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| Account support | Register, request password reset, consume/reset credentials | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| Priority roster | Cross-course isolation, CSV partial outcomes, manual additions, empty teams | [priorityRoster.test.js](../../../../../src/backend/tests/integration/priorityRoster.test.js) |
+| Priority lifecycle | Empty-roster launch, reset, token binding, deleted-response reports | [priorityLifecycle.test.js](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) |
+| Submission integrity | Duplicate recipients, later-entry validation, concurrency, rollback | [submissionIntegrity.test.js](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) |
+
+## 4. Test Cases
+
+Each row describes one observable behavior, with source links to its HTTP steps and database assertions. `TC-INT-050` and `TC-INT-051` together cover the mean and curved modes in REG-CW09-06; `TC-INT-053` through `TC-INT-055` together cover the three report views in REG-CW09-08. REG-CW09-05 is supported jointly: `TC-INT-050` and `TC-INT-052` exclude Course B data from report and CSV output, while [TC-INT-118](authentication-authorization-integration.md#test-cases) denies another professor’s report access. Existing IDs remain stable, so added cases appear beside related rows rather than in numeric order.
+
+<a name="test-cases"></a>
+
+| Test Case | Objective | Steps | Expected Result | Regression Target | Source |
+| --- | --- | --- | --- | --- | --- |
+| TC-INT-001 | Create and retrieve a course | POST `/api/courses` with a complete course; query its stored document and count; GET `/api/courses/:course_id`. | HTTP 201; owner, fields, Active status and zero counts persist; count rises once; GET returns the same course. | REG-CW02-01 | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| TC-INT-002 | List and retrieve scoped course data | Seed another course, set stale counters, GET list, case-insensitive filter and detail; independently count related students/teams. | HTTP 200; IDs and stored fields match; filtering selects the intended course; response counts reflect related records; no stored course changes. | — | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| TC-INT-003 | Edit a course without changing unrelated records | PUT changed course fields; query MongoDB and GET the course; compare another course and its professor. | HTTP 200; changed fields persist and return; number, section, owner and status remain, while the other course and professor are unchanged. | REG-CW02-03 | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js), [priorityRoster.test.js](../../../../../src/backend/tests/integration/priorityRoster.test.js) |
+| TC-INT-004 | Deactivate without deleting related data | DELETE `/api/courses/:course_id`; query course, roster and team; GET `/api/courses` with active and inactive filters. | HTTP 200; course remains Inactive, roster/team remain, active list excludes it and inactive list includes it. | REG-CW02-06 | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| TC-INT-005 | Reactivate a matching inactive course | Mark the matching course Inactive; POST its identifying fields to `/api/courses`; query ID, status and count. | HTTP 200; same ID becomes Active; no duplicate is inserted. | REG-CW02-07 | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| TC-INT-006 | Reject incomplete course creation | Snapshot courses; POST a course without semester; compare snapshot. | HTTP 400 `VALIDATION_ERROR`; no course state changes. | — | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| TC-INT-007 | Reject update to missing course | Snapshot courses; PUT a valid-shaped update to a nonexistent ID; compare snapshot. | HTTP 404 `NOT_FOUND`; no upsert or other changes. | — | [courses.test.js](../../../../../src/backend/tests/integration/courses.test.js) |
+| TC-INT-008 | Import CSV and reset only selected course evaluation state | Seed foreign course and prior selected-course tokens/evaluation; POST multipart CSV to `/api/courses/:course_id/roster` with quoted name and assigned/unassigned rows; query all affected collections. | HTTP 200; normalized rows, team links/counts and selected-course reset persist; foreign course remains unchanged. | REG-CW03-01, REG-CW03-02, REG-CW03-04 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-009 | Reject roster upload without a file | Snapshot fixtures; POST roster endpoint without multipart file; compare snapshot. | HTTP 400; course, student, team and evaluation state is unchanged. | — | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-010 | List only selected course roster | Seed foreign roster; GET selected course roster; compare sorted response to direct query. | HTTP 200; response exactly matches selected course's stored students and excludes foreign records. | — | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-011 | Manually add assigned and unassigned students | POST one student with a new team and another without a group; GET the roster, query students, teams and counts, and compare another course. | Both return HTTP 201; the roster returns both saved students, assigned team links and counts agree, the unassigned student has null team fields, and the other course is unchanged. | REG-CW03-11 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js), [priorityRoster.test.js](../../../../../src/backend/tests/integration/priorityRoster.test.js) |
+| TC-INT-012 | Reject duplicate student ID without partial add | Snapshot state; POST existing course student ID and a proposed new team. | HTTP 409; no student, team or count changes. | — | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-013 | Edit student details and move teams | PUT changed name/email and new team; query old/new teams, student and counts. | HTTP 200; details persist, membership transfers once, both counts agree. | — | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-014 | Edit student details without changing team | PUT `/api/courses/:course_id/students/:student_id` with only name/email; query student and team membership. | HTTP 200; details change and existing assignment remains. | REG-CW03-07 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-015 | Delete student and associated evaluations | Seed incoming/outgoing evaluations and another course; DELETE `/api/courses/:course_id/students/:student_id`; query all records. | HTTP 200; student and related evaluations are removed, selected counts/membership update, unrelated course/evaluation remain. | REG-CW03-08 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-016 | Bulk delete selected course students | Seed evaluation directions and foreign course; POST selected IDs, including a foreign ID, to `/api/courses/:course_id/students/bulk-delete`; query state. | HTTP 200; only valid selected-course students and their related evaluations are removed; retained and foreign records remain. | REG-CW03-09 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-017 | Reject empty bulk deletion | Snapshot state; submit empty selection; compare snapshot. | HTTP 400; no records or counts change. | — | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-018 | Clear one course roster | Seed evaluations and unrelated course; DELETE `/api/courses/:course_id/students`; query students, teams, evaluations and counters. | HTTP 200; selected data clears and counters become zero; unrelated course is unchanged. | REG-CW03-10 | [roster.test.js](../../../../../src/backend/tests/integration/roster.test.js) |
+| TC-INT-019 | Preserve valid CSV work when a row is incomplete | POST CSV containing incomplete and valid rows; query response errors and stored relationships. | HTTP 200 partial outcome; invalid row is reported while valid row persists with consistent team links/counts. | REG-CW03-03 | [priorityRoster.test.js](../../../../../src/backend/tests/integration/priorityRoster.test.js) |
+| TC-INT-020 | Disclose duplicate-key CSV partial processing | POST CSV with valid entries followed by a real duplicate-key failure; inspect response and database. | HTTP 200 partial result with `Roster processed with some errors.` and one processing error; earlier valid work remains partial with consistent relationships and counts. | REG-CW03-06 | [priorityRoster.test.js](../../../../../src/backend/tests/integration/priorityRoster.test.js) |
+| TC-INT-021 | List teams and actual members by course | Seed foreign team/student; GET selected course teams; compare populated members to MongoDB. | HTTP 200; only selected course teams and their actual members appear. | — | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-022 | Create named empty teams and update count | POST named teams; query returned IDs, memberships and course count, including the new empty team. | HTTP 201; distinct named empty teams persist and course team count increases correctly. | REG-CW04-10 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js), [priorityRoster.test.js](../../../../../src/backend/tests/integration/priorityRoster.test.js) |
+| TC-INT-023 | Reject empty team creation | Snapshot courses/teams/students; POST empty team array; compare state. | HTTP 400 `VALIDATION_ERROR`; no writes. | — | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-024 | Rename team and update student labels | PUT `/api/courses/:course_id/teams/:team_id` with populated team name/status; query team and member records. | HTTP 200; team fields persist and both member labels update without membership loss. | REG-CW04-02 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-025 | Delete empty team | Add empty team with accurate count; DELETE `/api/courses/:course_id/teams/:team_id`; query course/team. | HTTP 200; only empty team removed and count recalculated; existing memberships remain. | REG-CW04-05 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-026 | Reject populated-team deletion | Snapshot state; DELETE `/api/courses/:course_id/teams/:team_id` for a populated team. | HTTP 409 `CONSTRAINT_ERROR`; no state changes. | REG-CW04-11 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-027 | Clear selected course teams | Seed multiple selected teams and foreign course; DELETE `/api/courses/:course_id/teams`; query students and counts. | HTTP 200; selected teams removed, assignment fields unset and counts zero; foreign context unchanged. | REG-CW04-06 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-028 | Add an unassigned student to a team | POST `/api/courses/:course_id/teams/:team_id/students/:student_id` for an unassigned same-course student; query student and team memberships. | HTTP 200; the student is assigned to the team and membership/counts agree. | — | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-066 | Move an assigned student between teams | POST `/api/courses/:course_id/teams/:team_id/students/:student_id` for an assigned student and a destination team; query student, both teams and counts. | HTTP 200; old and new memberships/counts and student assignment agree; other-course memberships remain unchanged. | REG-CW04-03, REG-CW04-07 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-067 | Remove a student from a team | DELETE `/api/courses/:course_id/teams/:team_id/students/:student_id`; query student and team memberships. | HTTP 200; only that membership is removed, the student's assignment clears, and remaining members stay assigned. | REG-CW04-08 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-029 | Reject duplicate team membership | Snapshot state; attempt adding an existing member again. | HTTP 409 `DUPLICATE`; no duplicate membership or other state change. | — | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-030 | Reject adding a foreign-course student to a team | Snapshot state; POST `/api/courses/:course_id/teams/:team_id/students/:student_id` for a Course B student and a Course A team. | HTTP 404; no membership or other state changes. | REG-CW04-09 | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-070 | Reject removal of a nonmember | Snapshot state; DELETE `/api/courses/:course_id/teams/:team_id/students/:student_id` for an unassigned same-course student. | HTTP 404; no membership or other state changes. | — | [teams.test.js](../../../../../src/backend/tests/integration/teams.test.js) |
+| TC-INT-031 | Send course invitations and preserve existing tokens | POST course invite request with one existing token; query student tokens and course scope. | HTTP 200; intended students retain/create distinct tokens; unrelated data is excluded and no Evaluation records are created. | — | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js) |
+| TC-INT-032 | Send invitations only to selected team | Move one student to another team; request selected team invitations; query selected and other student state. | HTTP 200; only selected team's student receives a new token; other student is unchanged. | — | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js) |
+| TC-INT-033 | Derive course status from evaluations | Seed one completed and one pending student, contradictory flags and a foreign evaluation; GET status. | HTTP 200; one completed, one pending and 50% completion, with per-student details from selected-course Evaluation records rather than flags. | — | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js) |
+| TC-INT-034 | Reset selected evaluation state | Submit with a selected-course token, reset that course, query both courses and status, then retry the old token. | HTTP 200; selected tokens, acceptance, completion and evaluations clear; status is unsent, the old link is denied, and roster, teams and foreign records remain. | REG-CW05-04 | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js), [priorityLifecycle.test.js](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) |
+| TC-INT-035 | Reject foreign-team invitation request | Use another course team ID in a selected-course invite; compare the full database snapshot and Mailpit inbox. | HTTP 404 `NOT_FOUND`; no database changes or captured mail. | REG-CW05-10 | [evaluationManagement.test.js](../../../../../src/backend/tests/integration/evaluationManagement.test.js) |
+| TC-INT-036 | Refuse launch for empty roster | Remove selected course students, launch evaluations, then query status, data and inbox. | HTTP 404; no writes or messages; status remains unsent with zero recipients. | REG-CW05-02 | [priorityLifecycle.test.js](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) |
+| TC-INT-037 | Resolve token form for assigned evaluator | Assign token and seed foreign context; GET `/api/evaluate/:token` and query records. | HTTP 200; stored evaluator/course and exact eligible peers plus six rubric criteria return; no Evaluation write. | REG-CW04-04 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-038 | Return course peers for unteamed evaluator | Remove evaluator team assignment; GET form with another-course data present. | HTTP 200; same-course peers exclude evaluator, foreign students are absent, and team label is No Team. | — | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-039 | Persist a valid peer submission | Add third teammate; submit two distinct peer entries; query evaluations and students. | HTTP 201; exact ratings/trimmed feedback and context persist; only evaluator completion changes. | — | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-040 | Reject repeat submission without overwrite | POST once, snapshot records, then resubmit altered values to `/api/evaluate/:token`. | HTTP 409 `ALREADY_COMPLETED`; original records and student state remain. | REG-CW08-05 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-041 | Reject an empty evaluation form | POST an empty list to `/api/evaluate/:token` and query state. | HTTP 400 `VALIDATION_ERROR`; no evaluations or completion update. | REG-CW08-09 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-068 | Reject a submission with a missing required rating | POST a peer entry without a required rating to `/api/evaluate/:token` and query state. | HTTP 400 `VALIDATION_ERROR`; no evaluations or completion update. | REG-CW08-10 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-069 | Reject feedback shorter than the minimum | POST feedback shorter than the documented minimum to `/api/evaluate/:token` and query state. | HTTP 400 `VALIDATION_ERROR`; no evaluations or completion update. | REG-CW08-12 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-042 | Reject unassigned token on public routes | GET `/api/evaluate/:token`, POST `/api/evaluate/:token`, and GET `/api/evaluate/:token/status` using an unassigned token; query records. | HTTP 404 with endpoint token errors; no writes. | REG-CW08-08 | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-043 | Derive status from saved evaluations | Check status for stale-true flag without records, then seed evaluation with false flag and request status/form. | Pending/completed states follow Evaluation records; stored completion timestamp is returned where applicable; reads do not mutate data. | — | [studentEvaluation.test.js](../../../../../src/backend/tests/integration/studentEvaluation.test.js) |
+| TC-INT-044 | Reject altered known-good token | Launch evaluations; alter a valid token and call form, submit and status routes; query state and retry original token. | Altered token returns HTTP 404 on public routes with no writes; original token remains valid. | REG-CW06-03 | [priorityLifecycle.test.js](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) |
+| TC-INT-045 | Bind token to evaluator and course context | Launch evaluations, seed foreign course/student; POST forged context, self and foreign recipients, then a valid peer to `/api/evaluate/:token`. | Forged recipient/context returns HTTP 400 without writes; valid token stores only its assigned evaluator/course/recipient. | REG-CW06-04, REG-CW08-02, REG-CW08-03 | [priorityLifecycle.test.js](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) |
+| TC-INT-046 | <a name="5-submission-integrity"></a> Reject duplicate recipient atomically | Submit same recipient twice, compare state, then retry valid two-peer batch. | HTTP 400 `VALIDATION_ERROR` and no writes; corrected retry returns 201 and stores full batch. | REG-CW08-04 | [submissionIntegrity.test.js](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) |
+| TC-INT-047 | Reject invalid later entry atomically | Submit valid first peer and invalid second rating/feedback, snapshot, then retry corrected batch. | HTTP 400 and no earlier partial write; corrected retry succeeds. | REG-CW08-07, REG-CW08-11 | [submissionIntegrity.test.js](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) |
+| TC-INT-048 | Serialize concurrent evaluator submissions | Send eight concurrent distinct two-peer batches for false and stale-true initial flags; query winners and records. | Exactly one HTTP 201, seven HTTP 409 `ALREADY_COMPLETED`, and exactly the winning complete pair persists. | REG-CW08-06 | [submissionIntegrity.test.js](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) |
+| TC-INT-049 | Roll back later database write failure | Install disposable validator rejecting second response; submit valid batch; restore validator and retry. | First request HTTP 500 with no student/evaluation changes; retry HTTP 201 commits both records. | — | [submissionIntegrity.test.js](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) |
+| TC-INT-050 | Compute course mean report | GET `/api/courses/:course_id/reports`; compare IDs, grades, received evaluations and aggregate against fixture calculations. | HTTP 200; expected scored/unscored students and team/course averages return; foreign course excluded and no writes. | REG-CW09-05, REG-CW09-06 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-051 | Apply explicit curve and score protection | GET `/api/courses/:course_id/reports` with curve/protection query parameters; independently calculate scores and aggregates. | HTTP 200; expected adjusted scores, protected maximum and mean/deviation return; no writes. | REG-CW09-06 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-052 | Export course report CSV | GET `/api/courses/:course_id/reports/download`; compare the actual CSV header and every fixture row plus database snapshot. | HTTP 200 CSV with correct disposition, identities, teams, score/grade/count values, no foreign rows or writes. | REG-CW09-02, REG-CW09-05 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-053 | Select individual by course-scoped student ID | GET `/api/courses/:course_id/reports/student/:student_id` where another course shares the business student ID; compare stored identities and evaluation counts. | HTTP 200; selected course's student is returned with correct received/given totals and score; no writes. | REG-CW09-08 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-054 | Compute selected team report | GET `/api/courses/:course_id/reports/team/:team_id` and compare member IDs, grades, counts and aggregate. | HTTP 200; only selected members and independently expected aggregate return; no writes. | REG-CW09-08 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-055 | Generate derived report without persistence | POST `/api/courses/:course_id/reports/generate`; compare complete response to expected course report and query documents. | HTTP 200; expected report returns; no source changes or Report document is written. | REG-CW09-08 | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-056 | Reject report for missing course | GET valid-shaped nonexistent course ID; compare source snapshot. | HTTP 404 `NOT_FOUND`; source records unchanged. | — | [reports.test.js](../../../../../src/backend/tests/integration/reports.test.js) |
+| TC-INT-057 | Report deleted evaluation without inventing it | Submit, delete response record, retain reverse response, then GET report and CSV. | HTTP 200; missing response stays absent, reverse response remains correctly attributed, rows match stored records. | REG-CW09-04 | [priorityLifecycle.test.js](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) |
+| TC-INT-058 | Register usable account with stored password hash | Register invented professor; query identity/hash/count; login with credentials. | HTTP 201; one account with usable bcrypt hash/defaults; existing professor unchanged; login succeeds. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-059 | Reject duplicate registration | Snapshot professors; register the fixture email with different details. | HTTP 409 `DUPLICATE`; no extra account or mutation. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-060 | Reject incomplete registration | Snapshot professors; register invented account missing department. | HTTP 400 `VALIDATION_ERROR`; no account insertion or mutation. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-061 | Request reset for existing account | Request fixture-account reset; query token, expiry and password hash. | HTTP 200 generic response; a 64-character hexadecimal token and approximately one-hour expiry are stored only for that account; password remains unchanged. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-062 | Request reset for unknown account | Request reset for invented unknown email and compare professor snapshot. | HTTP 200 generic response; no account or credential mutation. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-063 | Consume valid reset credential | Obtain reset token through API; set new password; query hash/fields and test old/new login and token reuse. | HTTP 200; a different valid bcrypt hash persists, reset fields clear, new login succeeds, old login fails, and token reuse returns HTTP 400. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-064 | Reject invalid reset credential | Arrange unexpired reset credential; submit a different token and compare professor state. | HTTP 400 `TOKEN_ERROR`; password and stored reset credentials remain unchanged. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+| TC-INT-065 | Reject expired reset credential | Arrange expired reset credential; submit its token and compare professor state. | HTTP 400 `TOKEN_ERROR`; password and stored reset credentials remain unchanged. | — | [accountSupport.test.js](../../../../../src/backend/tests/integration/accountSupport.test.js) |
+
+## 5. Execution Instructions
+
+Run the complete isolated integration suite from the repository root:
 
 ```bash
 npm run test:integration
 ```
 
-To select only these course cases while retaining the same environment lifecycle:
+To select individual suites while retaining runner setup and cleanup:
 
 ```bash
 npm run test:integration -- courses.test.js
-```
-
-Run the complete command twice to check repeatability. Each invocation must use
-a different run ID, pass its selected cases, exit 0, and report verified cleanup.
-Read `runner.log`, `services.log`, and `result.json` under ignored
-`test-results/integration/<run-id>/`. Keep the logs with review evidence; a
-checked-in result summary does not make those local artifacts portable.
-
-Ordinary `npm --prefix src/backend test` excludes the integration directory and
-requires no running services. Maintain these assertions alongside the implementation. Record observed failures and suspected defects separately in [Known Bugs](../../../known-bugs.md).
-No coverage percentage or new merge gate is introduced.
-
-## 2. Test Cases
-
-The initial course cases and expected outcomes were recorded before live execution. Each
-case starts from independently seeded data, rather than depending on a prior
-case. All paths in the initial table are under `/api/courses`.
-
-### Initial Course Cases
-
-| ID | Purpose and steps | Expected result |
-| --- | --- | --- |
-| API-33-01 | POST a new course, read its returned ID directly from MongoDB, then GET that ID. | HTTP 201; correct stored fields, Active/default counts, and owning professor; one additional course; GET returns the created ID and details. |
-| API-33-02 | Set deliberately stale stored course counters, independently count fixture students/teams, then GET the list and course detail. | HTTP 200; list/details match stored identifiers and fields; list team count and detail student count come from actual related records. |
-| API-33-03 | PUT a changed name/semester, query MongoDB, then GET the course. | HTTP 200; edited fields persist and are returned; course number, section, owner, and status remain intact. |
-| API-33-04 | DELETE the fixture course; query course/roster/team records; GET active and inactive lists. | HTTP 200; course remains stored as Inactive; its two students and team remain; default active list excludes it and inactive list includes its ID. |
-| API-33-05 | Arrange a matching inactive course; POST its original identifying details; query MongoDB and count courses. | HTTP 200; response reuses the existing ID; record becomes Active; no duplicate course is inserted. |
-| API-33-06 | Snapshot stored courses; POST an input missing semester; compare stored state afterward. | HTTP 400 with VALIDATION_ERROR; no course is inserted or changed. |
-| API-33-07 | Snapshot stored courses; PUT a syntactically valid but nonexistent course ID; compare stored state afterward. | HTTP 404 with NOT_FOUND; no upsert or change to existing courses. |
-
-
-### Expanded Section Case Plans
-
-These section plans were recorded before their live execution. OP IDs map to
-the inventory; scenario counts exceed operation counts.
-
-#### Authentication
-
-| Case | Operation | Steps | Expected result |
-| --- | --- | --- | --- |
-| AUTH-33-01 | OP-33-01 | Read the seeded professor before login; POST correct credentials; independently query the professor and use the returned token on the protected course list. | HTTP 200; correct identity and a usable token; newly stored last_login agrees with the response and request time; password/identity remain intact; protected list returns the fixture course. |
-| AUTH-33-02 | OP-33-01 | Snapshot all professors; POST the fixture email with an incorrect password. | HTTP 401/AUTH_ERROR; no access token or professor information; professor snapshot/count unchanged. |
-| AUTH-33-03 | OP-33-01 | Snapshot all professors; POST an unknown synthetic email. | HTTP 401/AUTH_ERROR; no access token/account creation or stored mutation. |
-| AUTH-33-04 | OP-33-01 | Snapshot all professors; POST missing credentials. | HTTP 400/VALIDATION_ERROR; no access token or stored mutation. |
-
-#### Courses
-
-| Case | Operation | Steps | Expected result |
-| --- | --- | --- | --- |
-| COURSE-01 | OP-33-03 / OP-33-04 | POST a new course; independently query MongoDB; GET returned ID. | 201, correct fields/default counts/owner persisted, one additional course, subsequent GET matches. |
-| COURSE-02 | OP-33-02 / OP-33-04 | Set stale counters to 99; add a different same-owner course; GET unfiltered list, filtered list, and fixture detail; compare database snapshot. | Unfiltered IDs match both stored courses; case-insensitive course-number filter returns only fixture; list team count and detail student count match real related collections; stored records unchanged. |
-| COURSE-03 | OP-33-05 / OP-33-04 | PUT name/semester; query MongoDB; GET course. | 200, changes persist and are retrieved; number, section, status and owner retained. |
-| COURSE-04 | OP-33-06 / OP-33-02 | DELETE course, query records, GET active/inactive lists. | 200, course remains Inactive, roster/team preserved, active list excludes ID and inactive list includes it. |
-| COURSE-05 | OP-33-03 | Arrange matching inactive course; POST its details; query/count courses. | 200 reuses existing ID, status Active, no duplicate. |
-| COURSE-06 | OP-33-03 | Snapshot records; POST without semester. | 400/VALIDATION_ERROR and unchanged stored courses. |
-| COURSE-07 | OP-33-05 | Snapshot records; PUT a valid nonexistent ID. | 404/NOT_FOUND, no upsert, unchanged stored courses. |
-
-#### Roster
-
-| Case | Operations | Steps and expected result |
-| --- | --- | --- |
-| ROSTER-01 | OP-33-07 | Send actual multipart CSV with two new students, quoted name and optional group; expect persisted normalized fields, linked new team/counts, selected-course prior tokens/evaluations cleared, other course unchanged. |
-| ROSTER-02 | OP-33-07 | POST without file; expect 400 and unchanged course/student/team/evaluation snapshot. |
-| ROSTER-03 | OP-33-08 | Seed another course; GET selected roster; expect exactly its independently queried students and fields. |
-| ROSTER-04 | OP-33-09 | Add assigned student; expect 201, normalized record, new team membership, student/team/course counts. |
-| ROSTER-05 | OP-33-09 | Add unassigned student; expect 201, null team, course count increment without new team. |
-| ROSTER-06 | OP-33-09 | Add duplicate course student ID with a proposed new team; expect 409 and no mutations or team creation. |
-| ROSTER-07 | OP-33-10 | Edit details and move student to a new team; expect stored values, old/new membership and counts consistent. |
-| ROSTER-08 | OP-33-10 | Edit only name/email; expect original team membership and assignment retained. |
-| ROSTER-09 | OP-33-11 | Delete a student with incoming/outgoing evaluations; expect student/evaluation records absent and selected course/team counts/membership updated; other course/evaluation unchanged. |
-| ROSTER-10 | OP-33-12 | Bulk delete two selected students while supplying a foreign-course ID; expect only target-course selected records removed, incoming/outgoing evaluations removed, retained same-course evaluation and unrelated course preserved. |
-| ROSTER-11 | OP-33-12 | Empty bulk selection; expect 400 and unchanged snapshot. |
-| ROSTER-12 | OP-33-13 | Clear selected populated course roster; expect no selected students/teams/evaluations and zero counters, unrelated course unchanged. |
-
-#### Teams
-
-| Case | Operation | Steps | Expected result |
-| --- | --- | --- | --- |
-| TEAM-01 | OP-33-14 | Seed an unrelated course/team/student; list fixture course teams and independently read team/student records. | HTTP 200; only the requested course team appears, with exactly its two actual populated students. |
-| TEAM-02 | OP-33-15 | Create two named teams through POST; read returned IDs and course from MongoDB. | HTTP 201; two distinct correct teams with default empty membership/counts; course team_count becomes 3. |
-| TEAM-03 | OP-33-15 | Snapshot all courses/teams/students; POST an empty teams array. | HTTP 400/VALIDATION_ERROR; stored state unchanged. |
-| TEAM-04 | OP-33-16 | Rename the populated fixture team and change its status through PUT. | HTTP 200; team changes persist, both student labels update, and membership IDs/counts remain intact. |
-| TEAM-05 | OP-33-17 | Arrange an additional empty team and accurate course count; delete it. | HTTP 200; only the empty team disappears; course count returns to 1 and existing membership remains. |
-| TEAM-06 | OP-33-17 | Snapshot records; attempt deleting a populated team. | HTTP 409/CONSTRAINT_ERROR; no stored mutation. |
-| TEAM-07 | OP-33-18 | Arrange two fixture-course teams and an unrelated course; clear fixture-course teams. | HTTP 200; fixture teams removed, students retained with assignment fields unset, course team_count zero; unrelated course/team/student unchanged. |
-| TEAM-08 | OP-33-19 | Arrange a new unassigned course student; add them to the populated team. | HTTP 200; Team.students/count and Student.team_id/group label agree; course student count remains intact. |
-| TEAM-09 | OP-33-19 | Arrange a second empty team plus unrelated course; move an existing fixture student. | HTTP 200; old/new memberships and counts are correct, moved student points to new team, untouched student/other course remain unchanged. |
-| TEAM-10 | OP-33-19 | Snapshot records; add an existing member again. | HTTP 409/DUPLICATE; no duplicate or stored mutation. |
-| TEAM-11 | OP-33-20 | Remove an existing student from their team. | HTTP 200; only selected membership removed, team count decreases, selected assignment clears, remaining student stays assigned. |
-| TEAM-12 | OP-33-20 | Arrange a same-course unassigned student; snapshot records and request removal from the fixture team. | HTTP 404/NOT_FOUND; no stored mutation. |
-| TEAM-13 | OP-33-19 | Arrange a different course's student; snapshot records and request adding that ID through the fixture-course endpoint. | HTTP 404/NOT_FOUND; no stored mutation or cross-course membership. |
-
-#### Evaluation Management
-
-| Case | Operation | Steps | Expected result |
-| --- | --- | --- | --- |
-| EM-01 | OP-33-21 | Seed an unrelated course; send course invitations; query students and inspect individual captured messages. | 200, two successful sends, distinct persisted tokens associated with the correct recipients; unrelated tokens/data unchanged and no unrelated recipient. |
-| EM-02 | OP-33-21 | Give one student an existing token; send course invitations. | Existing token reused, missing token added, both actual messages carry their respective stored tokens, no Evaluation records created. |
-| EM-03 | OP-33-22 | Move one fixture student into a second team using direct setup; send only the first team. | 200, one successful send; only selected team student's token/message created. |
-| EM-04 | OP-33-23 | Persist tokens, one real evaluation, an unrelated-course completed evaluation and deliberately contradictory completion flags; read status. | 200, one completed/one pending and 50%; unrelated evaluator excluded; named per-student status and submission date derive from actual Evaluation data, not completion flags. |
-| EM-05 | OP-33-24 | Seed one completed evaluator and one pending student plus another course; request default reminders. | 200, only pending current-course recipient captured; Student/Evaluation records unchanged. |
-| EM-06 | OP-33-24 | Add another pending student; select the completed and one pending student for reminders. | 200, only selected pending recipient captured; completed and unselected pending students excluded. |
-| EM-07 | OP-33-25 | Seed tokens/evaluations in two courses; reset only fixture course. | 200, correct removed-token/evaluation counts; selected course tokens/evaluations removed; students/relationships retained and unrelated course's records unchanged. |
-| EM-08 | OP-33-22 | Use another course's team ID in selected fixture course send path; snapshot students and inspect inbox. | 404/NOT_FOUND, no Student mutation and no captured email. |
-
-#### Student Evaluation
-
-| Case | Operations | Steps | Expected result |
-| --- | --- | --- | --- |
-| SE-33-01 | OP-33-26 | Assign a fixture student token; seed another team/course; request the form. | Correct stored evaluator/course/team, exact eligible teammate set, six static rubric criteria; no evaluation written. |
-| SE-33-02 | OP-33-26 | Remove the student's team assignment consistently; request form alongside another-course student. | Course peers excluding evaluator and foreign-course students; No Team label. |
-| SE-33-03 | OP-33-27 | Add a third team member; submit two distinct peer entries; query evaluations/students. | HTTP 201; exactly two records with exact ratings, trimmed feedback, course/evaluator/recipient/token, valid timestamps; only evaluator completion becomes true. |
-| SE-33-04 | OP-33-27 | Submit once; snapshot data; resubmit changed ratings/feedback. | HTTP 409 ALREADY_COMPLETED; previous records and student state unchanged. |
-| SE-33-05 | OP-33-27 | Submit an empty evaluations array with a valid assigned token. | HTTP 400 VALIDATION_ERROR; zero evaluations and unchanged student state. |
-| SE-33-06 | OP-33-27 | Submit a first entry missing professionalism. | HTTP 400 VALIDATION_ERROR; zero evaluations and unchanged student state. |
-| SE-33-07 | OP-33-27 | Submit a first entry with short feedback. | HTTP 400 VALIDATION_ERROR; zero evaluations and unchanged student state. |
-| SE-33-08 | OP-33-26/27/28 | Request form, submit, and check status with an unassigned token. | HTTP 404 with each endpoint's documented token error; no student/evaluation mutation. |
-| SE-33-09 | OP-33-28 | Set a deliberately stale completion flag without an evaluation; request status. | Valid token reports completed=false based on actual records; request does not mutate state. |
-| SE-33-10 | OP-33-26/28 | Seed an evaluation while completion flag remains false; request status and form. | Status reports completed=true; form reports stored completion timestamp; records remain unchanged. |
-
-#### Reports
-
-| Case | Operation | Steps | Expected result |
-| --- | --- | --- | --- |
-| REPORT-33-01 | OP-33-29 | GET course report; compare exact student IDs, received evaluation IDs, grades, team members, summary and database snapshot. | A=75/C, B=100/A, C ungraded; team average 87.5/B; summary total=3/scored=2/average=87.5; unrelated course excluded; no writes. |
-| REPORT-33-02 | OP-33-29 | GET curved report with explicit boost/protection; compare independently calculated scores/settings/team mean. | A=81.25/B, B protected=100/A, C=0; final average=90.63; mean/deviation=87.5/12.5; no writes. |
-| REPORT-33-03 | OP-33-30 | Download actual CSV; inspect headers and all three rows against fixtures, plus database snapshot. | Correct CSV content type/disposition, exact identity/team/score/grade/count values, no unrelated rows or writes. |
-| REPORT-33-04 | OP-33-31 | GET individual report using A's business student_id; compare stored student and evaluation IDs. | Original course's A selected despite duplicate business ID elsewhere; received=2/given=1/score=75/C; no writes. |
-| REPORT-33-05 | OP-33-32 | GET fixture team report; compare member IDs/grades/counts and team aggregate. | Only A/B returned with 75/C and 100/A; average 87.5/B; no writes. |
-| REPORT-33-06 | OP-33-33 | POST generate alias; compare complete returned course/student/summary/team state and database snapshot. | Same independently expected mean report; no source changes or Report documents. |
-| REPORT-33-07 | OP-33-29 | GET a valid nonexistent course ID; compare response and database snapshot. | 404/NOT_FOUND with all source records unchanged. |
-
-#### Account Support
-
-| Case | Operation | Steps | Expected result |
-| --- | --- | --- | --- |
-| ACCOUNT-01 | OP-33-34 | Register a distinct invented professor; independently read the returned ID; compare password hash; log in with the new credentials. | HTTP 201; correct identity/defaults and usable bcrypt hash; exactly one additional professor; original professor unchanged; subsequent login succeeds. |
-| ACCOUNT-02 | OP-33-34 | Snapshot professors; register the existing fixture email with different details. | HTTP 409/DUPLICATE; no extra account or mutation. |
-| ACCOUNT-03 | OP-33-34 | Snapshot professors; register an invented account missing department. | HTTP 400/VALIDATION_ERROR; no account insertion or mutation. |
-| ACCOUNT-04 | OP-33-35 | Arrange another professor as a sentinel; request fixture-account reset; read stored token/expiry; inspect captured recipient/subject/body. | HTTP 200 generic response; new 64-character hexadecimal token and approximately one-hour expiry; password unchanged; sentinel unchanged; exactly one captured message whose body uses the stored token. |
-| ACCOUNT-05 | OP-33-35 | Snapshot professors; request reset for an unknown invented email; inspect inbox after short settling checks. | Same HTTP 200 generic response; no account/token mutation; no captured email. |
-| ACCOUNT-06 | OP-33-36 | Obtain reset credentials through the real reset API; submit a new password; query MongoDB; try new/old login and reuse the consumed reset token. | HTTP 200; different valid bcrypt hash; reset fields removed; new login succeeds, old login fails; consumed-token reuse returns 400/TOKEN_ERROR without further mutation. |
-| ACCOUNT-07 | OP-33-36 | Arrange a stored unexpired reset credential; submit a different token; compare professor snapshots and password hashes. | HTTP 400/TOKEN_ERROR; password and stored reset credentials unchanged. |
-| ACCOUNT-08 | OP-33-36 | Arrange an expired reset credential; submit its token; compare professor snapshots and password hashes. | HTTP 400/TOKEN_ERROR; password and stored reset credentials unchanged. |
-
-## 3. Recorded Initial Course Results
-
-The initial seven course cases were recorded as passing on October 23, 2026.
-The execution used Node 24.21.0, npm 11.19.0, and Docker Compose 5.1.1; the
-application and runner images used Node 24.22.0. These results are a dated
-snapshot from the initial course slice, not a current execution claim.
-
-| Case | Recorded actual result | Status |
-| --- | --- | --- |
-| API-33-01 | HTTP 201; independent query confirmed fields, Active/default counts and professor; GET returned the created course. | Passed |
-| API-33-02 | With cached counts set to 99, the list returned the actual 1 team and detail returned the actual 2 students; identifiers/details matched MongoDB. | Passed |
-| API-33-03 | HTTP 200; edited name/semester were stored and returned by GET; other checked course fields and owner were preserved. | Passed |
-| API-33-04 | HTTP 200; course remained Inactive with 2 students/1 team; active list excluded it and inactive list included it. | Passed |
-| API-33-05 | HTTP 200; original ID reactivated and course count remained 1. | Passed |
-| API-33-06 | HTTP 400/VALIDATION_ERROR; stored courses matched the pre-request snapshot. | Passed |
-| API-33-07 | HTTP 404/NOT_FOUND; stored courses matched the pre-request snapshot, with no inserted record. | Passed |
-
-The recorded initial course runs passed all seven selected cases, and the
-service-free backend suite (10 files, 62 tests), lint, and formatting checks also
-passed at that snapshot. Frontend build, hosted CI, new coverage measurement, mutation testing,
-and deliberate application-failure checks were not run for that initial slice.
-
-The full application case inventories are preserved in Section 2 and Section 4.
-The separate shared SWE4724 Test Document/template was not present in the
-reviewed checkout. This repository record therefore does not claim that the
-course submission document was updated.
-
-
-## 4. Expanded Verification and Review
-
-The initial implementation record covered eight application suites for all 36
-inventoried operations. Plans above precede execution; operation IDs are
-included in test titles. This is selected scenario coverage for every
-inventoried operation, not exhaustive verification of every input or failure
-path.
-
-| Section | Operations | Application tests | Suite |
-| --- | --- | --- | --- |
-| Professor login | OP-33-01 | 4 | authentication.test.js |
-| Courses | OP-33-02–06 | 7 | courses.test.js |
-| Rosters | OP-33-07–13 | 12 | roster.test.js |
-| Teams | OP-33-14–20 | 13 | teams.test.js |
-| Evaluation management | OP-33-21–25 | 8 | evaluationManagement.test.js |
-| Student evaluation | OP-33-26–28 | 10 | studentEvaluation.test.js |
-| Reporting | OP-33-29–33 | 7 | reports.test.js |
-| Account support | OP-33-34–36 | 8 | accountSupport.test.js |
-| Total | 36 | 69 | Plus the 4 existing environment checks |
-
-### Verified Repairs
-
-The expanded regression cases exposed four defects, and the retained assertions
-passed after the corresponding controller repairs:
-
-1. Details-only student edits retain existing team membership.
-2. Individual deletion removes evaluations received and authored by the student.
-3. Bulk deletion removes evaluations in both directions within the selected course.
-4. Course reports correctly associate populated team references and calculate team membership and averages.
-
-The October 24 recorded full-suite results passed after these controller repairs.
-Earlier filtered results identified the defects and confirmed the retained
-assertions after repair. See BUG-005–008 in [Known Bugs](../../../known-bugs.md). Review also strengthened recipient
-cardinality, foreign-course exclusion from completion totals, and course-filter
-and read-only assertions. No new dependencies or configuration were added.
-
-### Current Recorded Integration Results — October 26, 2026
-
-Two complete local integration runs passed 176 tests in 12 files: the original
-73, 96 authentication/authorization cases, and seven email cases. Both runs
-verified cleanup. The focused and concurrent email runs are recorded in
-[email integration](email-integration.md). Current source review confirms
-dedicated assertions for invitation-link shape and SMTP rejection/retry,
-professor ownership, and student-recipient authorization. This documentation
-update did not rerun those suites. These local results do not establish hosted
-CI execution.
-
-### Recorded Full-Suite Results — October 24, 2026
-
-These dated results are an earlier snapshot.
-
-| Check | Actual result |
-| --- | --- |
-| `npm --prefix src/backend test` | 10 files / 62 tests passed with the controller repairs. |
-| `npm test` | 8 files / 63 frontend tests passed. |
-| `npm run test:all` | Both service-free suites passed. |
-| `npm run lint` | Passed, zero diagnostics. |
-| `npm run format:check` | Passed. |
-| Operation-ID audit | All 36 IDs present across the eight application suites. |
-| `git diff --check` | Passed. |
-| `npm run test:integration` | 9 files / 73 tests passed (69 application + 4 environment); exit 0; cleanup verified. |
-| `npm run test:integration` (repeat) | 9 files / 73 tests passed; exit 0; independent fresh database; cleanup verified. |
-
-The two complete runs included all 36 operation IDs and verified cleanup. They
-used Node 24.21.0, npm 11.19.0, and Docker Compose 5.6.1; application and test
-images used Node 24.22.0. Logs and JSON exit/cleanup records were retained in
-ignored per-run directories.
-No frontend build, browser journey, hosted CI or new coverage measurement was
-performed for the expanded backend change.
-
-### Remaining Limits
-
-- The original course-scoped sentinel checks do not establish cross-professor
-  access control. The subsequent [authentication and authorization tests](authentication-authorization-integration.md)
-  cover professor ownership, credential rejection, child-resource isolation,
-  and student-recipient permissions; consult that record for execution results
-  and remaining access-control limits.
-- Captured SMTP establishes recipients, token association, invitation link
-  shape, and deterministic rejection/retry behavior, not provider delivery or
-  browser navigation. Known account-recovery defects remain separate concerns.
-- Self/foreign recipients are addressed in the access-control record above.
-  Submission duplicate-recipient, later-entry validation, concurrency, and
-  database write rollback assertions are added in Section 5, with execution
-  verification recorded there separately. Token uniqueness/security, deadline
-  enforcement, and arbitrary database outages remain outside those cases.
-- Evaluation reset clears tokens/records and is tested to invalidate the old
-  student capability. Section 6 adds a real submission/reset lifecycle assertion
-  and records the cached-completion defect and its follow-up; the full UI
-  reset-confirmation sequence remains separate work. The status endpoint still reports `evaluations_sent: true`
-  when at least one student has recorded SMTP acceptance; partial-roster
-  acceptance and its aggregate status are not fully covered. Token existence
-  does not establish successful SMTP delivery.
-- Roster reassignment/reimport variations, malformed streams/filesystem failures,
-  arbitrary CSV escaping, every grading boundary, and unrestricted update-field
-  variants outside the fields specifically protected by authorization tests
-  are outside these bounded cases. Protected ownership and operator-field
-  handling on selected updates is covered in the
-  [authorization integration record](authentication-authorization-integration.md).
-- Browser navigation/end-to-end behavior, service-backed CI, and the unavailable
-  separate shared SWE4724 Test Document remain separate work. No requirement text
-  or historical implementation assessment is rewritten to match current code.
-
-## 5. Submission Integrity
-
-The [submission integrity suite](../../../../../src/backend/tests/integration/submissionIntegrity.test.js)
-extends OP-33-27 through real HTTP requests and independent MongoDB queries.
-It uses the existing isolated fixture lifecycle and synthetic records. The
-controller validates the complete batch before writes and rejects duplicate
-recipients. A MongoDB transaction commits response records and evaluator
-completion together; a forced Student version update serializes submissions
-for the same evaluator before the transaction-local completion check. Existing
-completion records remain authoritative for repeat rejection. No unique index
-or migration is introduced, and existing duplicate data is not repaired.
-
-MongoDB must be a replica set or sharded deployment. The supplied local,
-integration, and browser-test Compose stacks initialize a single-node replica
-set automatically and wait for its writable primary. Existing named volumes
-are retained without data deletion. A native backend using the Compose
-published MongoDB port needs `directConnection=true` because the replica set
-advertises the Compose hostname `mongodb`.
-
-| Target / case | Steps | Expected result |
-| --- | --- | --- |
-| REG-CW08-04 | Submit the same eligible recipient twice, then correct the request. | HTTP 400 `VALIDATION_ERROR`, unchanged students/evaluations; corrected retry stores the complete two-peer submission with HTTP 201. |
-| REG-CW08-07 / REG-CW08-11 | Place a valid peer first and an invalid rating or feedback entry second. Cases include missing, below/above-bound, participation-bound, nonnumeric string and null ratings, and short/non-string feedback. | HTTP 400 `VALIDATION_ERROR`, unchanged response and completion state; corrected retry succeeds with exact stored values. |
-| REG-CW08-06 | Send eight concurrent two-peer requests with distinct request/recipient feedback markers and ratings, with false and stale-true initial completion flags. | Exactly one HTTP 201 and seven HTTP 409 `ALREADY_COMPLETED`; exactly two response records from one winning request and only its evaluator completion/version update. |
-| REG-CW08-07 / database rollback | Temporarily add a disposable collection validator rejecting the second recipient, submit two otherwise-valid entries, restore the validator, then retry. | HTTP 500 and unchanged students/evaluations after rejection; corrected retry returns HTTP 201 and stores both responses. Validator restoration runs even on failure. |
-
-### Historical PR #137 execution results
-
-The original implementation failed 12 original integrity assertions in an
-isolated baseline run; cleanup was verified. Duplicate recipients were accepted
-with HTTP 201; later missing-rating/short-feedback rejection left the first
-response stored; out-of-range, nonnumeric/null rating and feedback-type errors
-returned HTTP 500. Concurrent submissions with a stale-true completion flag
-produced six successes instead of one, and a later database validator failure
-also left the first response stored.
-
-Repaired-source verification on October 28, 2026, recorded on PR #137
-at `649dc6f` before integration with PR #134:
-
-| Command | Actual result |
-| --- | --- |
-| `npm run test:integration -- submissionIntegrity.test.js` | 12/12 passed; exit 0; cleanup verified. |
-| `npm run test:integration` | 188/188 passed across 13 files; exit 0; cleanup verified. |
-| `npm --prefix src/backend test` | 79/79 passed across 11 files. |
-| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; cleanup verified. |
-| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
-
-This historical browser run verifies existing journeys against the replica-set stack; the
-new integrity cases execute at the API/database layer. Earlier dated run records
-above remain historical. The separate shared SWE4724 Test Document is
-unavailable/deferred; this repository update does not claim to update it.
-
-The cases establish bounded submission integrity assertions. They do not
-establish general database-outage handling, token uniqueness/security, deadline
-enforcement, historical duplicate cleanup, or every concurrent reset/relaunch
-interaction. No requirement text or requirement-wide status is changed.
-
-## 6. Priority workflow regression follow-up
-
-These cases use the existing guarded API/MongoDB/Mailpit environment, synthetic
-fixtures, sequential isolation and independent database reads. The original
-PR #134 test-only snapshot and its failures are retained below; source repairs
-and consolidated test mappings are a separate follow-up. No numerical coverage
-gate or approved matrix outcome changes here.
-
-| Test source | Matrix cases and expected outcomes |
-| --- | --- |
-| [Priority roster](../../../../../src/backend/tests/integration/priorityRoster.test.js) | REG-CW02-03 edit preserves another owner's course; REG-CW03-03 mixed rows disclose errors and persist only valid records; REG-CW03-06 real duplicate-key failure discloses partial processing with consistent relationships/counts; REG-CW03-11 assigned/unassigned manual additions read back consistently and preserve the unrelated course; REG-CW04-10 named empty team lists with matching stored counts. |
-| [Priority lifecycle](../../../../../src/backend/tests/integration/priorityLifecycle.test.js) | REG-CW05-02 empty roster does not launch; REG-CW05-04 submission/reset clears completion, tokens and responses, revokes old access and preserves roster/teams/other course; REG-CW06-03 altered known-good token denied without writes; REG-CW06-04 token constrains recipient and saved identity/course despite supplied foreign context; REG-CW09-04 deleted response stays absent in report/CSV while a retained reverse response stays attributed correctly. |
-| [Submission integrity](../../../../../src/backend/tests/integration/submissionIntegrity.test.js) | REG-CW08-04 duplicate recipient rejected with HTTP 400 and no writes; REG-CW08-06 concurrent submissions retain one complete response set; REG-CW08-07 later missing rating and short feedback each leave no earlier writes; REG-CW08-11 professionalism 0/6, participation 0/5, and communication 0 return validation errors without response/completion changes. |
-
-Run focused cases with the same cleanup safeguards:
-
-```bash
 npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js
 ```
 
-### Historical PR #134 execution results
+The ordinary backend unit command, `npm --prefix src/backend test`, excludes integration files and needs no running services. Inspect `runner.log`, `services.log`, and `result.json` under ignored `test-results/integration/<run-id>/`; completed runs report cleanup verification. The integration runner owns startup and disposal of its Compose project. Its final cleanup removes run-owned containers, volumes, network, and generated image tags, then checks for remaining run-labeled resources. Use the [environment record](integration-test-environment.md) for recovery after incomplete cleanup; avoid global Docker pruning. Local runs do not establish CI enforcement.
 
-At `9d05881`, the original three-file extension included the now-consolidated
-`prioritySubmission.test.js`. The first focused run on October 28, 2026 ran 18 tests: six passed and twelve
-failed, exit 1 with verified cleanup. Review corrected two overstrict test
-oracles (partial-result wording and no-response report schema) and strengthened
-fixtures; that initial run is superseded by the full run below.
+<a name="verification-results"></a>
 
-Final baseline full run on October 28, 2026 (before repairs): `npm run test:integration` ran 194 tests
-in 15 files: **184 passed, 10 failed**, exit 1, cleanup verified true
-(run ID `155d058f8d739ea3`). All 176 pre-existing tests passed; the 18 added
-cases produced eight passes and ten failures. Failures cover undisclosed CSV
-processing errors, retained reset completion, duplicate/concurrent submissions,
-two later-entry partial writes, and four invalid-scale server errors. See
-[BUG-018](../../../known-bugs.md#bug-018-evaluation-submissions-can-persist-partial-or-duplicate-responses),
-[BUG-019](../../../known-bugs.md#bug-019-csv-processing-failures-omit-partial-import-errors), and
-[BUG-020](../../../known-bugs.md#bug-020-evaluation-reset-retains-completed-student-flags).
-The intermediate full run had 183 passes/11 failures before the remaining
-partial-result wording assertion was corrected. No failure is skipped or marked
-as expected. Those failures are historical reproduction evidence; source fixes
-alone do not establish complete verified behavior.
+## 6. Test Results
 
-Backend unit tests: `npm --prefix src/backend test`, 65/65 passed. Root
-`npm run lint`, `npm run format:check`, and `git diff --check` passed.
-The first lint attempt used an incomplete reused dependency directory and failed
-module resolution; a clean lockfile install in this worktree resolved it.
-In that baseline follow-up, no frontend source changed and no browser or
-production-build rerun was performed.
+The October 31, 2026 full-suite run at revision `d0088f7` passed 200 tests across 15 files, exited 0, and verified cleanup. The [recorded integration result at commit dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/integration-testing.md#test-results) preserves the run record. No application tests were run for this documentation-only rewrite. The [original API/database record at dd7d26d](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/api-database-integration.md#4-expanded-verification-and-review) retains historical expanded-verification detail; the [original combined follow-up](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/api-database-integration.md#current-combined-follow-up) retains the historical combined-follow-up detail.
 
-Partial-invitation aggregate status has separate implementation/evidence on an
-unmerged branch; this follow-up neither duplicates that repair nor claims its
-results on this baseline. The external shared Test Document remains deferred
-and was not updated. Existing historical runs above remain dated evidence.
+<a name="current-combined-follow-up"></a>
+## 7. Limitations and Remaining Coverage
 
-### Current combined follow-up
-
-The follow-up imports PR #137's batch validation, transaction, and replica-set
-configuration; repairs CSV partial-error disclosure (BUG-019) and reset
-completion (BUG-020); and reuses `submissionIntegrity.test.js` for the overlapping
-CW-08 targets instead of retaining duplicate tests. Separate participation-0 and
-communication-0 assertions preserve all four original invalid-scale probes.
-The lifecycle snapshot permits the evaluator version increment introduced by
-the successful submission transaction. All regression assertions remain active.
-
-October 28, 2026 combined follow-up verification:
-
-| Command | Actual result |
-| --- | --- |
-| `npm run test:integration -- priorityRoster.test.js priorityLifecycle.test.js submissionIntegrity.test.js` | 24/24 passed across 3 files; exit 0; run `63648dd86c861ec2`; cleanup verified true. |
-| `npm --prefix src/backend test` | 79/79 passed. |
-| `npm run test:integration` | 200/200 passed across 15 files; exit 0; run `ec91818f4cb97e1e`; cleanup verified true. |
-| `npm run test:e2e` | 13/13 passed in Chromium; exit 0; run `e969367672baa346`; cleanup verified true. |
-| `npm run lint`, `npm run format:check`, `git diff --check` | Passed. |
-
-These runs tested the PR #134 working tree combining `9d05881` and PR #137
-`649dc6f`, with the CSV/reset repairs and consolidated tests described above.
-The tested application and test files are recorded in commit `27a7861`; merge
-`57d76d2` incorporates the defect-ID correction without changing that tree.
-The current 200-test result independently verifies that combined source; the
-historical 184/10 and 188/188 results above remain evidence for their separate
-snapshots. Logs and `result.json` are retained under ignored
-`test-results/integration/<run-id>/` and `test-results/e2e/<run-id>/`.
-The browser runner rebuilt the application images; no separate native frontend
-build or frontend unit-suite rerun was performed. Hosted execution is not
-established by these local results.
-Remaining source gaps stay listed in the [coverage gap inventory](regression-coverage-gaps.md);
-BUG-017 is fixed in the current source; its separate frontend reset-confirmation cases and October 28 results are recorded in the [frontend validation follow-up](frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes).
-
-
-### Unit-test compatibility with merged main — October 28, 2026
-
-The [hosted run 40781814676](https://github.com/jonpauljah/ProjectPeerEvaluation-P25-02/actions/runs/40781814676)
-tested merge commit `f2d7d8293d6534ef502440bcdee98906b0a38ea0`, combining
-PR head `911328a` with main `726b17c`. Its newer `workflowTransitions.test.js`
-expected a token-only reset update and failed because BUG-020 correctly also
-sets `evaluation_completed` to false. Both backend unit jobs failed on that
-assertion; missing coverage artifacts were a consequence of the failed tests.
-The integration and browser jobs succeeded in that run.
-
-The branch now carries the same [cleanup unit-test file](../../../../../src/backend/tests/workflowTransitions.test.js)
-with the reset assertion updated to require completion reset alongside token
-and SMTP-marker removal. Exact selected-course filters, call counts,
-evaluation deletion, and response assertions remain intact. Production code,
-matrix outcomes, and source-coverage classifications are unchanged.
-
-- Reproduced the original failure against that exact CI merge source: one
-  failed and ten passed in the focused cleanup file.
-- Updated merged-source backend unit suite: 143/143 passed in 16 files.
-- Updated merged-source `test:coverage`: 143/143 passed; report-integrity guard
-  passed and backend coverage artifacts were generated.
-- Standalone PR branch backend suite: 90/90 passed in 12 files.
-- Root lint, formatting, and whitespace checks passed. Integration/browser
-  suites were not rerun for this unit-test-only correction.
-
-These local results verify the corrected assertion against both source
-contexts; the hosted rerun remains separate verification.
+- These cases verify selected API/database behaviors; they do not exhaust permissions, all validation boundaries, arbitrary database failures, or every workflow combination.
+- Email delivery details, message content, reminders, and invitation acceptance are owned by the later email document. `accountSupport` verifies the HTTP reset outcome and stored reset credential; the later email document owns mixed acceptance/status coverage.
+- Browser navigation and hosted CI enforcement have separate coverage records; the historical local run proves neither.
+- Roster cases do not exhaust malformed CSV streams, all parser/processing failures, reassignment and reimport combinations, or filesystem failures.
+- Submission cases cover duplicate recipients, selected later-entry failures, bounded concurrency, and an injected transactional write failure; arbitrary outages and every reset/relaunch race remain outside this suite.

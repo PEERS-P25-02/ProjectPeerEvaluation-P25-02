@@ -94,7 +94,7 @@ React Testing Library and `@testing-library/jest-dom` were already present; the 
 
 Vitest 5 excludes Node 20, and jsdom 30 requires Node `^22.22.2 || ^24.15.0 || >=26.0.0`. Both manifests and lockfile root entries now declare that shared range. npm remains `>=9.0.0`, with `engine-strict=true` retained in both packages. The earlier runtime advice in the Nodemailer upgrade record describes that upgrade; hosting must satisfy the newer package requirements before deployment.
 
-The developer reported successful `npm run setup` and both individual test suites after runtime alignment. The [October 31 unit-test record](../testing/unit-testing.md#test-results) documents clean installations and both suites passing on Node 22.22.2, 24.15.0, and 26.0.0 at revision `d0088f7`. Hosting runtime verification remains outstanding. No new dependency audit result is claimed for these additions.
+The developer reported successful `npm run setup` and both individual test suites after runtime alignment. The [October 31 unit-test record at its historical snapshot](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results) documents clean installations and both suites passing on Node 22.22.2, 24.15.0, and 26.0.0 at revision `d0088f7`. Hosting runtime verification remains outstanding. No new dependency audit result is claimed for these additions.
 
 ## ESLint Dependencies
 

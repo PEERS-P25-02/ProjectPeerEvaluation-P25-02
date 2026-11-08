@@ -9,14 +9,7 @@ separate HTTP alias. The inventory reflects the implemented backend routes.
 `C` means `/api/courses/:course_id`. Student-management `:student_id` is a
 MongoDB document ID; the student-report route instead uses the business ID.
 Suite paths are under `src/backend/tests/integration/`. Each suite exercises
-actual HTTP and independently queries MongoDB. Cases, recorded results, and
-limitations are in the [integration test guide](api-database-integration.md).
-The original suites contained 69 application cases for these operations plus
-four environment checks. Later authentication/authorization and email suites
-bring the recorded total to 176 tests in 12 files (73 original + 96
-authentication/authorization + 7 email). Two full runs and focused/concurrent
-email runs are recorded in the linked integration reports; this inventory's
-count is not a fresh execution claim.
+actual HTTP and independently queries MongoDB. Behavior-level cases and limitations are in the [API/database integration guide](api-database-integration.md). Dated combined-suite results are in the [testing index](README.md#latest-recorded-local-verification); the operation rows below describe route scope, not test execution.
 
 ## Professor authentication (1)
 

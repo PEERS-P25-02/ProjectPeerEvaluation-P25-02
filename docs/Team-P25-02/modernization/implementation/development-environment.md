@@ -7,7 +7,7 @@
 
 This document records development-environment improvements implemented during Milestone 2, their verification evidence, and remaining work. The existing development-environment assessments and testing strategy preserve the inherited application baseline and the Milestone 1 plan.
 
-Unit-test tooling, commands, test cases, and recorded results are documented separately in [Unit Testing Implementation](testing/unit-testing.md). The full Milestone 2 development environment remains in progress.
+Unit-test tooling, commands, test cases, and recorded results are indexed in the [testing implementation index](testing/README.md). The full Milestone 2 development environment remains in progress.
 
 ## Implemented Changes
 
@@ -30,7 +30,7 @@ Implementation artifacts: [frontend package](../../../../package.json), [backend
 
 ### Runtime and Dependency Alignment
 
-The Node requirement was raised to support the test-tooling dependencies, and both package manifests and lockfile root entries were synchronized. npm remains `>=9.0.0`, and strict engine enforcement remains enabled. See [Unit Testing Implementation](testing/unit-testing.md#runtime-compatibility) for the dependency compatibility details.
+The Node requirement was raised to support the test-tooling dependencies, and both package manifests and lockfile root entries were synchronized. npm remains `>=9.0.0`, and strict engine enforcement remains enabled. See [unit-testing dependencies](tooling/dependency-updates.md#unit-testing-dependencies) for the dependency compatibility details.
 
 ## Native Development Workflow
 
@@ -83,9 +83,9 @@ CI can supply an ephemeral `JWT_SECRET` through the job environment and invoke `
 | Manifest and lockfile synchronization | Metadata consistency and diff whitespace checks passed. |
 | Lint and formatting (Node 24.21.0/npm 11.19.0) | Both passed; lint reported zero errors and zero warnings. Backend uses the shared root tooling. |
 | Production build (Node 24.21.0/npm 11.19.0) | Passed; JavaScript bundle 651.02 kB, with the existing >500 kB chunk warning. |
-| Unit suites and minimum Node versions | Clean installations and both unit suites passed on Node 22.22.2, 24.15.0, and 26.0.0. See [unit test results](testing/unit-testing.md#test-results). |
+| Unit suites and minimum Node versions | Clean installations and both unit suites passed on Node 22.22.2, 24.15.0, and 26.0.0. See [unit test results at the October 31 snapshot](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results). |
 
-Testing verification and recorded results are maintained in [Unit Testing Implementation](testing/unit-testing.md#test-results). Manual API and browser checks still require the appropriate isolated database and email services.
+Testing verification and recorded results are maintained in the [testing implementation index](testing/README.md#latest-recorded-local-verification). Manual API and browser checks still require the appropriate isolated database and email services.
 
 ## Compose Verification
 
@@ -103,6 +103,6 @@ Automated invitation email suites and their results are recorded in [Email Integ
 - [Inherited environment assessment](../../inherited-application/development-environment/01-current-development-environment.md)
 - [Milestone 1 environment plan](../plans/development-environment/01-planned-environment.md)
 - [Configuration contracts](../plans/development-environment/02-configuration-and-testing-plan.md)
-- [Unit Testing Implementation](testing/unit-testing.md)
+- [Testing Implementation](testing/README.md)
 - [ESLint and Formatting Implementation](tooling/eslint-and-formatting.md)
 - [Containerization Assessment](../plans/containerization/README.md)
