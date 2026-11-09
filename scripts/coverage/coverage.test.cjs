@@ -93,11 +93,11 @@ test('missing aggregate frontend unit coverage still fails collection', async ()
   }
 });
 
-test('artifact producers accept different attempts within one SHA and run', () => {
+test('artifact producers accept different unit and integration attempts in one run', () => {
   const { producer } = require('../ciArtifactProvenance.cjs');
   const sha = 'a'.repeat(40);
-  const selection = {
-    suite: 'selection',
+  const integration = {
+    suite: 'integration',
     sha,
     'run-id': '12',
     attempt: '1',
@@ -110,15 +110,65 @@ test('artifact producers accept different attempts within one SHA and run', () =
     attempt: '2',
     'artifact-id': '102',
   };
-  assert.equal(producer(selection, 'selection', sha, '12').attempt, '1');
+  assert.equal(producer(integration, 'integration', sha, '12').attempt, '1');
   assert.equal(producer(unit, 'unit', sha, '12').attempt, '2');
   for (const bad of [
     { ...unit, sha: 'b'.repeat(40) },
     { ...unit, 'run-id': '13' },
-    { ...unit, suite: 'selection' },
+    { ...unit, suite: 'integration' },
     { ...unit, 'artifact-id': '' },
   ])
     assert.throws(() => producer(bad, 'unit', sha, '12'), /producer/);
+});
+
+test('merge-group coverage does not request patch change evidence', () => {
+  const { patchChanges } = require('../runCiCoverage.cjs');
+  assert.equal(
+    patchChanges('merge_group', undefined, 'a'.repeat(40), () => {
+      throw new Error('merge-group coverage must not invoke Git');
+    }),
+    null,
+  );
+});
+
+test('runtime coverage requires its artifact and a complete provenance-matched capture', () => {
+  const { addRuntime, validateCapture } = require('../runCiCoverage.cjs');
+  const provenance = { sha: 'a'.repeat(40), runId: '123', runAttempt: '1' };
+  const capture = {
+    ...provenance,
+    suite: 'integration',
+    complete: true,
+    backend: true,
+    frontend: true,
+    errors: [],
+  };
+  assert.throws(
+    () =>
+      addRuntime(
+        () => {},
+        '/missing-coverage-artifacts',
+        'integration',
+        provenance,
+        'integration',
+      ),
+    /Expected one integration coverage capture/,
+  );
+  assert.doesNotThrow(() =>
+    validateCapture(capture, 'integration', provenance),
+  );
+  for (const change of [
+    { complete: false },
+    { backend: false },
+    { frontend: false },
+    { errors: ['capture failed'] },
+    { suite: 'unit' },
+    { sha: 'b'.repeat(40) },
+    { runId: '122' },
+    { runAttempt: '2' },
+  ])
+    assert.throws(() =>
+      validateCapture({ ...capture, ...change }, 'integration', provenance),
+    );
 });
 
 test('normalization unwraps Vitest FileCoverage instances before serializing', async () => {
@@ -324,15 +374,15 @@ test('empty changed-line set is a valid not-applicable report', () => {
 test('artifact producers may come from mixed attempts within one workflow run', () => {
   const { producer } = require('../ciArtifactProvenance.cjs');
   const sha = 'a'.repeat(40);
-  const selection = producer(
+  const integration = producer(
     {
-      suite: 'selection',
+      suite: 'integration',
       sha,
       'run-id': '12',
       attempt: '1',
       'artifact-id': '101',
     },
-    'selection',
+    'integration',
     sha,
     '12',
   );
@@ -342,9 +392,9 @@ test('artifact producers may come from mixed attempts within one workflow run', 
     sha,
     '12',
   );
-  assert.equal(selection.attempt, '1');
+  assert.equal(integration.attempt, '1');
   assert.equal(unit.attempt, '2');
-  assert.equal(selection.runId, unit.runId);
+  assert.equal(integration.runId, unit.runId);
   assert.throws(
     () =>
       producer(
@@ -368,7 +418,6 @@ test('coverage orchestration retains its report when the changed-line threshold 
   const os = require('node:os');
   const path = require('node:path');
   const { spawnSync } = require('node:child_process');
-  const { select } = require('../selectRegressionTests.cjs');
   const { patchThreshold } = require('./policy.json');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-coverage-'));
   const sha = 'a'.repeat(40);
@@ -376,15 +425,7 @@ test('coverage orchestration retains its report when the changed-line threshold 
   const runId = '12';
   const root = path.join(directory, 'artifacts');
   const output = path.join(directory, 'coverage');
-  const changes = {
-    base,
-    head: sha,
-    mergeBase: base,
-    files: [
-      { path: 'src/frontend/tests/StudentEvaluation.test.jsx', status: 'M' },
-    ],
-  };
-  const selection = select(JSON.stringify(changes.files));
+  const changedPath = 'src/frontend/pages/StudentEvaluation.jsx';
   const writeJson = (file, value) => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(value));
@@ -408,13 +449,22 @@ test('coverage orchestration retains its report when the changed-line threshold 
     };
   };
   try {
-    writeJson(path.join(root, 'selection/selection.json'), selection);
-    writeJson(path.join(root, 'selection/changes.json'), changes);
     const producers = {
-      'select-tests': artifact('selection', 'selection', '1', '101'),
       'unit-tests': artifact('unit/coverage', 'unit', '2', '102'),
+      'integration-tests': artifact('integration', 'integration', '1', '101'),
     };
-    const changedPath = changes.files[0].path;
+    const captureDirectory = path.join(root, 'integration/run-1/coverage');
+    writeJson(path.join(captureDirectory, 'capture.json'), {
+      complete: true,
+      suite: 'integration',
+      backend: true,
+      frontend: true,
+      errors: [],
+      sha,
+      runId,
+      runAttempt: '1',
+    });
+    fs.mkdirSync(path.join(captureDirectory, 'backend'), { recursive: true });
     const preload = path.join(directory, 'mock-coverage-cli.cjs');
     fs.writeFileSync(
       preload,
