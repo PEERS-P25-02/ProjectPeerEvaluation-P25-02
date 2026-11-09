@@ -22,7 +22,7 @@ function fixture(event = 'pull_request') {
           (name === 'e2e-tests' || name === 'overall-coverage') &&
           event === 'pull_request'
             ? 'skipped'
-            : name === 'patch-coverage' && event === 'merge_group'
+            : name === 'patch-coverage' && event !== 'pull_request'
               ? 'skipped'
               : 'success',
       },
@@ -83,8 +83,34 @@ test('merge groups skip changed-line coverage as event-inapplicable', () => {
   }
 });
 
+test('main pushes require merge-group checks and skip changed-line coverage', () => {
+  const needs = fixture('push');
+  assert.deepEqual(evaluate(needs, 'push'), []);
+  for (const name of [
+    'frontend-build',
+    'code-quality',
+    'dependency-vulnerability-scan',
+    'secret-scan',
+    'policy-tests',
+    'unit-tests',
+    'integration-tests',
+    'e2e-tests',
+    'overall-coverage',
+  ]) {
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      needs[name].result = result;
+      assert.ok(evaluate(needs, 'push').length, `${name}: ${result}`);
+    }
+    needs[name].result = 'success';
+  }
+  for (const result of ['success', 'failure', 'cancelled', undefined]) {
+    needs['patch-coverage'].result = result;
+    assert.match(evaluate(needs, 'push').join('\n'), /patch-coverage/);
+  }
+});
+
 test('every event requires build, quality, policy, and security checks', () => {
-  for (const event of ['pull_request', 'merge_group']) {
+  for (const event of ['pull_request', 'merge_group', 'push']) {
     const needs = fixture(event);
     for (const name of [
       'frontend-build',
@@ -101,6 +127,6 @@ test('every event requires build, quality, policy, and security checks', () => {
 });
 
 test('unsupported or missing event cannot pass', () => {
-  for (const event of [undefined, 'push'])
+  for (const event of [undefined, 'schedule'])
     assert.match(evaluate(fixture(), event).join('\n'), /Unsupported/);
 });

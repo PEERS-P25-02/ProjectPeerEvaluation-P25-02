@@ -1,6 +1,9 @@
-# PR checks use one immutable head and a merge-base diff against the event base.
+# Each event checks one immutable candidate head; PR patch coverage uses its event base.
 name: CI - Build Lint and Tests
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -12,10 +15,11 @@ permissions:
   contents: read
 env:
   CI_CANDIDATE_KIND: ${{ github.event_name }}
-  CI_CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'merge_group' && github.event.merge_group.head_sha || '__invalid_event_sha__' }}
-  CI_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || '__invalid_event_sha__' }}
+  CI_CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event_name == 'push' && github.event.after || '__invalid_event_sha__' }}
+  CI_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event_name == 'push' && github.event.before || '__invalid_event_sha__' }}
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.number }}
+  # Distinct main commits must each retain their own verification run.
+  group: ci-${{ github.event_name }}-${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event_name == 'pull_request' && github.event.pull_request.number || github.event.after }}
   cancel-in-progress: true
 jobs:
   policy-tests:
@@ -31,7 +35,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Check CI gate and coverage policy
-        run: node --test scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs scripts/integrationTestPaths.test.cjs scripts/coverage/coverage.test.cjs scripts/overallCoverage.test.cjs
+        run: node --test scripts/ciGate.test.cjs scripts/regressionChanges.test.cjs scripts/integrationTestPaths.test.cjs scripts/coverage/coverage.test.cjs scripts/overallCoverage.test.cjs scripts/runCiCoverage.test.cjs
   # Keep the build independent so it reports separately from quality and tests.
   frontend-build:
     name: Frontend Build
@@ -161,7 +165,7 @@ jobs:
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-22.04
-    if: ${{ github.event_name == 'merge_group' }}
+    if: ${{ github.event_name == 'merge_group' || github.event_name == 'push' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7.0.1
@@ -227,7 +231,7 @@ jobs:
     name: Overall Line Coverage
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests]
-    if: ${{ github.event_name == 'merge_group' && !cancelled() && always() && needs.unit-tests.result == 'success' && needs.integration-tests.result == 'success' }}
+    if: ${{ (github.event_name == 'merge_group' || github.event_name == 'push') && !cancelled() && always() && needs.unit-tests.result == 'success' && needs.integration-tests.result == 'success' }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:

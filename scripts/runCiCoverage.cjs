@@ -64,11 +64,15 @@ function patchChanges(kind, base, head, git = execFileSync) {
   return changes;
 }
 
+function requiresOverallCoverage(kind) {
+  return kind === 'merge_group' || kind === 'push';
+}
+
 function main() {
   const kind = process.env.CI_CANDIDATE_KIND;
-  if (!['pull_request', 'merge_group'].includes(kind))
+  if (!['pull_request', 'merge_group', 'push'].includes(kind))
     throw new Error('Unsupported coverage event');
-  const queue = kind === 'merge_group';
+  const overall = requiresOverallCoverage(kind);
   const root = process.env.COVERAGE_ARTIFACTS || 'coverage-artifacts';
   const output = process.env.COVERAGE_OUTPUT || 'coverage';
   const suites = [];
@@ -142,7 +146,7 @@ function main() {
     }),
   );
   run(['merge', '--plan', plan, '--output', output]);
-  if (queue) {
+  if (overall) {
     execFileSync(process.execPath, ['scripts/overallCoverage.cjs'], {
       stdio: 'inherit',
       env: { ...process.env, COVERAGE_OUTPUT: output },
@@ -184,4 +188,10 @@ if (require.main === module) {
     process.exitCode = 1;
   }
 }
-module.exports = { main, validateCapture, addRuntime, patchChanges };
+module.exports = {
+  main,
+  validateCapture,
+  addRuntime,
+  patchChanges,
+  requiresOverallCoverage,
+};
