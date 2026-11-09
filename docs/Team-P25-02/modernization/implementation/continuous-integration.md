@@ -1,6 +1,6 @@
 # Continuous Integration: Build, Lint, Tests, and Coverage
 
-**Status:** The current worktree workflow handles pull requests and merge-group candidates targeting `main`. Every candidate runs both complete unit suites and the complete API integration suite, regardless of changed paths; full browser E2E runs for merge-group candidates only. Pull requests enforce an 80% changed-executable-line gate, and merge-group candidates enforce separate 70% overall line floors for frontend and backend. Build, lint/format, CI policy tests, dependency and secret scans, and `CI Gate` run for both events. Push-to-main CI and post-merge verification remain deferred to Milestone 3. Hosted verification of this revised workflow is pending; earlier hosted results below describe prior revisions.
+**Status:** The workflow merged to `main` through [PR #171](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/pull/171) on 2026-11-09. Every candidate runs both complete unit suites and the complete API integration suite, regardless of changed paths; full browser E2E runs for merge-group candidates only. Pull requests enforce an 80% changed-executable-line gate, and merge-group candidates enforce separate 70% overall line floors for frontend and backend. Build, lint/format, CI policy tests, dependency and secret scans, and `CI Gate` run for both events. The PR and merge-group candidates passed hosted verification as recorded below. Push-to-main CI and post-merge verification remain deferred to Milestone 3.
 
 ## 1. Event workflows
 
@@ -17,6 +17,16 @@ Unit, integration, E2E, and coverage artifacts use SHA/run/attempt-specific name
 `CI Gate` evaluates every job and rejects unexpected skipped or failed work. Historical repository settings observations are not current verification of required-check or merge-queue enforcement; inspect live settings before making that claim.
 
 ## 2. Verification evidence and handoff
+
+### Full premerge-suite revision, 2026-11-09
+
+[PR #171 run 42705248498](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705248498) completed successfully on PR head `26be071cf3d9e9735d3c889c4656348c28a78c2c` (attempt 1). The full unit and API integration jobs passed; the API suite reported 200/200 tests. Build, lint/format, policy tests, OWASP Dependency-Check, Gitleaks, Changed-Line Coverage, and `CI Gate` also passed. The changed-line job reported **N/A (0/0); required: 80%** because this candidate changed no executable lines. E2E and Overall Line Coverage were skipped as event-inapplicable. The run retained [unit coverage](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705248498/artifacts/13713592369), [integration results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705248498/artifacts/13713582083), [changed-line coverage](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705248498/artifacts/13713811609), and an [OWASP report](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705248498/artifacts/13714020589).
+
+[Merge-group run 42705837936](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705837936) completed successfully on queued candidate `7ec9343836c819db53949a7476404fa68d4c0864` (attempt 1), which became the `main` merge commit for PR #171. Full unit and API integration jobs passed; browser E2E reported 13/13 passed. Build, lint/format, policy tests, OWASP Dependency-Check, Gitleaks, Overall Line Coverage, and `CI Gate` passed. The overall job enforced the separate 70% frontend and backend line floors; Changed-Line Coverage was skipped as event-inapplicable. The run retained [unit coverage](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705837936/artifacts/13713343364), [integration results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705837936/artifacts/13713826841), [E2E results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705837936/artifacts/13714340661), [overall-line coverage](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705837936/artifacts/13714365505), and an [OWASP report](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/42705837936/artifacts/13713173462).
+
+These two hosted successes verify the required jobs on the observed PR and merge-group candidates, including coverage artifact transfer and the event-specific skips. They do not exercise a PR head update, a documentation-only candidate after this revision, a measured nonempty PR patch, a controlled failure, or repository required-check blocking. The merged workflow has no `push` trigger; this merge does not establish post-merge CI on `main`.
+
+### Earlier workflow revisions
 
 Hosted merge-group verification succeeded for a
 [code candidate](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/actions/runs/41157763014):
@@ -56,7 +66,7 @@ Historical hosted evidence: the [PR #141 run 40995431410](https://github.com/PEE
 
 The earlier workflow revision included merge-group full-suite execution and a 70% overall line floor for each package; the hosted code and documentation candidate successes linked above verify that earlier revision, not the revised PR suite scope described here. Controlled merge-group failure behavior and repository required-check/queue settings require separate evidence. Preserve the current commands, manifest, source/provenance checks, and run-specific artifact contracts. Push-to-main CI, post-merge verification, and deployment remain deferred to Milestone 3.
 
-The following sections preserve earlier verification evidence and describe earlier workflow revisions. Their push triggers, nine/ten-job layouts, absent coverage jobs, and Regression Checks name are historical and do not describe the current workflow at `origin/main` `cf046dc`.
+The following sections preserve earlier verification evidence and describe earlier workflow revisions. Their push triggers, nine/ten-job layouts, absent coverage jobs, and Regression Checks name are historical and do not describe the workflow merged through PR #171.
 
 ## 3. Historical evidence before session 1
 

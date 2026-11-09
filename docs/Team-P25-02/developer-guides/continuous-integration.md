@@ -32,7 +32,7 @@ The frontend CI command `PEERS_COVERAGE=1 npm test` produces canonical Istanbul 
 
 Inspect Actions job summaries and artifacts for the tested SHA, workflow run ID, and each producer attempt. Upload steps expose exact artifact IDs to downstream jobs; coverage jobs validate suite, SHA, run ID, and producer attempt for their inputs. A partial rerun may combine successful producers from an earlier attempt with the coverage consumer's attempt, while mismatched or missing evidence fails. Unit and service-backed artifacts are uploaded for every candidate. The PR changed-line artifact retains normalized inputs, provenance, combined and per-package HTML/LCOV/JSON summaries, and the patch report. Merge-group candidates produce a separate overall-line artifact. Documentation-only candidates retain the same required suite and coverage evidence as other changes.
 
-The [implementation record](../modernization/implementation/continuous-integration.md) distinguishes hosted evidence for earlier revisions from the current workflow. Do not treat earlier PR probes as proof of the current queue checks or coverage floors. Push-to-main checks, post-merge verification, and deployment are deferred to Milestone 3.
+The [implementation record](../modernization/implementation/continuous-integration.md#full-premerge-suite-revision-2026-11-09) links the successful hosted PR and merge-group runs for the merged full-suite workflow and distinguishes earlier revisions. The PR changed-line result was N/A because no executable lines changed; controlled coverage failures and revised documentation-only candidates remain unverified. Push-to-main checks, post-merge verification, and deployment are deferred to Milestone 3.
 
 ## Optional Compose stack check in CI
 
