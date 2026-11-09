@@ -2,7 +2,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { changedFiles } = require('./regressionChanges.cjs');
-const { select } = require('./selectRegressionTests.cjs');
 const { patchThreshold } = require('./coverage/policy.json');
 const { enforce } = require('./coverageDecision.cjs');
 const { producer, validateFile } = require('./ciArtifactProvenance.cjs');
@@ -57,6 +56,14 @@ function addRuntime(add, artifact, suite, provenance, name) {
   );
 }
 
+function patchChanges(kind, base, head, git = execFileSync) {
+  if (kind !== 'pull_request') return null;
+  const changes = changedFiles(base, head, git);
+  if (changes.uncertain === true)
+    throw new Error('Changed-line coverage requires reliable change evidence');
+  return changes;
+}
+
 function main() {
   const kind = process.env.CI_CANDIDATE_KIND;
   if (!['pull_request', 'merge_group'].includes(kind))
@@ -100,76 +107,28 @@ function main() {
     if (directory) validateFile(path.join(root, directory), metadata);
     return metadata;
   };
-  const selectionProducer = input('select-tests', 'selection', 'selection');
   const unitProducer = input('unit-tests', 'unit', 'unit/coverage');
-  const inputs = [selectionProducer, unitProducer];
+  const integrationProducer = input(
+    'integration-tests',
+    'integration',
+    'integration',
+  );
+  const inputs = [unitProducer, integrationProducer];
   const unit = path.join(root, 'unit');
-  const selection = JSON.parse(
-    fs.readFileSync(path.join(root, 'selection/selection.json'), 'utf8'),
-  );
-  const changes = JSON.parse(
-    fs.readFileSync(path.join(root, 'selection/changes.json'), 'utf8'),
-  );
-  const base = queue
-    ? execFileSync('git', ['merge-base', 'refs/remotes/origin/main', sha], {
-        encoding: 'utf8',
-      }).trim()
-    : process.env.PR_BASE_SHA;
-  const currentChanges = changedFiles(base, sha);
-  if (
-    JSON.stringify(changes) !== JSON.stringify(currentChanges) ||
-    JSON.stringify(selection) !==
-      JSON.stringify(
-        select(
-          JSON.stringify(changes.files),
-          queue,
-          changes.uncertain === true,
-        ),
-      )
-  )
-    throw new Error('Selection or merge-base provenance mismatch');
-  if (!['selected', 'full'].includes(selection.mode))
-    throw new Error('Coverage requires a code-change selection');
-  if (queue && selection.mode !== 'full')
-    throw new Error('Queue coverage requires full selection');
-  if (!Array.isArray(selection.integration))
-    throw new Error('Invalid integration selection');
-  if (queue && (!selection.integration.length || !selection.e2e?.length))
-    throw new Error('Queue coverage requires complete API and E2E selection');
+  const currentChanges = patchChanges(kind, process.env.PR_BASE_SHA, sha);
   add('frontend-unit', path.join(unit, 'coverage/canonical'), 'istanbul');
   add(
     'backend-unit',
     path.join(unit, 'src/backend/coverage/coverage-final.json'),
     'istanbul',
   );
-  console.log(
-    `Integration selection: ${
-      selection.mode === 'full'
-        ? 'full discovery'
-        : selection.integration.length
-          ? selection.integration.join(', ')
-          : 'none'
-    }`,
+  addRuntime(
+    add,
+    path.join(root, 'integration'),
+    'integration',
+    { sha, runId, runAttempt: integrationProducer.attempt },
+    'integration',
   );
-  if (selection.integration.length) {
-    const integrationProducer = input(
-      'integration-tests',
-      'integration-selected',
-      'integration-selected',
-    );
-    inputs.push(integrationProducer);
-    addRuntime(
-      add,
-      path.join(root, 'integration-selected'),
-      'integration',
-      {
-        sha,
-        runId,
-        runAttempt: integrationProducer.attempt,
-      },
-      'integration-selected',
-    );
-  }
   fs.mkdirSync(output, { recursive: true });
   const plan = path.join(output, 'plan.json');
   fs.writeFileSync(
@@ -179,8 +138,6 @@ function main() {
       runId,
       runAttempt: attempt,
       inputs,
-      selectorMode: selection.mode,
-      selectedIntegrationCount: selection.integration.length,
       suites,
     }),
   );
@@ -192,12 +149,10 @@ function main() {
     });
     return;
   }
-  if (changes.uncertain === true)
-    throw new Error('Changed-line coverage requires reliable change evidence');
   run([
     'patch',
     '--base',
-    changes.mergeBase,
+    currentChanges.mergeBase,
     '--head',
     sha,
     '--report',
@@ -229,4 +184,4 @@ if (require.main === module) {
     process.exitCode = 1;
   }
 }
-module.exports = { main, validateCapture, addRuntime };
+module.exports = { main, validateCapture, addRuntime, patchChanges };
