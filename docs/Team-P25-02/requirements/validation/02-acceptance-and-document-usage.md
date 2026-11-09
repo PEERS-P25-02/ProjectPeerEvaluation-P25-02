@@ -7,7 +7,7 @@
 | ID | Validation Area | Criterion |
 | --- | --- | --- |
 | AC-01 | Development Environment | A new maintainer can clone the team repository, supply documented configuration, and start the supported containerized environment. |
-| AC-02 | Continuous Integration | Each code commit pushed to the repository and each pull request targeting main automatically triggers the required CI workflow, including build, linting, formatting, automated testing, dependency, and security checks. |
+| AC-02 | Continuous Integration | Each pull request targeting main, including each update to its head, and each merge-group candidate targeting main automatically triggers the required CI workflow for the resulting candidate head. A push containing multiple commits validates the resulting head, not each intermediate commit. Both complete unit suites and the complete API integration suite run for every candidate; full browser end-to-end tests run for merge-group candidates. Build, linting, formatting, CI policy tests, dependency, and security checks run for both events, regardless of changed paths. Pull requests enforce 80% changed executable-line coverage; merge-group candidates enforce at least 70% overall line coverage separately for frontend and backend. Push-to-main CI and post-merge verification are deferred to Milestone 3. |
 | AC-03 | Quality Gates | A deliberately failing required check prevents the pull request from being merged. |
 | AC-04 | Automated Testing | Automated unit, integration, regression, and Playwright end-to-end tests collectively cover the confirmed priority workflows. |
 | AC-05 | Continuous Delivery | A successful approved change to main automatically deploys the expected version to staging. |
