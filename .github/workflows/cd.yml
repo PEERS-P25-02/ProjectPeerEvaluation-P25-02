@@ -1,0 +1,142 @@
+# CI verifies each landed main commit; CD consumes only its successful push run.
+name: CD - Staging Images and Deployment
+on:
+  workflow_run:
+    workflows: [CI - Build Lint and Tests]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+env:
+  # For workflow_run, GITHUB_SHA is the default-branch tip, not the CI run head.
+  CI_CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+  CI_RUN_ID: ${{ github.event.workflow_run.id }}
+  CI_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+concurrency:
+  # Never cancel a run that may already have triggered Render; serialize reruns too.
+  group: cd-staging-main
+  cancel-in-progress: false
+jobs:
+  publish-staging-images:
+    name: Publish Staging Images
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      FRONTEND_IMAGE: ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend
+      BACKEND_IMAGE: ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend
+      STAGING_DEPLOY_ENABLED: ${{ vars.STAGING_DEPLOY_ENABLED }}
+    outputs:
+      frontend_image: ${{ steps.manifest.outputs.frontend_image }}
+      backend_image: ${{ steps.manifest.outputs.backend_image }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
+      - name: Confirm the verified current main merge commit
+        run: |
+          [[ "$CI_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$CI_CANDIDATE_SHA"
+          main_tip="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          if [[ "$main_tip" != "$CI_CANDIDATE_SHA" ]]; then
+            echo "::error::The verified CI commit is no longer the current main tip."
+            exit 1
+          fi
+          # The commit object lists parents even with a shallow checkout.
+          parent_count="$(git cat-file -p "$CI_CANDIDATE_SHA" | awk '/^$/{exit} /^parent /{count++} END{print count+0}')"
+          if [[ "$parent_count" != 2 ]]; then
+            echo "::error::Only two-parent main merge commits may publish staging images."
+            exit 1
+          fi
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish frontend
+        id: frontend
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          target: final
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=https://peers-staging-backend.onrender.com/api
+          tags: ${{ env.FRONTEND_IMAGE }}:${{ env.CI_CANDIDATE_SHA }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.CI_CANDIDATE_SHA }}
+      - name: Build and publish backend
+        id: backend
+        uses: docker/build-push-action@v7
+        with:
+          context: ./src/backend
+          file: ./src/backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.BACKEND_IMAGE }}:${{ env.CI_CANDIDATE_SHA }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.CI_CANDIDATE_SHA }}
+      - name: Record immutable image references
+        id: manifest
+        env:
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+        run: |
+          [[ "$FRONTEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$BACKEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          frontend_ref="$FRONTEND_IMAGE@$FRONTEND_DIGEST"
+          backend_ref="$BACKEND_IMAGE@$BACKEND_DIGEST"
+          printf 'frontend_image=%s\n' "$frontend_ref" >> "$GITHUB_OUTPUT"
+          printf 'backend_image=%s\n' "$backend_ref" >> "$GITHUB_OUTPUT"
+          jq -n \
+            --arg sha "$CI_CANDIDATE_SHA" \
+            --arg ci_run "$CI_RUN_ID" \
+            --arg ci_attempt "$CI_RUN_ATTEMPT" \
+            --arg cd_run "$GITHUB_RUN_ID" \
+            --arg cd_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg frontend "$frontend_ref" \
+            --arg backend "$backend_ref" \
+            '{source_sha:$sha,ci_run_id:$ci_run,ci_run_attempt:$ci_attempt,cd_run_id:$cd_run,cd_run_attempt:$cd_attempt,frontend_image:$frontend,backend_image:$backend}' \
+            > staging-images.json
+          printf '### Staging images\n- Source SHA: `%s`\n- CI run: `%s` attempt `%s`\n- CD run: `%s` attempt `%s`\n- Frontend: `%s`\n- Backend: `%s`\n' \
+            "$CI_CANDIDATE_SHA" "$CI_RUN_ID" "$CI_RUN_ATTEMPT" \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$frontend_ref" "$backend_ref" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$STAGING_DEPLOY_ENABLED" != 'true' ]]; then
+            printf '\nStaging deployment is disabled until both Render services are image-backed and configured.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: staging-images-${{ env.CI_CANDIDATE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: staging-images.json
+          if-no-files-found: error
+
+  deploy-staging:
+    name: Deploy Staging
+    needs: [publish-staging-images]
+    if: ${{ needs.publish-staging-images.result == 'success' && vars.STAGING_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      FRONTEND_IMAGE_REF: ${{ needs.publish-staging-images.outputs.frontend_image }}
+      BACKEND_IMAGE_REF: ${{ needs.publish-staging-images.outputs.backend_image }}
+      RENDER_FRONTEND_DEPLOY_HOOK: ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}
+      RENDER_BACKEND_DEPLOY_HOOK: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_FRONTEND_SERVICE_ID: ${{ vars.RENDER_FRONTEND_SERVICE_ID }}
+      RENDER_BACKEND_SERVICE_ID: ${{ vars.RENDER_BACKEND_SERVICE_ID }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Deploy exact digests and verify Render results
+        run: bash scripts/deployStaging.sh
