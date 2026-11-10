@@ -1,6 +1,6 @@
 // Missing and unexpectedly skipped jobs must never turn an incomplete run green.
 function evaluate(needs, eventName) {
-  if (!['pull_request', 'merge_group'].includes(eventName))
+  if (!['pull_request', 'merge_group', 'push'].includes(eventName))
     return [`Unsupported CI event: ${eventName || 'missing'}`];
   const failures = [];
   const requireResult = (name, expected = 'success') => {
@@ -21,7 +21,7 @@ function evaluate(needs, eventName) {
     requireResult(name);
   requireResult(
     'e2e-tests',
-    eventName === 'merge_group' ? 'success' : 'skipped',
+    eventName === 'pull_request' ? 'skipped' : 'success',
   );
   requireResult(
     'patch-coverage',
@@ -29,7 +29,7 @@ function evaluate(needs, eventName) {
   );
   requireResult(
     'overall-coverage',
-    eventName === 'merge_group' ? 'success' : 'skipped',
+    eventName === 'pull_request' ? 'skipped' : 'success',
   );
   return failures;
 }
