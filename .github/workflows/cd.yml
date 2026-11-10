@@ -1,5 +1,5 @@
 # CI verifies each landed main commit; CD consumes only its successful push run.
-name: CD - Staging Images and Deployment
+name: CD - Publish Staging Images
 on:
   workflow_run:
     workflows: [CI - Build Lint and Tests]
@@ -13,8 +13,8 @@ env:
   CI_RUN_ID: ${{ github.event.workflow_run.id }}
   CI_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
 concurrency:
-  # Never cancel a run that may already have triggered Render; serialize reruns too.
-  group: cd-staging-main
+  # Keep publication runs serialized, including reruns.
+  group: cd-staging-images
   cancel-in-progress: false
 jobs:
   publish-staging-images:
@@ -27,7 +27,6 @@ jobs:
     env:
       FRONTEND_IMAGE: ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend
       BACKEND_IMAGE: ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend
-      STAGING_DEPLOY_ENABLED: ${{ vars.STAGING_DEPLOY_ENABLED }}
     outputs:
       frontend_image: ${{ steps.manifest.outputs.frontend_image }}
       backend_image: ${{ steps.manifest.outputs.backend_image }}
@@ -108,35 +107,8 @@ jobs:
           printf '### Staging images\n- Source SHA: `%s`\n- CI run: `%s` attempt `%s`\n- CD run: `%s` attempt `%s`\n- Frontend: `%s`\n- Backend: `%s`\n' \
             "$CI_CANDIDATE_SHA" "$CI_RUN_ID" "$CI_RUN_ATTEMPT" \
             "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$frontend_ref" "$backend_ref" >> "$GITHUB_STEP_SUMMARY"
-          if [[ "$STAGING_DEPLOY_ENABLED" != 'true' ]]; then
-            printf '\nStaging deployment is disabled until both Render services are image-backed and configured.\n' >> "$GITHUB_STEP_SUMMARY"
-          fi
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: staging-images-${{ env.CI_CANDIDATE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: staging-images.json
           if-no-files-found: error
-
-  deploy-staging:
-    name: Deploy Staging
-    needs: [publish-staging-images]
-    if: ${{ needs.publish-staging-images.result == 'success' && vars.STAGING_DEPLOY_ENABLED == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    env:
-      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
-      FRONTEND_IMAGE_REF: ${{ needs.publish-staging-images.outputs.frontend_image }}
-      BACKEND_IMAGE_REF: ${{ needs.publish-staging-images.outputs.backend_image }}
-      RENDER_FRONTEND_DEPLOY_HOOK: ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}
-      RENDER_BACKEND_DEPLOY_HOOK: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}
-      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_FRONTEND_SERVICE_ID: ${{ vars.RENDER_FRONTEND_SERVICE_ID }}
-      RENDER_BACKEND_SERVICE_ID: ${{ vars.RENDER_BACKEND_SERVICE_ID }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-      - name: Deploy exact digests and verify Render results
-        run: bash scripts/deployStaging.sh
