@@ -1,121 +1,132 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { evaluate } = require('./ciGate.cjs');
-function fixture(mode = 'selected') {
-  const needs = Object.fromEntries(
+
+function fixture(event = 'pull_request') {
+  return Object.fromEntries(
     [
-      'select-tests',
       'frontend-build',
       'code-quality',
       'dependency-vulnerability-scan',
       'secret-scan',
+      'policy-tests',
       'unit-tests',
       'integration-tests',
       'e2e-tests',
       'patch-coverage',
-    ].map((key) => [key, { result: 'success' }]),
+      'overall-coverage',
+    ].map((name) => [
+      name,
+      {
+        result:
+          (name === 'e2e-tests' || name === 'overall-coverage') &&
+          event === 'pull_request'
+            ? 'skipped'
+            : name === 'patch-coverage' && event !== 'pull_request'
+              ? 'skipped'
+              : 'success',
+      },
+    ]),
   );
-  needs['select-tests'].outputs = {
-    mode,
-    integration: mode === 'none' ? 'false' : 'true',
-    e2e: mode === 'none' ? 'false' : 'true',
-  };
-  if (mode === 'none')
-    for (const key of [
-      'unit-tests',
-      'integration-tests',
-      'e2e-tests',
-      'patch-coverage',
-    ])
-      needs[key].result = 'skipped';
-  return needs;
 }
-test('valid selected and docs-only graphs pass', () => {
-  for (const needs of [fixture(), fixture('none')])
-    assert.deepEqual(evaluate(needs), []);
-});
-test('all required failures, cancellations, missing and skipped jobs block', () => {
-  for (const key of Object.keys(fixture()))
-    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-      const needs = fixture();
-      needs[key].result = result;
-      assert.ok(evaluate(needs).length, `${key}: ${result}`);
-    }
-});
-test('selector failure or missing selection cannot authorize skipped tests', () => {
-  const needs = fixture('none');
-  delete needs['select-tests'].outputs;
-  assert.ok(evaluate(needs).length);
-});
 
-test('full discovery rejects inconsistent selections', () => {
-  assert.deepEqual(evaluate(fixture('full')), []);
-  const full = fixture('full');
-  full['select-tests'].outputs.e2e = 'false';
-  full['e2e-tests'].result = 'skipped';
-  assert.ok(evaluate(full).length);
-});
-test('a selected browser failure blocks even when coverage passes', () => {
-  const needs = fixture();
-  needs['e2e-tests'].result = 'failure';
-  assert.match(evaluate(needs).join('\n'), /e2e-tests/);
-});
-test('single changed-line coverage job failure blocks the workflow', () => {
-  const needs = fixture();
-  needs['patch-coverage'].result = 'failure';
-  assert.match(evaluate(needs).join('\n'), /patch-coverage/);
-});
-test('missing or cancelled changed-line coverage job blocks the workflow', () => {
-  for (const result of [undefined, 'cancelled']) {
-    const needs = fixture();
-    needs['patch-coverage'].result = result;
-    assert.match(evaluate(needs).join('\n'), /patch-coverage/);
+test('PR candidates require full unit and API suites plus changed-line coverage', () => {
+  const needs = fixture('pull_request');
+  assert.deepEqual(evaluate(needs, 'pull_request'), []);
+  for (const name of ['unit-tests', 'integration-tests', 'patch-coverage']) {
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      needs[name].result = result;
+      assert.ok(evaluate(needs, 'pull_request').length, `${name}: ${result}`);
+    }
+    needs[name].result = 'success';
   }
 });
-test('an unselected integration or browser job may be skipped', () => {
-  const needs = fixture();
-  needs['select-tests'].outputs.integration = 'false';
-  needs['integration-tests'].result = 'skipped';
-  needs['select-tests'].outputs.e2e = 'false';
-  needs['e2e-tests'].result = 'skipped';
-  assert.deepEqual(evaluate(needs), []);
+
+test('PR candidates skip E2E and overall coverage as event-inapplicable', () => {
+  const needs = fixture('pull_request');
+  assert.deepEqual(evaluate(needs, 'pull_request'), []);
+  for (const name of ['e2e-tests', 'overall-coverage']) {
+    for (const result of ['success', 'failure', 'cancelled', undefined]) {
+      needs[name].result = result;
+      assert.match(
+        evaluate(needs, 'pull_request').join('\n'),
+        new RegExp(name),
+      );
+    }
+    needs[name].result = 'skipped';
+  }
 });
-const { addRuntime, validateCapture } = require('./runCiCoverage.cjs');
-test('selected API coverage requires its expected artifact', () => {
-  assert.throws(
-    () =>
-      addRuntime(
-        () => {},
-        '/missing-coverage-artifacts',
-        'integration',
-        { sha: 'a'.repeat(40), runId: '123', runAttempt: '1' },
-        'integration-selected',
-      ),
-    /Expected one integration coverage capture/,
-  );
+
+test('merge groups require full unit, API and E2E suites plus overall coverage', () => {
+  const needs = fixture('merge_group');
+  assert.deepEqual(evaluate(needs, 'merge_group'), []);
+  for (const name of [
+    'unit-tests',
+    'integration-tests',
+    'e2e-tests',
+    'overall-coverage',
+  ]) {
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      needs[name].result = result;
+      assert.ok(evaluate(needs, 'merge_group').length, `${name}: ${result}`);
+    }
+    needs[name].result = 'success';
+  }
 });
-test('runtime coverage requires complete captures and immutable run provenance', () => {
-  const provenance = { sha: 'a'.repeat(40), runId: '123', runAttempt: '1' };
-  const capture = {
-    ...provenance,
-    suite: 'e2e',
-    complete: true,
-    backend: true,
-    frontend: true,
-    errors: [],
-  };
-  assert.doesNotThrow(() => validateCapture(capture, 'e2e', provenance));
-  for (const change of [
-    { complete: false },
-    { backend: false },
-    { frontend: false },
-    { errors: ['capture failed'] },
-    { suite: 'integration' },
-    { sha: 'b'.repeat(40) },
-    { runId: '122' },
-    { runAttempt: '2' },
-  ])
-    assert.throws(() =>
-      validateCapture({ ...capture, ...change }, 'e2e', provenance),
-    );
+
+test('merge groups skip changed-line coverage as event-inapplicable', () => {
+  const needs = fixture('merge_group');
+  assert.deepEqual(evaluate(needs, 'merge_group'), []);
+  for (const result of ['success', 'failure', 'cancelled', undefined]) {
+    needs['patch-coverage'].result = result;
+    assert.match(evaluate(needs, 'merge_group').join('\n'), /patch-coverage/);
+  }
+});
+
+test('main pushes require merge-group checks and skip changed-line coverage', () => {
+  const needs = fixture('push');
+  assert.deepEqual(evaluate(needs, 'push'), []);
+  for (const name of [
+    'frontend-build',
+    'code-quality',
+    'dependency-vulnerability-scan',
+    'secret-scan',
+    'policy-tests',
+    'unit-tests',
+    'integration-tests',
+    'e2e-tests',
+    'overall-coverage',
+  ]) {
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      needs[name].result = result;
+      assert.ok(evaluate(needs, 'push').length, `${name}: ${result}`);
+    }
+    needs[name].result = 'success';
+  }
+  for (const result of ['success', 'failure', 'cancelled', undefined]) {
+    needs['patch-coverage'].result = result;
+    assert.match(evaluate(needs, 'push').join('\n'), /patch-coverage/);
+  }
+});
+
+test('every event requires build, quality, policy, and security checks', () => {
+  for (const event of ['pull_request', 'merge_group', 'push']) {
+    const needs = fixture(event);
+    for (const name of [
+      'frontend-build',
+      'code-quality',
+      'policy-tests',
+      'dependency-vulnerability-scan',
+      'secret-scan',
+    ]) {
+      needs[name].result = 'skipped';
+      assert.match(evaluate(needs, event).join('\n'), new RegExp(name));
+      needs[name].result = 'success';
+    }
+  }
+});
+
+test('unsupported or missing event cannot pass', () => {
+  for (const event of [undefined, 'schedule'])
+    assert.match(evaluate(fixture(), event).join('\n'), /Unsupported/);
 });

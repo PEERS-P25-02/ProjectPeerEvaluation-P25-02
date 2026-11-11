@@ -25,5 +25,8 @@ Project 25 - PEERS Peer Evaluation System \| Team P25-02 \| Fall 2026
 
 ## Milestone 2 Implementation
 
-- [Unit Testing Implementation](../../implementation/testing/unit-testing.md), including tooling, initial cases, and recorded results.
+- [Testing implementation index](../../implementation/testing/README.md#testing-layers-and-navigation) for current unit and integration records. The [initial unit-test cases](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/a7fe7f1d740df2323b303e2a42aa4b233060bf90/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#initial-unit-test-cases) and [initial test results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/a7fe7f1d740df2323b303e2a42aa4b233060bf90/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#initial-test-results) remain available in the pinned initial snapshot.
 - [Backend Unit Testing Implementation](../../implementation/testing/backend-unit-testing.md), including the retained and expanded authentication test, backend test cases, limitations, and results.
+- [End-to-End Testing](../../implementation/testing/end-to-end-testing.md), including browser journeys and limits.
+- [Email Integration Limitations](../../implementation/testing/email-integration.md#7-limitations-and-remaining-coverage), including the remaining REG-CW05-09 invitation-status gap.
+- [Continuous Integration](../../implementation/continuous-integration.md), including workflow behavior and hosted evidence.

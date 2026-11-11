@@ -43,7 +43,11 @@ this stack’s published MongoDB port needs `directConnection=true` because
 the replica set advertises `mongodb:27017`; see the
 [local development guide](../../../developer-guides/local-development.md).
 
-## Verification
+## Verification procedure
+
+The steps below are checks to perform; they are not a claim that a new
+run occurred. See the [development-environment record](../development-environment.md#compose-verification)
+for recorded results.
 
 1. Confirm the health endpoint returns HTTP 200 after the Compose wait
    completes.

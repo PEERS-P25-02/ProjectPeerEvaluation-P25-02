@@ -1,165 +1,148 @@
-# Milestone 2: Backend Unit Testing Implementation
+# Backend Unit Testing
 
-**Updated:** October 21, 2026
-**Status:** Success, failure, boundary, and validation unit-test scope implemented; integration coverage remains separate
+## 1. Overview
 
-## Purpose and Scope
+This record describes backend unit-test organization, representative behaviors,
+execution, the latest dated result, and known coverage limits. The suite uses
+synthetic inputs and mocks to exercise middleware, controllers, schemas,
+configuration, and helper behavior. It does not establish behavior against a
+live database, SMTP service, or running Express application.
 
-This document records backend unit-test behaviors, organization, limitations, dated verification results, and remaining coverage. It supplements the general [Unit Testing Implementation](unit-testing.md) record without replacing its tooling and project-level testing information. The initial test in `auth.test.js` was retained and expanded with valid, invalid, and empty-token cases; it is included alongside the additional backend test files documented here.
+## 2. Testing Strategy
 
-The tests are intentionally isolated from MongoDB, SMTP, Mailpit, and live
-Express startup. They use synthetic in-memory requests, model and email mocks,
-CSV files, and mocked Express `next` callbacks where appropriate. Success-path tests and failure/boundary tests are kept in separate files to avoid duplicating their purposes.
+Tests exercise backend behavior at isolated boundaries. They use synthetic
+requests, tokens, identifiers, student records, rubric values, and CSV content;
+mocked model methods, email transport, and Express `next` callbacks; and schema
+validation without saving records. The suite does not require MongoDB, SMTP,
+Mailpit, or live server startup. Some test files contain both successful and
+rejected outcomes; the case table groups behaviors by purpose, not by exclusive
+file-level success/failure classification.
 
-## Implemented Backend Test Tooling
+## 3. Test Organization
 
-| Area | Implementation |
+The unit command selects 16 top-level test files under `src/backend/tests/`;
+the separate `integration/` subdirectory is excluded by
+[`vitest.config.mjs`](../../../../../src/backend/vitest.config.mjs).
+
+| Test file | Recorded coverage |
 | --- | --- |
-| Test runner | Vitest `^5.0.4` using the backend package's default Node environment. |
-| Test command | `npm --prefix src/backend test` runs the backend suite once and exits with a failure status when an assertion fails. |
-| Test location | Backend tests are stored in `src/backend/tests/` and use `.test.js` filenames. |
-| Test data | Synthetic request data, tokens, IDs, student records, rubric values, and CSV content. |
-| External services | MongoDB, SMTP, Mailpit, and live server startup are not required for this unit suite. |
-| Assertions | Vitest assertions verify response contracts, model constraints, parsing behavior, and middleware outcomes. |
+| [auth.test.js](../../../../../src/backend/tests/auth.test.js) | Missing, valid, invalid, expired, empty, non-Bearer, and whitespace-only authorization-header behavior for `authenticateToken`. |
+| [controllerValidation.test.js](../../../../../src/backend/tests/controllerValidation.test.js) | A successful login and validation contracts for authentication, courses, students, teams, reports, roster upload, destructive operations, and the current auto-assignment placeholder. |
+| [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) | Successful course, roster/student, team, evaluation, and reporting controller behavior with mocked database and email dependencies; also includes CSV escaping and missing-score output. |
+| [controllerFailureBoundary.test.js](../../../../../src/backend/tests/controllerFailureBoundary.test.js) | Authentication failures, duplicate and missing records, empty bulk operations, team constraints, invalid/reused evaluation tokens, empty submissions, and empty-state reporting. |
+| [csvParsing.test.js](../../../../../src/backend/tests/csvParsing.test.js) | Required roster fields, quoted CSV values, preferred and legacy team columns, blank assignments, and missing values. |
+| [models.test.js](../../../../../src/backend/tests/models.test.js) | Required Mongoose fields, defaults, enum/rating constraints, student/course uniqueness index, and evaluation invariants. |
+| [rubric.test.js](../../../../../src/backend/tests/rubric.test.js) | Required rubric criteria, score descriptions, score ranges, and overall-feedback limits. |
+| [errorHandler.test.js](../../../../../src/backend/tests/errorHandler.test.js) | Standardized custom and default error responses, details, status codes, and timestamps. |
+| [authenticationSuccess.test.js](../../../../../src/backend/tests/authenticationSuccess.test.js) | Login token and last-login behavior, password hashing at registration, and login persistence failure. |
+| [courseAuthorization.test.js](../../../../../src/backend/tests/courseAuthorization.test.js) | Course ownership checks, malformed IDs, concealed missing/unowned courses, and database-error forwarding. |
+| [evaluationSubmission.test.js](../../../../../src/backend/tests/evaluationSubmission.test.js) | Submission validation, duplicate recipients, revoked and repeated submission boundaries, and mocked transaction-session behavior. |
+| [integrationTarget.test.js](../../../../../src/backend/tests/integrationTarget.test.js) | Isolated integration-test target and ownership-marker safeguards using stubs. |
+| [invitationContent.test.js](../../../../../src/backend/tests/invitationContent.test.js) | Invitation context, links, defaults, deadline presentation, and rejected transport behavior with mocks. |
+| [persistenceFailures.test.js](../../../../../src/backend/tests/persistenceFailures.test.js) | Controller failure contracts when mocked persistence operations reject. |
+| [reporting.test.js](../../../../../src/backend/tests/reporting.test.js) | Score, grade, curve, team, and individual/team report response calculations. |
+| [workflowTransitions.test.js](../../../../../src/backend/tests/workflowTransitions.test.js) | Course preservation, student/team membership, evaluation reset, and course-scoped cleanup transitions with mocks. |
 
-## Test Files and Coverage
+The cases summarize behavior represented by these files; they do not enumerate
+every assertion. Regression targets are listed only where a unit assertion
+directly matches a matrix scenario. A `unit safeguard` label means the unit
+case checks a related rule but does not satisfy the matrix's integration-level
+behavior.
 
-| Test file | Coverage |
-| --- | --- |
-| [`auth.test.js`](../../../../../src/backend/tests/auth.test.js) | The initial missing-token test, retained and expanded with valid, invalid, expired, empty, non-Bearer, and whitespace-only authorization-header behavior for `authenticateToken`. |
-| [`controllerValidation.test.js`](../../../../../src/backend/tests/controllerValidation.test.js) | Validation contracts for authentication, courses, students, teams, reports, roster upload, destructive operations, and the current auto-assignment placeholder. |
-| [`controllerSuccessPaths.test.js`](../../../../../src/backend/tests/controllerSuccessPaths.test.js) | Successful course, roster/student, team, evaluation, and reporting controller behavior with mocked database and email dependencies. |
-| [`controllerFailureBoundary.test.js`](../../../../../src/backend/tests/controllerFailureBoundary.test.js) | Invalid credentials, duplicate and missing records, empty bulk operations, team constraints, invalid/reused evaluation tokens, empty submissions, and empty-state reporting. |
-| [`csvParsing.test.js`](../../../../../src/backend/tests/csvParsing.test.js) | Required roster fields, quoted CSV values, preferred and legacy team columns, blank assignments, and missing values. |
-| [`models.test.js`](../../../../../src/backend/tests/models.test.js) | Required Mongoose fields, defaults, enum/rating constraints, student/course uniqueness index, and evaluation invariants. |
-| [`rubric.test.js`](../../../../../src/backend/tests/rubric.test.js) | Required rubric criteria, score descriptions, score ranges, and overall-feedback limits. |
-| [`errorHandler.test.js`](../../../../../src/backend/tests/errorHandler.test.js) | Standardized custom and default error responses, details, status codes, and timestamps. |
+<a id="test-cases"></a>
 
-## Backend Unit Test Cases
+## 4. Test Cases
 
-| Test ID | Area | Purpose and expected result | Source |
-| --- | --- | --- | --- |
-| UNIT-BE-001 | Authentication middleware | A request without an authorization token calls `next` with a 401 unauthorized error. | [`auth.test.js`](../../../../../src/backend/tests/auth.test.js) |
-| UNIT-BE-002 | Authentication middleware | A valid bearer token attaches the decoded user payload and calls `next` without an error. | [`auth.test.js`](../../../../../src/backend/tests/auth.test.js) |
-| UNIT-BE-003 | Authentication middleware | Invalid, expired, and empty bearer tokens produce a standardized unauthorized error without exposing JWT details. | [`auth.test.js`](../../../../../src/backend/tests/auth.test.js) |
-| UNIT-BE-004 | Controller validation | Missing authentication, course, student, team, report, and destructive-operation inputs are rejected with validation errors. | [`controllerValidation.test.js`](../../../../../src/backend/tests/controllerValidation.test.js) |
-| UNIT-BE-005 | Controller validation | A roster upload without a file is rejected with a validation error. | [`controllerValidation.test.js`](../../../../../src/backend/tests/controllerValidation.test.js) |
-| UNIT-BE-006 | Controller contract | The unimplemented automatic team-assignment endpoint reports its explicit 501 contract. | [`controllerValidation.test.js`](../../../../../src/backend/tests/controllerValidation.test.js) |
-| UNIT-BE-007 | CSV processing | Valid roster rows, quoted fields, preferred team names, legacy team columns, and blank assignments are normalized as expected. | [`csvParsing.test.js`](../../../../../src/backend/tests/csvParsing.test.js) |
-| UNIT-BE-008 | CSV processing | Missing required roster values remain detectable for controller validation. | [`csvParsing.test.js`](../../../../../src/backend/tests/csvParsing.test.js) |
-| UNIT-BE-009 | Model validation | Course, student, team, and evaluation required fields and allowed values are enforced. | [`models.test.js`](../../../../../src/backend/tests/models.test.js) |
-| UNIT-BE-010 | Model defaults | New course, team, and student documents receive safe default state and counts. | [`models.test.js`](../../../../../src/backend/tests/models.test.js) |
-| UNIT-BE-011 | Model constraints | Evaluation rating limits and the student/course uniqueness index are defined. | [`models.test.js`](../../../../../src/backend/tests/models.test.js) |
-| UNIT-BE-012 | Rubric configuration | Required criteria, score descriptions, score ranges, and feedback limits remain internally consistent. | [`rubric.test.js`](../../../../../src/backend/tests/rubric.test.js) |
-| UNIT-BE-013 | Error handling | Custom errors preserve status, code, message, details, and a valid timestamp. Empty errors receive safe defaults. | [`errorHandler.test.js`](../../../../../src/backend/tests/errorHandler.test.js) |
-| UNIT-BE-014 | Controller success paths | Course, student, team, evaluation, roster, and report controller operations return their successful response contracts while database and email dependencies are mocked. | [`controllerSuccessPaths.test.js`](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
-| UNIT-BE-015 | Failure and boundary paths | Invalid credentials, duplicate/missing records, empty bulk operations, team membership constraints, invalid/reused tokens, empty submissions, and empty report/reminder states return detectable outcomes. | [`controllerFailureBoundary.test.js`](../../../../../src/backend/tests/controllerFailureBoundary.test.js) |
-| UNIT-BE-016 | Authentication boundary | Non-Bearer and whitespace-only authorization headers produce the standardized 401 unauthorized contract, even when a valid JWT is supplied with the wrong scheme. | [`auth.test.js`](../../../../../src/backend/tests/auth.test.js) |
+| ID | Objective | Steps | Expected result | Regression target | Source |
+| --- | --- | --- | --- | --- | --- |
+| TC-UNIT-BE-001 | Verify missing authorization credentials. | Call `authenticateToken` without an authorization header. | `next` receives a 401 unauthorized error and no user is attached. | — | [auth.test.js](../../../../../src/backend/tests/auth.test.js) |
+| TC-UNIT-BE-002 | Verify accepted Bearer authentication. | Call middleware with a valid synthetic Bearer token. | The decoded user is attached to the request and `next` receives no error. | — | [auth.test.js](../../../../../src/backend/tests/auth.test.js) |
+| TC-UNIT-BE-003 | Verify rejected token values. | Supply invalid, expired, and empty Bearer tokens. | Each request receives a sanitized 401 error; rejected credentials do not attach a user. | REG-CW01-06 (unit safeguard) | [auth.test.js](../../../../../src/backend/tests/auth.test.js) |
+| TC-UNIT-BE-004 | Verify controller input and identifier validation. | Omit required login, registration, course, and student fields; submit malformed identifiers for team membership, report, and destructive student operations. | Missing required values and invalid identifiers forward validation errors. | REG-CW01-03 (missing login credentials only) | [controllerValidation.test.js](../../../../../src/backend/tests/controllerValidation.test.js) |
+| TC-UNIT-BE-005 | Verify roster upload requires a file. | Call roster upload without a file. | The controller forwards a validation error. | — | [controllerValidation.test.js](../../../../../src/backend/tests/controllerValidation.test.js) |
+| TC-UNIT-BE-006 | Record the current auto-assignment contract. | Call the auto-assignment handler. | The handler returns the explicit not-implemented 501 error. | — | [controllerValidation.test.js](../../../../../src/backend/tests/controllerValidation.test.js) |
+| TC-UNIT-BE-007 | Verify supported CSV normalization. | Parse valid rows with quoted values, preferred or legacy team columns, and blank assignments. | Parsed roster fields and team assignments are normalized as expected. | REG-CW03-02 (unit safeguard) | [csvParsing.test.js](../../../../../src/backend/tests/csvParsing.test.js) |
+| TC-UNIT-BE-008 | Verify missing roster values remain detectable. | Parse rows missing required values. | Missing values are represented for controller validation rather than treated as complete rows. | — | [csvParsing.test.js](../../../../../src/backend/tests/csvParsing.test.js) |
+| TC-UNIT-BE-009 | Verify model required fields and allowed values. | Validate incomplete and representative course, student, team, and evaluation documents. | Required fields, enum values, ratings, and feedback constraints are enforced by schema validation. | — | [models.test.js](../../../../../src/backend/tests/models.test.js) |
+| TC-UNIT-BE-010 | Verify model defaults. | Construct new course, team, and student documents without optional state. | Safe active, zero-count, empty-membership, and unevaluated defaults are applied. | — | [models.test.js](../../../../../src/backend/tests/models.test.js) |
+| TC-UNIT-BE-011 | Verify participation rating maximum and uniqueness definition. | Validate a participation rating of 5 and inspect the student/course schema index. | Participation value 5 fails against its maximum of 4, and the compound uniqueness index is defined. | — | [models.test.js](../../../../../src/backend/tests/models.test.js) |
+| TC-UNIT-BE-012 | Verify rubric consistency. | Inspect required criteria, descriptions for every allowed score, and feedback limits. | Criteria and score descriptions cover the configured ranges; feedback is required with configured length limits. | — | [rubric.test.js](../../../../../src/backend/tests/rubric.test.js) |
+| TC-UNIT-BE-013 | Verify standardized error formatting. | Format a custom error and an otherwise empty error. | Custom status, code, message, details, and timestamp are retained; safe defaults are supplied when absent. | — | [errorHandler.test.js](../../../../../src/backend/tests/errorHandler.test.js) |
+| TC-UNIT-BE-014 | Verify successful course controller contracts. | Create, list, read, update, and deactivate a course using mocked model methods. | Controller responses and requested model changes match the successful course contracts. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-015 | Verify authentication failure boundaries. | Attempt login for an unknown user and wrong password, then register an existing user. | Authentication failures return 401; duplicate registration returns 409. | REG-CW01-02 (unit safeguard) | [controllerFailureBoundary.test.js](../../../../../src/backend/tests/controllerFailureBoundary.test.js) |
+| TC-UNIT-BE-016 | Verify authorization-scheme boundaries. | Supply non-Bearer and whitespace-only authorization headers, including a valid JWT under the wrong scheme. | Middleware returns 401 and does not attach a user. | REG-CW01-06 (unit safeguard) | [auth.test.js](../../../../../src/backend/tests/auth.test.js) |
+| TC-UNIT-BE-017 | Verify student and roster controller success contracts. | Add, list, update, delete, and bulk-delete students through mocked controller requests. | Successful responses and mocked persistence calls reflect the requested roster operation. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-018 | Verify team controller success contracts. | Create, list, update, add/remove membership, and delete teams through mocked requests. | Successful response contracts and mocked team operations reflect each request. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-019 | Verify invitation and reminder controller success contracts. | Send course/team invitations and reminders with email utilities mocked. | The controller reports successful dispatch according to mocked email outcomes. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-020 | Verify evaluation form, submission, and status success contracts. | Request forms and token status, submit evaluations, and request evaluation status using mocked dependencies. | Successful responses report the expected evaluation data and status. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-021 | Verify report download success behavior. | Request a curved report and download CSV containing quoted fields and a student without scores. | The response includes the report contract and correctly escaped CSV with missing scores blank. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-022 | Verify course and student failure boundaries. | Request a missing course, add a duplicate student, delete a missing student, and submit an empty bulk-delete request. | Missing and duplicate records return detectable errors; empty bulk deletion is rejected. | — | [controllerFailureBoundary.test.js](../../../../../src/backend/tests/controllerFailureBoundary.test.js) |
+| TC-UNIT-BE-023 | Verify team failure boundaries. | Add an already-present member and attempt to delete a populated team. | Duplicate membership and constrained deletion are rejected with conflict errors. | REG-CW04-11 (unit safeguard) | [controllerFailureBoundary.test.js](../../../../../src/backend/tests/controllerFailureBoundary.test.js) |
+| TC-UNIT-BE-024 | Verify evaluation and empty-state failure boundaries. | Use invalid/reused tokens, submit no evaluations, and request status, reminders, and reports for empty data. | Invalid, repeated, and empty submissions fail; empty data returns explicit empty-state results. | REG-CW08-05; REG-CW08-09 (unit safeguard; matching rejection cases only) | [controllerFailureBoundary.test.js](../../../../../src/backend/tests/controllerFailureBoundary.test.js) |
+| TC-UNIT-BE-025 | Verify successful professor login and registration hashing. | Log in with valid credentials, then register a professor with valid fields. | Login returns a token and persists last-login state; registration stores a derived password hash. | — | [controllerValidation.test.js](../../../../../src/backend/tests/controllerValidation.test.js), [authenticationSuccess.test.js](../../../../../src/backend/tests/authenticationSuccess.test.js) |
+| TC-UNIT-BE-026 | Verify login persistence failure response. | Reject saving last-login state during an otherwise successful login. | The handler does not return a usable access token. | — | [authenticationSuccess.test.js](../../../../../src/backend/tests/authenticationSuccess.test.js) |
+| TC-UNIT-BE-027 | Verify course ownership middleware boundary. | Supply malformed, owned, absent/unowned course requests and a query failure. | Malformed IDs stop before querying; only a matching owner is attached; absent/unowned data is concealed and failures reach `next`. | REG-CW01-05; REG-CW02-04 (unit safeguard) | [courseAuthorization.test.js](../../../../../src/backend/tests/courseAuthorization.test.js) |
+| TC-UNIT-BE-028 | Verify invalid and duplicate evaluation entries are rejected before writes. | Submit incomplete or out-of-range ratings, invalid feedback, and duplicate recipients. | Validation fails before transaction start or evaluation writes. | REG-CW08-04; REG-CW08-10; REG-CW08-11; REG-CW08-12 (unit safeguard; matching input cases only) | [evaluationSubmission.test.js](../../../../../src/backend/tests/evaluationSubmission.test.js) |
+| TC-UNIT-BE-029 | Verify mocked transaction and session outcomes. | Submit valid peers, then exercise stale completion, revoked token, and a later save failure. | Valid saves and completion use the same mocked session; stale/revoked cases fail; save failure rejects without a success response. | REG-CW08-07 (mocked session only) | [evaluationSubmission.test.js](../../../../../src/backend/tests/evaluationSubmission.test.js) |
+| TC-UNIT-BE-030 | Verify integration-test target safeguards. | Try unsafe environment, URI, database, or ownership markers, then a matching dedicated target. | Unsafe or foreign targets are rejected before access; only the matching target and marker are accepted. | — | [integrationTarget.test.js](../../../../../src/backend/tests/integrationTarget.test.js) |
+| TC-UNIT-BE-031 | Verify invitation context and link composition. | Compose invitation messages with course context, configured/default destination, and absent deadline. | Personalized context and encoded links are included; defaults and absent-deadline text are applied. | — | [invitationContent.test.js](../../../../../src/backend/tests/invitationContent.test.js) |
+| TC-UNIT-BE-032 | Verify rejected email transport outcome. | Reject an invitation transport send. | The helper returns its failure contract rather than reporting successful delivery. | — | [invitationContent.test.js](../../../../../src/backend/tests/invitationContent.test.js) |
+| TC-UNIT-BE-033 | Verify persistence failures propagate without success responses. | Reject representative mocked model operations across course, student, team, evaluation, and report handlers, including token lookups. | The original error reaches `next` as a server error and the response does not claim success. | — | [persistenceFailures.test.js](../../../../../src/backend/tests/persistenceFailures.test.js) |
+| TC-UNIT-BE-034 | Verify score, grade, curve, and team calculations. | Calculate report data across evaluated/unevaluated students, multiple received scores, curve boundaries, and populated/empty teams. | Scores, grades, curves, and team means follow the tested calculation rules and handle empty or single-score boundaries. | — | [reporting.test.js](../../../../../src/backend/tests/reporting.test.js) |
+| TC-UNIT-BE-035 | Verify individual and team report contracts. | Request individual and team reports with evaluated, unevaluated, and empty records. | Responses include scoped score details and averages, distinguish no evaluations from a failing grade, and avoid division by zero. | — | [reporting.test.js](../../../../../src/backend/tests/reporting.test.js) |
+| TC-UNIT-BE-036 | Verify course state transitions. | Reactivate a matching inactive course, search by legacy course numbers and names, and attempt protected course edits. | The matching course is reactivated without duplicate creation; owner filtering remains in the search; protected identity/counter changes are discarded. | REG-CW02-05; REG-CW02-07 (unit safeguard) | [workflowTransitions.test.js](../../../../../src/backend/tests/workflowTransitions.test.js) |
+| TC-UNIT-BE-037 | Verify student/team membership transitions. | Edit student details, move or clear team assignment, and delete a student with evaluations. | Membership and counts are updated as tested; protected fields are ignored; dependent evaluations and team links are removed in mocked calls. | REG-CW03-07; REG-CW03-08; REG-CW04-07; REG-CW04-08 (unit safeguard) | [workflowTransitions.test.js](../../../../../src/backend/tests/workflowTransitions.test.js) |
+| TC-UNIT-BE-038 | Verify selected-course evaluation reset and cleanup. | Reset evaluation state, trigger token cleanup failure, delete a roster, and clear teams. | Cleanup calls are scoped to the selected course; failure stops later cleanup and does not claim success; tested roster/team links and counts are updated. | — | [workflowTransitions.test.js](../../../../../src/backend/tests/workflowTransitions.test.js) |
 
-The test IDs group related assertions. An earlier snapshot recorded 45 tests; this later documented snapshot contains 49 passing tests across nine files.
+Regression targets identify matching unit-level behaviors only. They do not
+establish completion of broader regression scenarios or their required service
+effects.
 
-## Organization of Success and Failure Tests
+## 5. Execution Instructions
 
-Success-path tests cover successful backend behavior; failure and boundary tests cover invalid-input, failure, and edge behavior. `controllerSuccessPaths.test.js` contains
-successful response contracts, while `controllerFailureBoundary.test.js` and
-`controllerValidation.test.js` contain the coordinated negative and edge
-cases. The cases intentionally use separate test names and files so a
-successful workflow assertion is not mistaken for validation or failure
-coverage. The current failure and boundary cases include invalid credentials, malformed
-authorization headers, expired tokens, duplicate and missing records, empty bulk operations,
-team membership constraints,
-invalid and reused evaluation tokens, empty submissions, and empty report and
-reminder states.
+Prerequisites: Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`, npm 9 or newer,
+and backend dependencies installed. Run the suite from the repository root:
 
-The authentication tests reset the test JWT secret before and after each case,
-use synthetic tokens only, and assert that rejected requests do not receive a
-`req.user` value. This keeps repeated runs isolated and prevents tests from
-masking token disclosure or authorization-scheme defects.
-
-## Technical Limitations Encountered
-
-### CommonJS dependency loading
-
-Backend controllers use CommonJS `require()` calls while the tests run through
-Vitest's ESM-compatible test execution. Directly mocking controller
-dependencies did not consistently intercept the CommonJS-loaded models and
-utilities.
-
-### Mongoose model initialization
-
-Importing Mongoose model modules through different loading paths during tests
-caused duplicate model registration errors such as
-`OverwriteModelError`. Directly replacing model constructors also did not
-faithfully reproduce the Mongoose behavior used by the controllers.
-
-### Import-time email configuration
-
-The email utility creates its Nodemailer transport while the module is
-imported and validates SMTP configuration immediately. Controller tests that
-import authentication or evaluation modules can therefore initialize SMTP
-behavior before a test can safely replace the dependency. A local SMTP service
-must not be required for unit tests.
-
-### Controller responsibilities are combined
-
-Several controllers combine request validation, authorization, Mongoose
-queries, state mutation, response formatting, and email delivery in one
-function. This makes isolated success-path tests difficult without either
-recreating a large portion of the Mongoose API or refactoring production code
-to introduce dependency-injection or service boundaries.
-
-### Scope decision
-
-The suite covers deterministic controller response contracts and important
-business-rule branches with model and email mocks. It does not claim that
-mocked calls prove MongoDB persistence, SMTP delivery, transactionality, or
-cross-request concurrency behavior.
-
-## Verification Results (October 21, 2026 Snapshot)
-
-### Command executed
-
-```powershell
+```bash
 npm --prefix src/backend test
 ```
 
-### Actual result
+The backend package runs `vitest run` and exits nonzero on an assertion
+failure. The integration suite uses a separate configuration and is not
+included in this unit command.
 
-```text
-Test Files  9 passed (9)
-Tests       45 passed (45)
-```
+<a id="verification-results"></a>
 
-The suite completed without requiring MongoDB, SMTP, Mailpit, or a running
-backend process. Root frontend validation also passed with one test file and
-one test.
+## 6. Test Results
 
-## Remaining Backend Coverage
+Latest recorded local backend verification: October 31, 2026, revision
+`d0088f7`.
 
-The following areas remain outside this isolated unit suite and should be
-covered by service-backed integration or end-to-end tests:
+| Command | Recorded result | Detailed record |
+| --- | --- | --- |
+| `npm --prefix src/backend test` | 16 files, 143 tests passed | [October 31 recorded unit results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results) |
 
-- Cross-professor and cross-course ownership authorization.
-- Email message delivery and Mailpit verification.
-- Database failure, partial-write, concurrency, and retry behavior.
-- Full MongoDB persistence, index behavior, and transaction boundaries.
-- Real file-upload middleware behavior and filesystem cleanup under failures.
+The project-level record also reports clean installations and passing unit
+suites on Node 22.22.2, 24.15.0, and 26.0.0. Those are historical results.
+No local unit-suite run was performed for this document edit. This table does
+not report current PR CI results, and a local pass does not establish whether
+the corresponding CI check is required before merging.
 
-These deferred cases require either additional test seams in the backend or the
-isolated MongoDB and Mailpit integration environment described in the
-[automated testing strategy](../../plans/automated-testing-strategy/02-testing-layers-and-workflows.md).
+## 7. Limitations and Remaining Coverage
 
-## Completion Assessment
-
-The recorded backend unit-test scope is complete for the cases listed here:
-
-- Backend tests have meaningful assertions.
-- Tests use synthetic, repeatable data.
-- Success paths are covered separately from failure and boundary paths.
-- Database and email dependencies are mocked; no secrets or real student data are used.
-- The one-shot backend command passes.
-- Documentation records the actual command, result, evidence, and remaining integration gaps.
-
-This document does not claim complete production workflow verification.
-Integration, regression, end-to-end, and staging health coverage remain
-separate testing responsibilities.
+- Controllers use CommonJS `require()` while tests run through Vitest's
+  ESM-compatible execution; direct dependency mocks do not consistently
+  intercept CommonJS-loaded modules.
+- Loading Mongoose model modules through different paths can cause duplicate
+  model-registration errors, and replacing constructors does not reproduce
+  all Mongoose behavior.
+- The email utility validates SMTP configuration and creates its transport at
+  import time, so tests must prepare configuration before loading affected
+  controllers.
+- Several controllers combine validation, authorization, database queries,
+  state changes, response formatting, and email delivery, making isolated
+  controller tests difficult without extensive Mongoose mocks.
+- Mocked calls and schema checks do not prove MongoDB persistence or indexes
+  in a live database, SMTP delivery, transaction rollback, partial-write
+  behavior, or cross-request concurrency. Those behaviors require their
+  separate integration or end-to-end evidence.

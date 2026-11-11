@@ -20,6 +20,8 @@ test('null-delimited changes preserve rename, deletion and whitespace paths', ()
     { path: 'space file.js', status: 'M' },
     { path: 'added.js', status: 'A' },
   ]);
+  assert.equal(result.base, head);
+  assert.equal(result.head, head);
   assert.deepEqual(calls[1], [
     'diff',
     '--name-status',
@@ -28,4 +30,24 @@ test('null-delimited changes preserve rename, deletion and whitespace paths', ()
     head,
     head,
   ]);
+});
+test('missing or empty Git change evidence is marked uncertain', () => {
+  const unavailable = changedFiles(head, head, () => {
+    throw new Error('commit unavailable');
+  });
+  assert.equal(unavailable.uncertain, true);
+  assert.deepEqual(unavailable.files, []);
+
+  const empty = changedFiles(head, head, (_command, args) =>
+    args[0] === 'merge-base' ? `${head}\n` : '',
+  );
+  assert.equal(empty.uncertain, true);
+  assert.deepEqual(empty.files, []);
+});
+test('unexpected Git change status cannot authorize a docs-only skip', () => {
+  const result = changedFiles(head, head, (_command, args) =>
+    args[0] === 'merge-base' ? `${head}\n` : 'U\0README.md\0',
+  );
+  assert.equal(result.uncertain, true);
+  assert.deepEqual(result.files, []);
 });

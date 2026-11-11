@@ -1,6 +1,6 @@
 # Summary
 
-The detailed requirement mappings and evidence are in the [Requirements Traceability Matrix](02-rtm.md). Browser journey scope, dated local results, and execution limits are documented in the [End-to-End Browser Testing implementation record](../../modernization/implementation/testing/end-to-end-testing.md).
+Current requirement statuses, applicable traceability IDs, and evidence links are in the [Requirements Traceability Matrix](02-rtm.md). Browser journey scope, dated local results, and execution limits are documented in the [End-to-End Browser Testing implementation record](../../modernization/implementation/testing/end-to-end-testing.md).
 
 <table>
 <tr>
@@ -33,11 +33,11 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 <tr>
 <td>Not Started</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;Not Started&quot;)">23</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;Not Started&quot;)">13</span></td>
 </tr>
 <tr>
 <td>In Progress</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;In Progress&quot;)">13</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;In Progress&quot;)">18</span></td>
 </tr>
 <tr>
 <td>Implemented</td>
@@ -45,11 +45,11 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 <tr>
 <td>Tested</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;Tested&quot;)">0</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;Tested&quot;)">4</span></td>
 </tr>
 <tr>
 <td>Verified</td>
-<td><span title="=COUNTIF(RTM[Status],&quot;Verified&quot;)">0</span></td>
+<td><span title="=COUNTIF(RTM[Status],&quot;Verified&quot;)">1</span></td>
 </tr>
 <tr>
 <td>Deferred</td>
@@ -65,8 +65,8 @@ The detailed requirement mappings and evidence are in the [Requirements Traceabi
 </tr>
 <tr>
 <td>Completion Percentage</td>
-<td><span title="=IFERROR(COUNTIF(RTM[Status],&quot;Verified&quot;)/COUNTA(RTM[Requirement ID]),0)">0</span></td>
+<td><span title="=IFERROR(COUNTIF(RTM[Status],&quot;Verified&quot;)/COUNTA(RTM[Requirement ID]),0)">2.78%</span></td>
 </tr>
 </table>
 
-The status counts reflect the maintained statuses in the current RTM; they are not an exhaustive fresh audit of every project requirement. FR-01 through FR-10, FR-16, and FR-17 remain In Progress because relevant integration evidence exists while documented workflow, security, browser, or requirement-alignment gaps remain. FR-15 remains In Progress: integration CI is configured and local integration results are recorded, but hosted execution and required-check enforcement have not been verified. No requirement is marked Verified by this update.
+The status counts reflect the maintained statuses in the current RTM; they are not an exhaustive fresh audit of every project requirement. FR-01 through FR-10 and FR-17 remain In Progress because relevant integration evidence exists while documented workflow, security, browser, or requirement-alignment gaps remain. FR-15 remains In Progress pending a separate acceptance review. Integration CI is configured, and local and hosted PR/merge-group execution results are recorded in the [CI verification record](../../modernization/implementation/continuous-integration.md#2-verification-evidence-and-handoff); the live ruleset requires CI Gate, while failed-merge blocking and controlled merge-group failures still require separate evidence. FR-16 is Verified.

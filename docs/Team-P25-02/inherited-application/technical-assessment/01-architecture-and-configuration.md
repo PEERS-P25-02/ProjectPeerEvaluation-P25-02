@@ -27,7 +27,7 @@ This structure is appropriate for the current project size and is not planned fo
 
 ### 4.2 Planned Supporting Technologies
 
-The core application stack will be preserved. The supporting stack below reflects the SLA and project specification together with Milestone 2 implementation decisions. The original FR-16 wording specifies Jest; the implementation selected Vitest, and requirement reconciliation remains open. The strategy is maintained in [Automated Testing Strategy](../../modernization/plans/automated-testing-strategy/README.md), with concrete tooling and evidence in [Unit Testing Implementation](../../modernization/implementation/testing/unit-testing.md).
+The core application stack will be preserved. The supporting stack below reflects the SLA and project specification together with Milestone 2 implementation decisions. The original FR-16 wording specified Jest; FR-16 now specifies Vitest. The strategy is maintained in [Automated Testing Strategy](../../modernization/plans/automated-testing-strategy/README.md), with current test-layer navigation in the [testing implementation index](../../modernization/implementation/testing/README.md).
 
 | Technology | Planned Role |
 | --- | --- |
@@ -69,7 +69,7 @@ The inherited application is maintained in a single repository containing both t
 
 ### 5.2 Planned Direction
 
-The monolith repository structure should be preserved unless a specific technical need is required. Planned repository cleanup should focus on clarifying authoritative entry points and route files, separating automated tests and developer/debugging utilities from production code, reducing obsolete or duplicate artifacts, and using consistent naming and organization. Unit tests are organized under `src/frontend/tests/` and `src/backend/tests/`, with frontend setup under `src/frontend/test/`. See [Unit Testing Implementation](../../modernization/implementation/testing/unit-testing.md). Container and CI/CD layouts remain to be implemented in their respective work.
+The monolith repository structure should be preserved unless a specific technical need is required. Planned repository cleanup should focus on clarifying authoritative entry points and route files, separating automated tests and developer/debugging utilities from production code, reducing obsolete or duplicate artifacts, and using consistent naming and organization. Unit tests are organized under `src/frontend/tests/` and `src/backend/tests/`, with frontend setup under `src/frontend/test/`. See the [testing implementation index](../../modernization/implementation/testing/README.md). Container and CI/CD layouts remain to be implemented in their respective work.
 
 ## 6. Configuration Management
 

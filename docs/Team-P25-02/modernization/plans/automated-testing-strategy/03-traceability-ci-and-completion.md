@@ -36,7 +36,7 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 | Email safety | Use safe recipients or a staging email sandbox. |
 | Reproducibility | Reset or seed data so repeated runs are reproducible. |
 | Secret storage | Keep database credentials, SMTP credentials, tokens, and other environment secrets outside the repository. |
-| Configuration review | Review the currently tracked backend .env file and remediate any real secrets or environment-specific values. |
+| Configuration review | Keep local .env files untracked and review tracked configuration for real secrets or environment-specific values. |
 
 <a id="14-ci-test-execution-plan"></a>
 
@@ -57,6 +57,8 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 <a id="section-17"></a>
 
 # Current Testing Risks
+
+**Assessment scope:** The risk table retains the original assessment findings. Current test implementation is summarized in the next-steps table and linked implementation records; the baseline findings are historical.
 
 | Risk | Impact | Planned Response |
 | --- | --- | --- |
@@ -95,12 +97,12 @@ The RTM should be the control artifact connecting requirements, acceptance crite
 
 | Area | Progress | Remaining Action / Evidence |
 | --- | --- | --- |
-| Frontend baseline | Initial baseline recorded | One login-rendering test is documented with its results in [Unit Testing Implementation](../../implementation/testing/unit-testing.md#initial-test-results). Maintain that baseline as coverage grows. |
-| Backend framework | Implemented | Vitest and one-shot/watch scripts are configured. Expand the initial missing-token test to high-risk backend logic and routes. |
-| Unit and integration coverage | In Progress | Two initial unit tests exist. Expand high-risk unit coverage and implement service-backed integration tests. |
-| Regression coverage | Not Started | Build regression coverage for sponsor-approved priority workflows. |
-| End-to-end coverage | Not Started | Build focused Playwright instructor and student end-to-end journeys. |
-| Milestone 2 CI integration | Not Started | Connect package-specific commands to GitHub Actions and merge quality gates. Local command checks do not establish CI execution. |
+| Frontend baseline | Initial baseline recorded | The initial login-rendering case is documented in [frontend unit testing](../../implementation/testing/frontend-unit-testing.md#4-test-cases). Maintain that baseline as coverage grows. |
+| Backend framework | Implemented | Vitest and one-shot/watch scripts are configured. Maintain the expanded [backend unit suite](../../implementation/testing/backend-unit-testing.md). |
+| Unit and integration coverage | In Progress | Expanded [unit suites and service-backed integration tests](../../implementation/testing/README.md#testing-layers-and-navigation) exist; retain evidence as coverage grows. |
+| Regression coverage | In Progress | Maintain implemented assertions and close the [partial REG-CW05-09 invitation-status gap](../../implementation/testing/email-integration.md#7-limitations-and-remaining-coverage). |
+| End-to-end coverage | In Progress | Maintain the implemented [Playwright journeys](../../implementation/testing/end-to-end-testing.md) and their recorded validation limits. |
+| Milestone 2 CI integration | Implemented | See the [CI implementation record](../../implementation/continuous-integration.md) for test execution, quality gates, hosted evidence, and external enforcement limits. |
 | Milestone 3 staging validation | Planned | Implement staging health and smoke testing in Milestone 3. |
 | Ongoing traceability | In Progress | Link implemented artifacts, test IDs, and evidence in the RTM; retain results as coverage grows. |
 

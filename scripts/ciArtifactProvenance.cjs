@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const suites = new Set(['selection', 'unit', 'integration-selected']);
+const suites = new Set(['unit', 'integration']);
 
 function producer(outputs, suite, sha, runId) {
   if (
@@ -56,19 +56,21 @@ if (require.main === module) {
     if (process.argv[2] === 'check') {
       const needs = JSON.parse(process.env.CI_PRODUCERS || '{}');
       const suites = [
-        ['select-tests', 'selection'],
         ['unit-tests', 'unit'],
-        ...(needs['integration-tests']?.result === 'success'
-          ? [['integration-tests', 'integration-selected']]
-          : []),
+        ['integration-tests', 'integration'],
       ];
-      for (const [job, suite] of suites)
+      for (const [job, suite] of suites) {
+        if (needs[job]?.result !== 'success')
+          throw new Error(
+            `Required ${suite} artifact producer did not succeed`,
+          );
         producer(
           needs[job]?.outputs,
           suite,
           process.env.PR_HEAD_SHA,
           process.env.GITHUB_RUN_ID,
         );
+      }
     } else writeFile(process.argv[2], process.argv[3]);
   } catch (error) {
     console.error(error.message);
