@@ -29,6 +29,19 @@ if (
 }
 
 const root = path.resolve(__dirname, '..');
+const lockfile = JSON.parse(
+  fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'),
+);
+const playwrightVersion =
+  lockfile.packages?.['node_modules/@playwright/test']?.version;
+if (
+  typeof playwrightVersion !== 'string' ||
+  !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(playwrightVersion)
+) {
+  throw new Error(
+    'package-lock.json must contain a stable @playwright/test version (x.y.z)',
+  );
+}
 const runId = randomBytes(8).toString('hex');
 const project = `peers-e2e-${runId}`;
 const testContainer = `${project}-tests`;
@@ -45,6 +58,8 @@ const environment = Object.fromEntries(
 );
 environment.E2E_RUN_ID = runId;
 environment.E2E_JWT_SECRET = randomBytes(32).toString('hex');
+// Compose must build the browser image for the same locked Playwright package.
+environment.E2E_PLAYWRIGHT_VERSION = playwrightVersion;
 const composeArguments = [
   'compose',
   '--project-directory',
