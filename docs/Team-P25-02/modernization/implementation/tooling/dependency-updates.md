@@ -150,6 +150,8 @@ Added [`.github/dependabot.yml`](../../../../../.github/dependabot.yml) with sep
 
 The file parsed successfully, and both package paths, schedules, limits, and four groups were checked locally. Hosted Dependabot execution, the GitHub alert list, dependency-graph visibility, and alerts/security-update settings were not verified. The configuration must reach the default branch before hosted version-update behavior can be verified. A local npm audit is separate from a hosted Dependabot run.
 
+The E2E runner derives its Playwright browser image tag from the exact stable `@playwright/test` version in the root lockfile, so routine Dependabot lockfile updates select the matching official `noble` image automatically. Alignment does not establish browser compatibility. If the official tag is unavailable or an upgrade needs a different image variant, test, or environment change, stop for manual review and add a dated note with verification evidence; do not fall back to another or mutable image tag. See the [E2E testing record](../testing/end-to-end-testing.md) for the build path.
+
 ### Reviewed Package Changes
 
 The root manifest was updated to match the reviewed ranges from the supplied reference manifest. The frontend lockfile was generated through npm and reviewed before applying each batch.
