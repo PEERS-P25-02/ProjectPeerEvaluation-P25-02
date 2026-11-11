@@ -112,3 +112,34 @@ jobs:
           name: staging-images-${{ env.CI_CANDIDATE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: staging-images.json
           if-no-files-found: error
+  deploy-staging:
+    name: Deploy Staging
+    needs: publish-staging-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      BACKEND_IMAGE: ${{ needs.publish-staging-images.outputs.backend_image }}
+      FRONTEND_IMAGE: ${{ needs.publish-staging-images.outputs.frontend_image }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
+      FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Deploy and verify staging services
+        id: deploy
+        run: node scripts/deployStaging.cjs
+      - name: Upload deployment result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: staging-deployment-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: staging-deployment.json
+          if-no-files-found: error
