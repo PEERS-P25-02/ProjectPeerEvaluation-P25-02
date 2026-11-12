@@ -42,7 +42,7 @@ The goal of this project is to modernize the existing PEERS application by intro
 | FR-18 | Continuous Integration | The CI workflow shall perform dependency and security checks and make the results available to maintainers. |
 | FR-19 | Continuous Integration | Required failed checks shall prevent a pull request from being merged into main. |
 | FR-20 | Continuous Integration | The main branch shall be protected so that application changes are merged through pull requests and required validation checks must pass before merging. |
-| FR-21 | Continuous Delivery | A successful approved change shall automatically deploy to the staging environment after required checks pass. |
+| FR-21 | Continuous Delivery | A successful approved change to main shall deploy both staging services after required checks pass when its diff from the last fully successful staging deployment contains any path outside the audited staging exclusion list. Deployment may be skipped only when every changed path is in that list; missing or uncertain comparison data shall deploy both services. |
 | FR-22 | Continuous Delivery | After each staging deployment, the pipeline shall execute health checks and the selected smoke tests to validate application availability, database connectivity, and critical workflows. |
 | FR-23 | Continuous Delivery | The project shall retain logs or reports sufficient to demonstrate pipeline, test, security, and deployment results. |
 | FR-24 | Continuous Integration / Continuous Delivery | The project shall automate deployment to a staging environment only. Production hosting, production deployment, and production-release automation shall remain outside the project's scope. |

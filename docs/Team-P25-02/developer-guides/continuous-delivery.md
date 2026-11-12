@@ -2,6 +2,17 @@
 
 The [CD workflow](../../../.github/workflows/cd.yml) runs after a successful `main` push [CI workflow](../../../.github/workflows/ci.yml). Publication accepts only this repository's current two-parent `main` merge commit. Pull requests, merge groups, direct pushes, stale runs, and unsuccessful CI runs do not publish or deploy images.
 
+Before publication, CD compares the candidate tree with the `staging-last-success` tag, which identifies the source commit of the last complete successful staging deployment. A missing or invalid tag, a tag that is not an ancestor of the candidate, or a comparison error selects deployment of both services. CD skips both only when every changed path is in these audited exclusions:
+
+- Directories: `docs/`, `src/frontend/test/`, `src/frontend/tests/`, `src/backend/tests/`, and `tests/e2e/`.
+- Exact files: `README.md`, `Dockerfile.e2e`, `Dockerfile.e2e.dockerignore`, `src/backend/Dockerfile.test`, `src/backend/Dockerfile.test.dockerignore`, `playwright.config.cjs`, `src/backend/vitest.config.mjs`, `src/backend/vitest.coverage.config.mjs`, `src/backend/vitest.integration.config.mjs`, `compose.e2e.yml`, `compose.test.yml`, `compose.test.coverage.yml`, and `scripts/runE2ETests.cjs`.
+
+The denylist is encoded in the [decision helper](../../../scripts/decideStaging.cjs). It was audited against the production [frontend Dockerfile](../../../Dockerfile), [root `.dockerignore`](../../../.dockerignore), [backend Dockerfile](../../../src/backend/Dockerfile), and [backend `.dockerignore`](../../../src/backend/.dockerignore). The root production context removes documentation and test trees; the backend production context removes backend tests. The test-only Dockerfiles and their ignore files, E2E/test configuration, Compose files, and runner are not used by CD's direct production image builds. Any other path, including production Dockerfiles and ignore rules, workflow/deployment code, package inputs, runtime source, and frontend build instrumentation, triggers both services. Re-audit the exclusions when either production build context or the CD workflow changes.
+
+The baseline advances only after both services pass deployment checks and the deployment evidence artifact uploads. Skipped and failed runs do not move it, so later comparisons include their changes.
+
+To troubleshoot a decision, inspect the **Staging path decision** job summary for the baseline, candidate, path counts, and bounded JSON-escaped path list. A `missing-or-invalid-baseline` or `baseline-or-diff-error` reason deliberately deploys both services; inspect the tag and rerun after correcting the underlying Git/ref issue. An invalid candidate or failed current-main/two-parent guard fails the decision job before publication.
+
 The publication job builds the repository-root frontend Dockerfile and `src/backend/Dockerfile` for `linux/amd64`. It embeds the public `https://peers-staging-backend.onrender.com/api` address in the frontend image; Atlas and Mailtrap values remain Render runtime settings. Each image has a full source-SHA GHCR tag. The job records both immutable digest references, source SHA, and CI/CD run identities in its summary and downloadable `staging-images-<sha>-<run>-<attempt>` artifact. Deployment consumes these exact digest outputs, not a moving `latest` tag.
 
 ## Render configuration
