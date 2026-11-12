@@ -1,9 +1,48 @@
-# This file keeps local state out of backend image builds.
-# TLDR: omits dependencies, environment files, coverage, uploads, and Git data.
-node_modules
-.env
-.env.*
-npm-debug.log*
-.git
-coverage
-uploads
+# Production backend allowlist: add new runtime directories here deliberately.
+**
+!.npmrc
+!package.json
+!package-lock.json
+!index.js
+!config/
+!config/**
+!controllers/
+!controllers/**
+!middleware/
+!middleware/**
+!models/
+!models/**
+!routes/
+!routes/**
+!utils/
+!utils/**
+!scripts/
+!scripts/runtimeCoverage.cjs
+
+# Runtime directories are kept whole, with test and generated files removed.
+**/test
+**/test/**
+**/tests
+**/tests/**
+**/*.test.*
+**/*.spec.*
+**/coverage
+**/coverage/**
+**/node_modules
+**/node_modules/**
+**/.env
+**/.env.*
+**/.git
+**/.git/**
+**/uploads
+**/uploads/**
+**/dist
+**/dist/**
+**/build
+**/build/**
+**/test-results
+**/test-results/**
+scripts/**
+
+# This opt-in runtime hook is needed by the coverage Compose overlay.
+!scripts/runtimeCoverage.cjs
