@@ -1,5 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {
   classifyPaths,
   compare,
@@ -126,9 +130,53 @@ test('later comparison includes changes accumulated during skipped runs', () => 
   ]);
 });
 
-test('unfamiliar special-character paths deploy and are escaped for summaries', () => {
-  const unusual = 'odd`name\n::warning::value';
+test('a real Git baseline keeps skipped changes and detects a rename into production', () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'peers-staging-git-'),
+  );
+  const git = (args, options = {}) =>
+    execFileSync('git', args, { ...options, cwd: directory });
+  const compareGit = (binary, args, options) =>
+    execFileSync(binary, args, { ...options, cwd: directory });
+
+  try {
+    git(['init', '--quiet']);
+    git(['config', 'user.name', 'Synthetic Test']);
+    git(['config', 'user.email', 'test@example.invalid']);
+    git(['config', 'commit.gpgsign', 'false']);
+    fs.mkdirSync(path.join(directory, 'docs'));
+    fs.writeFileSync(path.join(directory, 'docs', 'old.md'), 'old\n');
+    git(['add', '-A']);
+    git(['commit', '--quiet', '-m', 'baseline']);
+    const baseline = git(['rev-parse', 'HEAD']).toString().trim();
+
+    fs.writeFileSync(path.join(directory, 'docs', 'later.md'), 'later\n');
+    git(['add', '-A']);
+    git(['commit', '--quiet', '-m', 'excluded change']);
+    const docsOnly = git(['rev-parse', 'HEAD']).toString().trim();
+    assert.equal(compare(baseline, docsOnly, compareGit).deploy, false);
+
+    fs.mkdirSync(path.join(directory, 'src', 'frontend'), { recursive: true });
+    fs.renameSync(
+      path.join(directory, 'docs', 'old.md'),
+      path.join(directory, 'src', 'frontend', 'App.jsx'),
+    );
+    git(['add', '-A']);
+    git(['commit', '--quiet', '-m', 'rename into production']);
+    const candidate = git(['rev-parse', 'HEAD']).toString().trim();
+    const result = compare(baseline, candidate, compareGit);
+    assert.equal(result.deploy, true);
+    assert.ok(result.paths.includes('docs/old.md'));
+    assert.ok(result.paths.includes('docs/later.md'));
+    assert.ok(result.paths.includes('src/frontend/App.jsx'));
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('unfamiliar Markdown and HTML filenames deploy and render as literal code', () => {
+  const unusual = 'odd```name\n[link](https://example.invalid)<img>';
   assert.equal(classifyPaths([unusual]).deploy, true);
-  assert.equal(escaped(unusual), JSON.stringify(unusual));
+  assert.equal(escaped(unusual), `\`\`\`\`${JSON.stringify(unusual)}\`\`\`\``);
   assert.equal(escaped(unusual).includes('\n'), false);
 });

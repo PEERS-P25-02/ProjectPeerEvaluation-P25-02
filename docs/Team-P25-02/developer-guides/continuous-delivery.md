@@ -11,7 +11,7 @@ The denylist is encoded in the [decision helper](../../../scripts/decideStaging.
 
 The baseline advances only after both services pass deployment checks and the deployment evidence artifact uploads. Skipped and failed runs do not move it, so later comparisons include their changes.
 
-To troubleshoot a decision, inspect the **Staging path decision** job summary for the baseline, candidate, path counts, and bounded JSON-escaped path list. A `missing-or-invalid-baseline` or `baseline-or-diff-error` reason deliberately deploys both services; inspect the tag and rerun after correcting the underlying Git/ref issue. An invalid candidate or failed current-main/two-parent guard fails the decision job before publication.
+To troubleshoot a decision, inspect the **Staging path decision** job summary for the baseline, candidate, path counts, and bounded path list rendered as JSON strings in code spans. A `missing-or-invalid-baseline` or `baseline-or-diff-error` reason deliberately deploys both services; inspect the tag and rerun after correcting the underlying Git/ref issue. An invalid candidate or failed current-main/two-parent guard fails the decision job before publication.
 
 The publication job builds the repository-root frontend Dockerfile and `src/backend/Dockerfile` for `linux/amd64`. It embeds the public `https://peers-staging-backend.onrender.com/api` address in the frontend image; Atlas and Mailtrap values remain Render runtime settings. Each image has a full source-SHA GHCR tag. The job records both immutable digest references, source SHA, and CI/CD run identities in its summary and downloadable `staging-images-<sha>-<run>-<attempt>` artifact. Deployment consumes these exact digest outputs, not a moving `latest` tag.
 

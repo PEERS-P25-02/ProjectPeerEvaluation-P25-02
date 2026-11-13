@@ -79,7 +79,15 @@ function compare(baseline, candidate, git = execFileSync) {
 }
 
 function escaped(path) {
-  return JSON.stringify(path);
+  // JSON keeps control characters on one line; a longer code delimiter keeps
+  // Markdown and HTML in a filename literal in the Actions job summary.
+  const value = JSON.stringify(path);
+  const longestRun = Math.max(
+    0,
+    ...(value.match(/`+/g) || []).map((run) => run.length),
+  );
+  const delimiter = '`'.repeat(longestRun + 1);
+  return `${delimiter}${value}${delimiter}`;
 }
 
 function main() {
