@@ -1,5 +1,7 @@
 # Each event checks one immutable candidate head; PR patch coverage uses its event base.
 name: CI - Build Lint and Tests
+# Keep required job check names stable while identifying each event's run.
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} Checks', github.event.pull_request.number) || github.event_name == 'merge_group' && 'Merge Queue Checks' || 'Post-Merge Checks' }}"
 on:
   push:
     branches:

@@ -1,0 +1,40 @@
+# Integration runner inputs: application code, test tree, and the config used
+# by npm run test:integration. This replaces the production ignore rules.
+**
+!.npmrc
+!package.json
+!package-lock.json
+!index.js
+!config/
+!config/**
+!controllers/
+!controllers/**
+!middleware/
+!middleware/**
+!models/
+!models/**
+!routes/
+!routes/**
+!utils/
+!utils/**
+!tests/
+!tests/**
+!vitest.integration.config.mjs
+
+# Keep nested local/generated state out while retaining the complete test tree.
+**/node_modules
+**/node_modules/**
+**/.env
+**/.env.*
+**/.git
+**/.git/**
+**/coverage
+**/coverage/**
+**/uploads
+**/uploads/**
+**/dist
+**/dist/**
+**/build
+**/build/**
+**/test-results
+**/test-results/**
