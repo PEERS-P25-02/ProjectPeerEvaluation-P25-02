@@ -1,21 +1,20 @@
 const { test, expect } = require('@playwright/test');
 const { readStagingSmokeConfig } = require('./config.cjs');
 const { isEvaluationGetForToken } = require('./request-matchers.cjs');
+const { REQUIRED_SMOKE_CHECKS } = require('./safe-evidence.cjs');
 
 const { frontendUrl, backendUrl, evaluationToken } = readStagingSmokeConfig(
   process.env,
 );
 
-test('backend health confirms MongoDB connectivity', async ({ request }) => {
+test(REQUIRED_SMOKE_CHECKS[0], async ({ request }) => {
   const response = await request.get(`${backendUrl}/api/health`);
   expect(response.url()).toBe(`${backendUrl}/api/health`);
   expect(response.status()).toBe(200);
   expect((await response.json()).status).toBe('OK');
 });
 
-test('frontend login renders and rejects synthetic invalid credentials', async ({
-  page,
-}) => {
+test(REQUIRED_SMOKE_CHECKS[1], async ({ page }) => {
   await page.goto(frontendUrl);
   expect(new URL(page.url()).origin).toBe(frontendUrl);
   await expect(
@@ -43,9 +42,7 @@ test('frontend login renders and rejects synthetic invalid credentials', async (
   ).toBeVisible();
 });
 
-test('pre-seeded synthetic evaluation loads without submitting', async ({
-  page,
-}) => {
+test(REQUIRED_SMOKE_CHECKS[2], async ({ page }) => {
   const evaluationResponse = page.waitForResponse((response) => {
     return isEvaluationGetForToken(response, backendUrl, evaluationToken);
   });
@@ -61,4 +58,9 @@ test('pre-seeded synthetic evaluation loads without submitting', async ({
     page.getByText('Evaluate: Staging Smoke Teammate'),
   ).toBeVisible();
   await expect(page.getByText('Communication', { exact: true })).toBeVisible();
+  const rating = page.getByRole('radio', {
+    name: /Communicated appropriately at all times/,
+  });
+  await expect(rating).toBeVisible();
+  await expect(rating).toBeEnabled();
 });

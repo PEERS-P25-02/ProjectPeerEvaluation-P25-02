@@ -1,5 +1,8 @@
 const fs = require('node:fs');
-const { makeSafeCheckRecord } = require('../tests/staging/safe-evidence.cjs');
+const {
+  allRequiredSmokeChecksPassed,
+  makeSafeCheckRecord,
+} = require('../tests/staging/safe-evidence.cjs');
 
 let checks = [];
 try {
@@ -7,8 +10,8 @@ try {
     fs.readFileSync('test-results/staging/smoke-checks.json', 'utf8'),
   );
   checks = Array.isArray(recorded.checks)
-    ? recorded.checks.map((check) => ({
-        ...makeSafeCheckRecord(
+    ? recorded.checks.map((check) =>
+        makeSafeCheckRecord(
           { title: check.name },
           {
             status: check.status,
@@ -17,7 +20,7 @@ try {
           },
           process.env.STAGING_EVALUATION_TOKEN,
         ),
-      }))
+      )
     : [];
 } catch {
   // Keep a bounded empty list when setup fails before Playwright starts.
@@ -33,6 +36,13 @@ const outcome = ['success', 'failure', 'cancelled', 'skipped'].includes(
 )
   ? process.env.SMOKE_OUTCOME
   : 'failure';
+const requiredChecksPassed = allRequiredSmokeChecksPassed(checks);
+const validationPassed =
+  outcome === 'success' &&
+  requiredChecksPassed &&
+  validSha &&
+  validImage(process.env.FRONTEND_IMAGE) &&
+  validImage(process.env.BACKEND_IMAGE);
 const result = {
   source_sha: validSha ? process.env.SOURCE_SHA : 'invalid',
   frontend_image: validImage(process.env.FRONTEND_IMAGE)
@@ -42,19 +52,18 @@ const result = {
     ? process.env.BACKEND_IMAGE
     : 'invalid',
   smoke_outcome: outcome,
+  validation_result: validationPassed ? 'success' : 'failure',
   checks,
 };
 fs.writeFileSync(
   'staging-smoke-result.json',
   `${JSON.stringify(result, null, 2)}\n`,
 );
-const summary = `### Staging smoke validation ${outcome}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n`;
+const summary = `### Staging smoke validation ${result.validation_result}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n- All three required checks passed: \`${requiredChecksPassed}\`\n`;
 fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/dev/null', summary);
-if (
-  !validSha ||
-  !validImage(process.env.FRONTEND_IMAGE) ||
-  !validImage(process.env.BACKEND_IMAGE)
-) {
-  console.error('::error::Staging smoke evidence inputs were invalid.');
+if (!validationPassed) {
+  console.error(
+    '::error::Staging smoke validation did not pass all required checks.',
+  );
   process.exitCode = 1;
 }

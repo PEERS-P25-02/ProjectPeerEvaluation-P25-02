@@ -45,4 +45,25 @@ function makeSafeCheckRecord(test, result, token) {
   return check;
 }
 
-module.exports = { makeSafeCheckRecord, sanitizeFailureDiagnostic };
+const REQUIRED_SMOKE_CHECKS = [
+  'backend health confirms MongoDB connectivity',
+  'frontend login renders and rejects synthetic invalid credentials',
+  'pre-seeded synthetic evaluation loads without submitting',
+];
+
+function allRequiredSmokeChecksPassed(checks) {
+  if (!Array.isArray(checks)) return false;
+  const remaining = new Set(REQUIRED_SMOKE_CHECKS);
+  for (const check of checks) {
+    if (check.status !== 'passed' || !remaining.delete(check.name))
+      return false;
+  }
+  return remaining.size === 0;
+}
+
+module.exports = {
+  REQUIRED_SMOKE_CHECKS,
+  allRequiredSmokeChecksPassed,
+  makeSafeCheckRecord,
+  sanitizeFailureDiagnostic,
+};
