@@ -17,81 +17,9 @@ concurrency:
   group: cd-staging-images
   cancel-in-progress: false
 jobs:
-  decide-staging:
-    name: Decide staging deployment
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.repository.full_name == github.repository }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      deploy: ${{ steps.final-decision.outputs.deploy }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ env.CI_CANDIDATE_SHA }}
-          fetch-depth: 0
-      - name: Confirm the verified current main merge commit
-        run: |
-          [[ "$CI_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git rev-parse HEAD)" = "$CI_CANDIDATE_SHA"
-          main_tip="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          if [[ "$main_tip" != "$CI_CANDIDATE_SHA" ]]; then
-            echo "::error::The verified CI commit is no longer the current main tip."
-            exit 1
-          fi
-          parent_count="$(git cat-file -p "$CI_CANDIDATE_SHA" | awk '/^$/{exit} /^parent /{count++} END{print count+0}')"
-          if [[ "$parent_count" != 2 ]]; then
-            echo "::error::Only two-parent main merge commits may publish staging images."
-            exit 1
-          fi
-      - name: Read last successful staging baseline
-        id: baseline
-        run: |
-          if git fetch --no-tags origin +refs/tags/staging-last-success:refs/tags/staging-last-success 2>/dev/null; then
-            baseline="$(git rev-parse 'refs/tags/staging-last-success^{commit}' 2>/dev/null || true)"
-            if [[ "$baseline" =~ ^[0-9a-f]{40}$ ]]; then
-              printf 'sha=%s\n' "$baseline" >> "$GITHUB_OUTPUT"
-              git cat-file -p refs/tags/staging-last-success > staging-last-success.tag
-            fi
-          fi
-      - name: Compare baseline with candidate
-        id: path-decision
-        env:
-          BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
-        run: node scripts/decideStaging.cjs
-      - name: Verify current Render images before a selective skip
-        id: drift
-        if: ${{ steps.path-decision.outputs.deploy == 'false' }}
-        env:
-          MARKER_FILE: staging-last-success.tag
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
-          FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
-        run: node scripts/stagingHistory.cjs drift
-      - name: Set final staging decision
-        id: final-decision
-        env:
-          PATH_DEPLOY: ${{ steps.path-decision.outputs.deploy }}
-          DRIFT_DEPLOY: ${{ steps.drift.outputs.deploy }}
-          PATH_REASON: ${{ steps.path-decision.outputs.reason }}
-          DRIFT_REASON: ${{ steps.drift.outputs.reason }}
-        run: |
-          if [[ "$PATH_DEPLOY" == true ]]; then
-            deploy=true
-            reason="$PATH_REASON"
-          elif [[ "$DRIFT_DEPLOY" == false ]]; then
-            deploy=false
-            reason="$DRIFT_REASON"
-          else
-            deploy=true
-            reason="${DRIFT_REASON:-render-state-unavailable}"
-          fi
-          printf 'deploy=%s\n' "$deploy" >> "$GITHUB_OUTPUT"
-          printf '### Final staging decision\n- Decision: **%s** (%s)\n' "$([[ "$deploy" == true ]] && echo 'deploy both services' || echo 'skip deployment')" "$reason" >> "$GITHUB_STEP_SUMMARY"
   publish-staging-images:
     name: Publish Staging Images
-    needs: decide-staging
-    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.repository.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -107,7 +35,7 @@ jobs:
         with:
           ref: ${{ env.CI_CANDIDATE_SHA }}
       - uses: docker/setup-buildx-action@v4
-      - name: Reconfirm the verified current main merge commit before publication
+      - name: Confirm the verified current main merge commit before publication
         run: |
           [[ "$CI_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$CI_CANDIDATE_SHA"
@@ -185,8 +113,8 @@ jobs:
           if-no-files-found: error
   deploy-staging:
     name: Deploy Staging
-    needs: [decide-staging, publish-staging-images]
-    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.publish-staging-images.result == 'success' }}
+    needs: publish-staging-images
+    if: ${{ needs.publish-staging-images.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -225,8 +153,8 @@ jobs:
           if-no-files-found: error
   validate-staging-smoke:
     name: Staging Smoke Tests
-    needs: [decide-staging, publish-staging-images, deploy-staging]
-    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' }}
+    needs: [publish-staging-images, deploy-staging]
+    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -272,9 +200,9 @@ jobs:
           path: staging-smoke-result.json
           if-no-files-found: error
   record-staging-success:
-    name: Successful Staging Baseline
-    needs: [decide-staging, publish-staging-images, deploy-staging, validate-staging-smoke]
-    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
+    name: Record Verified Staging Success
+    needs: [publish-staging-images, deploy-staging, validate-staging-smoke]
+    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -303,33 +231,22 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
         run: node scripts/stagingHistory.cjs manifest
-      - name: Atomically write immutable success history and movable baseline
+      - name: Append and verify immutable success history
         id: history
         env:
           HISTORY_TAG: staging-success/cd-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git show-ref --verify --quiet "refs/tags/$HISTORY_TAG"; then
-            echo "::error::The unique success-history tag already exists."
+          existing_object="$(git ls-remote --refs origin "refs/tags/$HISTORY_TAG")"
+          if [[ -n "$existing_object" ]]; then
+            echo "::error::The unique success-history tag already exists remotely."
             exit 1
           fi
-          old_marker="$(git ls-remote --refs origin refs/tags/staging-last-success | awk '{print $1}')"
-          if [[ -n "$old_marker" ]]; then
-            git fetch --no-tags origin +refs/tags/staging-last-success:refs/tags/staging-last-success
-            fetched_marker="$(git rev-parse refs/tags/staging-last-success)"
-            if [[ "$fetched_marker" != "$old_marker" ]]; then
-              echo "::error::The observed staging marker changed while preparing the update."
-              exit 1
-            fi
-          fi
           git tag -a "$HISTORY_TAG" "$SOURCE_SHA" -F staging-success.json
-          git tag -f -a staging-last-success "$SOURCE_SHA" -F staging-success.json
-          git push --atomic "--force-with-lease=refs/tags/staging-last-success:$old_marker" origin \
-            "refs/tags/$HISTORY_TAG" refs/tags/staging-last-success
+          # A concurrent writer is rejected by Git's non-force single-ref push.
+          git push origin "refs/tags/$HISTORY_TAG"
           history_object="$(git ls-remote --refs origin "refs/tags/$HISTORY_TAG" | awk '{print $1}')"
-          marker_object="$(git ls-remote --refs origin refs/tags/staging-last-success | awk '{print $1}')"
-          test -n "$history_object" && test -n "$marker_object"
+          test -n "$history_object"
           test "$history_object" = "$(git rev-parse "refs/tags/$HISTORY_TAG")"
-          test "$marker_object" = "$(git rev-parse refs/tags/staging-last-success)"
-          printf '### Verified staging success history\n\n**%s**\n\n[View annotated tag](https://github.com/${GITHUB_REPOSITORY}/tree/%s)\n' "$HISTORY_TAG" "$HISTORY_TAG" >> "$GITHUB_STEP_SUMMARY"
+          printf '### Verified staging success history\n\n**%s**\n\n[View annotated tag](https://github.com/%s/tree/%s)\n' "$HISTORY_TAG" "$GITHUB_REPOSITORY" "$HISTORY_TAG" >> "$GITHUB_STEP_SUMMARY"

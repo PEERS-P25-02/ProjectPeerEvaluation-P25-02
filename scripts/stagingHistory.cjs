@@ -8,10 +8,6 @@ const IMAGE_REPOSITORIES = {
   backend: 'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend',
   frontend: 'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend',
 };
-const API_BASE = 'https://api.render.com/v1';
-const PAGE_SIZE = 100;
-const MAX_PAGES = 10;
-
 function fail(message) {
   throw new Error(message);
 }
@@ -159,96 +155,20 @@ function validateManifest(value) {
   return value;
 }
 
-function parseAnnotatedMarker(tagObject) {
+function parseAnnotatedTag(tagObject) {
   const separator = tagObject.indexOf('\n\n');
   if (
     separator < 0 ||
     !tagObject.startsWith('object ') ||
     !tagObject.includes('\ntype commit\n')
   )
-    fail('Marker is not an annotated commit tag.');
+    fail('Tag is not an annotated commit tag.');
   const manifest = validateManifest(
     JSON.parse(tagObject.slice(separator + 2).trim()),
   );
   if (tagObject.split('\n', 1)[0] !== `object ${manifest.source_sha}`)
-    fail('Marker commit does not match its manifest.');
+    fail('Tag commit does not match its manifest.');
   return manifest;
-}
-
-async function listCurrentImage(serviceId, apiKey, fetcher = fetch) {
-  if (!validId(serviceId, 'srv') || !apiKey)
-    fail('Render configuration is unavailable.');
-  let cursor;
-  const deploys = [];
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const url = new URL(`${API_BASE}/services/${serviceId}/deploys`);
-    url.searchParams.set('limit', String(PAGE_SIZE));
-    if (cursor) url.searchParams.set('cursor', cursor);
-    const response = await fetcher(url, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!response.ok) fail('Render deployment lookup failed.');
-    const rows = await response.json();
-    if (!Array.isArray(rows) || rows.length > PAGE_SIZE)
-      fail('Render deployment listing is ambiguous.');
-    for (const row of rows) {
-      if (!row?.cursor || !row.deploy || typeof row.deploy.status !== 'string')
-        fail('Render deployment listing is ambiguous.');
-      deploys.push(row.deploy);
-    }
-    if (rows.length < PAGE_SIZE) return currentImageFromDeploys(deploys);
-    const next = rows.at(-1)?.cursor;
-    if (!next || next === cursor) fail('Render pagination is ambiguous.');
-    cursor = next;
-  }
-  fail('Render deployment listing exceeded the pagination limit.');
-}
-
-function currentImageFromDeploys(deploys) {
-  const settled = new Set([
-    'live',
-    'failed',
-    'build_failed',
-    'update_failed',
-    'pre_deploy_failed',
-    'canceled',
-    'deactivated',
-  ]);
-  if (deploys.some((deploy) => !settled.has(deploy.status.toLowerCase())))
-    fail('A Render deployment is active or has an unknown state.');
-  const live = deploys.filter(
-    (deploy) => deploy.status.toLowerCase() === 'live',
-  );
-  if (live.length !== 1 || typeof live[0].image?.ref !== 'string')
-    fail('Current Render image is ambiguous.');
-  return live[0].image.ref;
-}
-
-function driftDecision(
-  manifest,
-  backendImage,
-  frontendImage,
-  backendServiceId,
-  frontendServiceId,
-) {
-  try {
-    validateManifest(manifest);
-    if (
-      !validId(backendServiceId, 'srv') ||
-      !validId(frontendServiceId, 'srv') ||
-      backendServiceId === frontendServiceId
-    )
-      fail('Invalid Render service configuration.');
-    return backendImage === manifest.backend_image &&
-      frontendImage === manifest.frontend_image &&
-      backendServiceId === manifest.backend_service_id &&
-      frontendServiceId === manifest.frontend_service_id
-      ? { deploy: false, reason: 'baseline-images-current' }
-      : { deploy: true, reason: 'baseline-image-drift' };
-  } catch {
-    return { deploy: true, reason: 'baseline-manifest-unavailable' };
-  }
 }
 
 function main() {
@@ -273,56 +193,13 @@ function main() {
     );
     return;
   }
-  if (mode === 'drift') {
-    (async () => {
-      let decision = { deploy: true, reason: 'render-state-unavailable' };
-      try {
-        const manifest = parseAnnotatedMarker(
-          fs.readFileSync(process.env.MARKER_FILE, 'utf8'),
-        );
-        const [backend, frontend] = await Promise.all([
-          listCurrentImage(
-            process.env.BACKEND_SERVICE_ID,
-            process.env.RENDER_API_KEY,
-          ),
-          listCurrentImage(
-            process.env.FRONTEND_SERVICE_ID,
-            process.env.RENDER_API_KEY,
-          ),
-        ]);
-        decision = driftDecision(
-          manifest,
-          backend,
-          frontend,
-          process.env.BACKEND_SERVICE_ID,
-          process.env.FRONTEND_SERVICE_ID,
-        );
-      } catch {
-        // A failed or uncertain read always deploys both services.
-      }
-      fs.appendFileSync(
-        process.env.GITHUB_OUTPUT,
-        `deploy=${decision.deploy}\nreason=${decision.reason}\n`,
-      );
-      fs.appendFileSync(
-        process.env.GITHUB_STEP_SUMMARY,
-        `### Staging baseline image check\n- Decision: **${decision.deploy ? 'deploy both services' : 'skip deployment'}** (${decision.reason})\n`,
-      );
-    })().catch(() => {
-      process.exitCode = 1;
-    });
-    return;
-  }
   fail('Unknown staging history command.');
 }
 
 if (require.main === module) main();
 module.exports = {
   buildManifest,
-  currentImageFromDeploys,
-  driftDecision,
   imageRef,
-  listCurrentImage,
-  parseAnnotatedMarker,
+  parseAnnotatedTag,
   validateManifest,
 };

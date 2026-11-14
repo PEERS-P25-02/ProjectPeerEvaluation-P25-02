@@ -58,7 +58,7 @@ assert.equal(
 const workflow = fs.readFileSync('.github/workflows/cd.yml', 'utf8');
 assert.match(
   workflow,
-  /validate-staging-smoke:\n[\s\S]*?needs: \[decide-staging, publish-staging-images, deploy-staging\]/,
+  /validate-staging-smoke:\n[\s\S]*?needs: \[publish-staging-images, deploy-staging\]/,
 );
 assert.match(workflow, /validate-staging-smoke\.result == 'success'/);
 assert.match(
