@@ -9,7 +9,46 @@ Before publication, CD compares the candidate tree with the `staging-last-succes
 
 The denylist is encoded in the [decision helper](../../../scripts/decideStaging.cjs). It was audited against the production [frontend Dockerfile](../../../Dockerfile), [root `.dockerignore`](../../../.dockerignore), [backend Dockerfile](../../../src/backend/Dockerfile), and [backend `.dockerignore`](../../../src/backend/.dockerignore). The root production context removes documentation and test trees; the backend production context removes backend tests. The test-only Dockerfiles and their ignore files, E2E/test configuration, Compose files, and runner are not used by CD's direct production image builds. Any other path, including production Dockerfiles and ignore rules, workflow/deployment code, package inputs, runtime source, and frontend build instrumentation, triggers both services. Re-audit the exclusions when either production build context or the CD workflow changes.
 
-The baseline advances only after both services pass deployment checks, all staging smoke checks pass, and the bounded smoke evidence artifact uploads. Skipped and failed runs do not move it, so later comparisons include their changes.
+The `staging-last-success` baseline is an annotated tag with a versioned JSON manifest. After both services pass deployment checks, all three required smoke checks pass, and the same-run deployment and smoke artifacts validate, CD atomically creates `staging-success/cd-<run-id>-<attempt>` and moves the baseline to the same source commit with the same manifest. The history tag is never force-updated by the workflow. The atomic push uses a lease for the previously observed baseline object; a rejected lease, unsupported atomic push, artifact mismatch, or pre-existing history tag fails the final job without advancing either ref. Skipped and failed runs do not move the baseline, so later comparisons include their changes.
+
+Before a path-only skip, CD parses the annotated manifest and reads the Render deploy list for both configured staging services. It paginates with Render cursors (up to ten pages of 100), requires one unambiguous live deploy per service, no unknown or active deploy state, and an exact match between both live image references, the manifest digests, and the configured service IDs. A missing or lightweight legacy marker, missing configuration, API failure, pagination limit, ambiguous state, or digest drift selects deployment of both services. This check is read-only. The path decision summary and the separate final-decision summary record bounded reason codes only.
+
+The annotated tag format is `kind: cd`, `schema_version: 1`, source SHA, exact backend/frontend GHCR digest refs, service and deploy IDs, workflow run ID/attempt, and the three required smoke names with `passed` results. It contains no smoke diagnostics or credentials. The baseline tag keeps its commit target, so existing `staging-last-success^{commit}` comparisons continue to work. The success job summary links to the exact history tag only after the remote refs are verified.
+
+The next rollback workflow change must extend `validateManifest` and `parseAnnotatedMarker` to accept `kind: rollback`. Rollback records must share the exact image digests, service IDs, and passing smoke fields with CD records, and add rollback-specific target and original-deployment evidence. CD-created history and baseline tags remain `kind: cd`.
+
+Workflow behavior makes history tags append-only by choosing unique run/attempt names and never forcing them. GitHub currently has no tag ruleset protecting these refs; a maintainer or sufficiently privileged token can still modify or delete them. Do not describe the tags as Git-enforced immutable records. Local synthetic tests cover the atomic ref transaction, but do not prove GitHub accepts atomic pushes or that hosted Render responses match the parser. A post-merge eligible CD run is required for those hosted checks.
+
+### One-time historical backfill
+
+Backfill at most the newest historical CD success for which both exact run/attempt artifacts exist and agree. Inspect the deployment artifact for `result: success`, both `live` statuses, service/deploy IDs, and exact image refs; inspect the smoke artifact for `validation_result: success`, matching SHA/images, and exactly the three required checks passed. Do not infer a success from the old baseline SHA. Download both artifacts from the same run, then run the same manifest validator with that run's SHA, images, configured service IDs, run ID, and attempt:
+
+Replace the clearly marked placeholders below with the non-secret values from the reviewed artifacts and existing staging configuration. Do not put the Render API key in this shell or in the artifacts.
+
+```sh
+export DEPLOYMENT_FILE='staging-deployment.json'
+export SMOKE_FILE='staging-smoke-result.json'
+export SOURCE_SHA='replace-with-40-hex-artifact-source-sha'
+export BACKEND_IMAGE='replace-with-reviewed-backend-digest-ref'
+export FRONTEND_IMAGE='replace-with-reviewed-frontend-digest-ref'
+export BACKEND_SERVICE_ID='replace-with-staging-backend-service-id'
+export FRONTEND_SERVICE_ID='replace-with-staging-frontend-service-id'
+export GITHUB_RUN_ID='replace-with-historical-cd-run-id'
+export GITHUB_RUN_ATTEMPT='replace-with-historical-attempt'
+node scripts/stagingHistory.cjs manifest
+```
+
+Review the resulting manifest against the artifact contents, then create only `staging-success/cd-<historical-run-id>-<attempt>` with a non-force annotated tag push. Backfill never changes `staging-last-success`. If that marker is still a legacy lightweight tag, the drift guard will select deployment on the next eligible run that would otherwise skip; that successful run will establish the metadata-bearing baseline. Backfill is manual and is not run by this workflow.
+
+After confirming the generated manifest and that the history ref does not already exist, the history-only write is:
+
+```sh
+history_tag="staging-success/cd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+git tag -a "$history_tag" "$SOURCE_SHA" -F staging-success.json
+git push origin "refs/tags/$history_tag"
+```
+
+This push intentionally has no force option. If the tag already exists or push fails, stop and inspect the remote ref; do not replace it. Do not update the baseline during backfill.
 
 To troubleshoot a decision, inspect the **Staging path decision** job summary for the baseline, candidate, path counts, and bounded path list rendered as JSON strings in code spans. A `missing-or-invalid-baseline` or `baseline-or-diff-error` reason deliberately deploys both services; inspect the tag and rerun after correcting the underlying Git/ref issue. An invalid candidate or failed current-main/two-parent guard fails the decision job before publication.
 
@@ -25,7 +64,7 @@ The backend waits ten seconds between individual course/team invitation attempts
 
 The delay is **per request**, not a shared rate limiter. Concurrent invitation requests, multiple backend instances, or reminders/password-reset messages can still exceed Mailtrap's shared limit. A batch of 19 students needs at least 180 seconds of gaps before SMTP and database time, while the frontend API client times out at 180 seconds; larger batches can therefore finish on the server after the browser has timed out. A retry can resend to students whose first invitation was accepted. Use a higher-throughput sandbox or a separately planned asynchronous sending design for larger or concurrent batches. No hosted invitation behavior is verified by local tests alone. [Mailtrap plan limits](https://mailtrap.io/pricing/)
 
-The API key must be able to trigger and retrieve deploys for both services. The workflow does not create or change Render services, registry credentials, or service settings. If a variable is missing or points to the wrong service, correct the Actions setting before retrying; do not put service IDs or the API key in workflow source.
+The API key must be able to trigger and retrieve deploys for both services. `BACKEND_SERVICE_ID` and `FRONTEND_SERVICE_ID` must identify distinct staging services; missing, invalid, or duplicate IDs fail success-manifest validation and make a skip check choose deployment. The workflow does not create or change Render services, registry credentials, or service settings. If a variable is missing or points to the wrong service, correct the Actions setting before retrying; do not put service IDs or the API key in workflow source.
 
 ## Deployment sequence and evidence
 

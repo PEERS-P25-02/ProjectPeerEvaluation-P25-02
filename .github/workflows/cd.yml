@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      deploy: ${{ steps.decision.outputs.deploy }}
+      deploy: ${{ steps.final-decision.outputs.deploy }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -47,17 +47,47 @@ jobs:
       - name: Read last successful staging baseline
         id: baseline
         run: |
-          if git fetch --no-tags origin refs/tags/staging-last-success:refs/tags/staging-last-success 2>/dev/null; then
+          if git fetch --no-tags origin +refs/tags/staging-last-success:refs/tags/staging-last-success 2>/dev/null; then
             baseline="$(git rev-parse 'refs/tags/staging-last-success^{commit}' 2>/dev/null || true)"
             if [[ "$baseline" =~ ^[0-9a-f]{40}$ ]]; then
               printf 'sha=%s\n' "$baseline" >> "$GITHUB_OUTPUT"
+              git cat-file -p refs/tags/staging-last-success > staging-last-success.tag
             fi
           fi
       - name: Compare baseline with candidate
-        id: decision
+        id: path-decision
         env:
           BASELINE_SHA: ${{ steps.baseline.outputs.sha }}
         run: node scripts/decideStaging.cjs
+      - name: Verify current Render images before a selective skip
+        id: drift
+        if: ${{ steps.path-decision.outputs.deploy == 'false' }}
+        env:
+          MARKER_FILE: staging-last-success.tag
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
+          FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
+        run: node scripts/stagingHistory.cjs drift
+      - name: Set final staging decision
+        id: final-decision
+        env:
+          PATH_DEPLOY: ${{ steps.path-decision.outputs.deploy }}
+          DRIFT_DEPLOY: ${{ steps.drift.outputs.deploy }}
+          PATH_REASON: ${{ steps.path-decision.outputs.reason }}
+          DRIFT_REASON: ${{ steps.drift.outputs.reason }}
+        run: |
+          if [[ "$PATH_DEPLOY" == true ]]; then
+            deploy=true
+            reason="$PATH_REASON"
+          elif [[ "$DRIFT_DEPLOY" == false ]]; then
+            deploy=false
+            reason="$DRIFT_REASON"
+          else
+            deploy=true
+            reason="${DRIFT_REASON:-render-state-unavailable}"
+          fi
+          printf 'deploy=%s\n' "$deploy" >> "$GITHUB_OUTPUT"
+          printf '### Final staging decision\n- Decision: **%s** (%s)\n' "$([[ "$deploy" == true ]] && echo 'deploy both services' || echo 'skip deployment')" "$reason" >> "$GITHUB_STEP_SUMMARY"
   publish-staging-images:
     name: Publish Staging Images
     needs: decide-staging
@@ -243,16 +273,63 @@ jobs:
           if-no-files-found: error
   record-staging-success:
     name: Successful Staging Baseline
-    needs: [decide-staging, deploy-staging, validate-staging-smoke]
+    needs: [decide-staging, publish-staging-images, deploy-staging, validate-staging-smoke]
     if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      BACKEND_IMAGE: ${{ needs.publish-staging-images.outputs.backend_image }}
+      FRONTEND_IMAGE: ${{ needs.publish-staging-images.outputs.frontend_image }}
+      BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
+      FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.SOURCE_SHA }}
-      - name: Advance last successful staging baseline
-        run: git push origin "$SOURCE_SHA:refs/tags/staging-last-success" --force
+      - uses: actions/download-artifact@v7.0.0
+        with:
+          name: staging-deployment-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/deployment
+      - uses: actions/download-artifact@v7.0.0
+        with:
+          name: staging-smoke-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/smoke
+      - name: Validate evidence and create manifest
+        env:
+          DEPLOYMENT_FILE: evidence/deployment/staging-deployment.json
+          SMOKE_FILE: evidence/smoke/staging-smoke-result.json
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node scripts/stagingHistory.cjs manifest
+      - name: Atomically write immutable success history and movable baseline
+        id: history
+        env:
+          HISTORY_TAG: staging-success/cd-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git show-ref --verify --quiet "refs/tags/$HISTORY_TAG"; then
+            echo "::error::The unique success-history tag already exists."
+            exit 1
+          fi
+          old_marker="$(git ls-remote --refs origin refs/tags/staging-last-success | awk '{print $1}')"
+          if [[ -n "$old_marker" ]]; then
+            git fetch --no-tags origin +refs/tags/staging-last-success:refs/tags/staging-last-success
+            fetched_marker="$(git rev-parse refs/tags/staging-last-success)"
+            if [[ "$fetched_marker" != "$old_marker" ]]; then
+              echo "::error::The observed staging marker changed while preparing the update."
+              exit 1
+            fi
+          fi
+          git tag -a "$HISTORY_TAG" "$SOURCE_SHA" -F staging-success.json
+          git tag -f -a staging-last-success "$SOURCE_SHA" -F staging-success.json
+          git push --atomic "--force-with-lease=refs/tags/staging-last-success:$old_marker" origin \
+            "refs/tags/$HISTORY_TAG" refs/tags/staging-last-success
+          history_object="$(git ls-remote --refs origin "refs/tags/$HISTORY_TAG" | awk '{print $1}')"
+          marker_object="$(git ls-remote --refs origin refs/tags/staging-last-success | awk '{print $1}')"
+          test -n "$history_object" && test -n "$marker_object"
+          test "$history_object" = "$(git rev-parse "refs/tags/$HISTORY_TAG")"
+          test "$marker_object" = "$(git rev-parse refs/tags/staging-last-success)"
+          printf '### Verified staging success history\n\n**%s**\n\n[View annotated tag](https://github.com/${GITHUB_REPOSITORY}/tree/%s)\n' "$HISTORY_TAG" "$HISTORY_TAG" >> "$GITHUB_STEP_SUMMARY"
