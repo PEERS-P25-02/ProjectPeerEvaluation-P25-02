@@ -15,6 +15,8 @@ Before a path-only skip, CD parses the annotated manifest and reads the Render d
 
 The annotated tag format is `kind: cd`, `schema_version: 1`, source SHA, exact backend/frontend GHCR digest refs, service and deploy IDs, workflow run ID/attempt, and the three required smoke names with `passed` results. It contains no smoke diagnostics or credentials. The baseline tag keeps its commit target, so existing `staging-last-success^{commit}` comparisons continue to work. The success job summary links to the exact history tag only after the remote refs are verified.
 
+The next rollback workflow change must extend `validateManifest` and `parseAnnotatedMarker` to accept `kind: rollback`. Rollback records must share the exact image digests, service IDs, and passing smoke fields with CD records, and add rollback-specific target and original-deployment evidence. CD-created history and baseline tags remain `kind: cd`.
+
 Workflow behavior makes history tags append-only by choosing unique run/attempt names and never forcing them. GitHub currently has no tag ruleset protecting these refs; a maintainer or sufficiently privileged token can still modify or delete them. Do not describe the tags as Git-enforced immutable records. Local synthetic tests cover the atomic ref transaction, but do not prove GitHub accepts atomic pushes or that hosted Render responses match the parser. A post-merge eligible CD run is required for those hosted checks.
 
 ### One-time historical backfill

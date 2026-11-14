@@ -1,5 +1,8 @@
 const fs = require('node:fs');
-const { REQUIRED_SMOKE_CHECKS } = require('../tests/staging/safe-evidence.cjs');
+const {
+  REQUIRED_SMOKE_CHECKS,
+  allRequiredSmokeChecksPassed,
+} = require('../tests/staging/safe-evidence.cjs');
 
 const IMAGE_REPOSITORIES = {
   backend: 'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend',
@@ -68,17 +71,7 @@ function buildManifest(deployment, smoke, identity) {
     !Array.isArray(smoke.checks)
   )
     fail('Smoke evidence is incomplete.');
-  const names = smoke.checks.map((check) => check?.name);
-  if (
-    names.length !== 3 ||
-    new Set(names).size !== 3 ||
-    REQUIRED_SMOKE_CHECKS.some(
-      (name) =>
-        !smoke.checks.some(
-          (check) => check.name === name && check.status === 'passed',
-        ),
-    )
-  )
+  if (!allRequiredSmokeChecksPassed(smoke.checks))
     fail(
       'Smoke evidence does not contain exactly the required passing checks.',
     );

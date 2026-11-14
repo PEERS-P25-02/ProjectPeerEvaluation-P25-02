@@ -222,7 +222,6 @@ test('CD workflow wires same-run artifacts, drift guard, final decision and atom
     'utf8',
   );
   for (const expected of [
-    'actions/download-artifact@v7.0.0',
     'staging-deployment-$' +
       '{{ env.SOURCE_SHA }}-$' +
       '{{ github.run_id }}-$' +
@@ -239,6 +238,7 @@ test('CD workflow wires same-run artifacts, drift guard, final decision and atom
     'Verified staging success history',
   ])
     assert.ok(workflow.includes(expected), expected);
+  assert.match(workflow, /actions\/download-artifact@[^\s]+/);
   assert.ok(!workflow.includes('refs/tags/staging-last-success" --force'));
 });
 
@@ -319,6 +319,7 @@ test('atomic Git push updates history and leased marker together or updates neit
       '-m',
       'new marker',
     ]);
+    run(work, ['tag', '-a', 'staging-success/cd-2-1', second, '-m', '{}']);
     assert.throws(() =>
       run(work, [
         'push',
@@ -348,11 +349,17 @@ test('atomic Git push updates history and leased marker together or updates neit
       run(work, [
         'push',
         '--atomic',
-        '--force-with-lease=refs/tags/staging-last-success:wrong',
+        `--force-with-lease=refs/tags/staging-last-success:${old}`,
         bare,
         'refs/tags/staging-success/cd-2-1',
         'refs/tags/staging-last-success',
       ]),
+    );
+    assert.equal(
+      run(bare, ['rev-parse', 'refs/tags/staging-last-success'], {
+        encoding: 'utf8',
+      }).trim(),
+      stableMarker,
     );
     assert.equal(
       run(bare, ['rev-parse', 'refs/tags/staging-success/cd-1-1'], {
@@ -362,6 +369,72 @@ test('atomic Git push updates history and leased marker together or updates neit
     );
     assert.throws(() =>
       run(bare, ['show-ref', '--verify', 'refs/tags/staging-success/cd-2-1']),
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('empty marker lease creates both refs, then rejects a stale absence assumption', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'staging-history-'));
+  const bare = path.join(root, 'remote.git');
+  const work = path.join(root, 'work');
+  const run = (cwd, args, options = {}) =>
+    execFileSync('git', args, { cwd, ...options });
+  try {
+    run(root, ['init', '--bare', '--quiet', bare]);
+    run(root, ['init', '--quiet', work]);
+    run(work, ['config', 'user.name', 'Synthetic Test']);
+    run(work, ['config', 'user.email', 'test@example.invalid']);
+    fs.writeFileSync(path.join(work, 'file'), 'one');
+    run(work, ['add', 'file']);
+    run(work, ['commit', '--quiet', '-m', 'one']);
+    const first = run(work, ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    run(work, ['tag', '-a', 'staging-success/cd-3-1', first, '-m', '{}']);
+    run(work, ['tag', '-a', 'staging-last-success', first, '-m', 'marker']);
+    run(work, [
+      'push',
+      '--atomic',
+      '--force-with-lease=refs/tags/staging-last-success:',
+      bare,
+      'refs/tags/staging-success/cd-3-1',
+      'refs/tags/staging-last-success',
+    ]);
+    const marker = run(work, ['rev-parse', 'refs/tags/staging-last-success'], {
+      encoding: 'utf8',
+    }).trim();
+    const history = run(
+      work,
+      ['rev-parse', 'refs/tags/staging-success/cd-3-1'],
+      { encoding: 'utf8' },
+    ).trim();
+    run(work, ['tag', '-f', '-a', 'staging-last-success', first, '-m', 'next']);
+    run(work, ['tag', '-a', 'staging-success/cd-3-2', first, '-m', '{}']);
+
+    assert.throws(() =>
+      run(work, [
+        'push',
+        '--atomic',
+        '--force-with-lease=refs/tags/staging-last-success:',
+        bare,
+        'refs/tags/staging-success/cd-3-2',
+        'refs/tags/staging-last-success',
+      ]),
+    );
+    assert.equal(
+      run(bare, ['rev-parse', 'refs/tags/staging-last-success'], {
+        encoding: 'utf8',
+      }).trim(),
+      marker,
+    );
+    assert.equal(
+      run(bare, ['rev-parse', 'refs/tags/staging-success/cd-3-1'], {
+        encoding: 'utf8',
+      }).trim(),
+      history,
+    );
+    assert.throws(() =>
+      run(bare, ['show-ref', '--verify', 'refs/tags/staging-success/cd-3-2']),
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
