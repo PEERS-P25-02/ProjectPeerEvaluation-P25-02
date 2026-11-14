@@ -487,9 +487,9 @@ describe('CourseManagement', () => {
 
   it('creates a named team and reloads its count', async () => {
     const user = userEvent.setup();
-    const data = mockManagedCourse();
-    api.post.mockImplementationOnce(async (_url, teams) => {
-      data.teams = [{ _id: 'team-1', ...teams[0], student_count: 0 }];
+    const data = mockManagedCourse({ students: [{ ...rosterStudent }] });
+    api.post.mockImplementationOnce(async (_url, payload) => {
+      data.teams = [{ _id: 'team-1', ...payload.teams[0], student_count: 0 }];
       data.courses[0].team_count = 1;
       return { data: {} };
     });
@@ -513,21 +513,33 @@ describe('CourseManagement', () => {
     );
     expect(api.post).toHaveBeenCalledExactlyOnceWith(
       '/courses/course-1/teams',
-      [{ team_name: 'Team Alpha', team_status: 'Active' }],
+      { teams: [{ team_name: 'Team Alpha', team_status: 'Active' }] },
     );
     await waitFor(() =>
       expect(
         screen.queryByRole('dialog', { name: 'Create New Team' }),
       ).not.toBeInTheDocument(),
     );
+    const teamsDialog = screen.getByRole('dialog', {
+      name: /Manage Teams for/,
+    });
+    expect(within(teamsDialog).getByText('Team Alpha')).toBeInTheDocument();
+    expect(within(teamsDialog).getByText('0')).toBeInTheDocument();
     // Course refresh is behind the team modal; close it before checking the visible dashboard count.
     await user.click(
-      within(
-        screen.getByRole('dialog', { name: /Manage Teams for/ }),
-      ).getByRole('button', { name: 'Close' }),
+      within(teamsDialog).getByRole('button', { name: 'Close' }),
     );
     const row = await loadedCourseRow();
     expect(within(row).getByRole('cell', { name: '1' })).toBeInTheDocument();
+    expect(data.teams).toEqual([
+      {
+        _id: 'team-1',
+        team_name: 'Team Alpha',
+        team_status: 'Active',
+        student_count: 0,
+      },
+    ]);
+    expect(data.students).toEqual([{ ...rosterStudent }]);
   });
   it('assigns an available student to the selected team and updates membership', async () => {
     const user = userEvent.setup();

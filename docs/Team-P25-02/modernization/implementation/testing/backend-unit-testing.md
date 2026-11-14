@@ -73,7 +73,7 @@ behavior.
 | TC-UNIT-BE-016 | Verify authorization-scheme boundaries. | Supply non-Bearer and whitespace-only authorization headers, including a valid JWT under the wrong scheme. | Middleware returns 401 and does not attach a user. | REG-CW01-06 (unit safeguard) | [auth.test.js](../../../../../src/backend/tests/auth.test.js) |
 | TC-UNIT-BE-017 | Verify student and roster controller success contracts. | Add, list, update, delete, and bulk-delete students through mocked controller requests. | Successful responses and mocked persistence calls reflect the requested roster operation. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
 | TC-UNIT-BE-018 | Verify team controller success contracts. | Create, list, update, add/remove membership, and delete teams through mocked requests. | Successful response contracts and mocked team operations reflect each request. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
-| TC-UNIT-BE-019 | Verify invitation and reminder controller success contracts. | Send course/team invitations and reminders with email utilities mocked. | The controller reports successful dispatch according to mocked email outcomes. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
+| TC-UNIT-BE-019 | Verify invitation and reminder controller contracts. | Send course/team invitations and reminders with email utilities mocked; advance fake timers across three students with one SMTP rejection. | Both invitation paths attempt every student after a failure, space attempts by the configured ten-second interval, and send without throttling at zero; partial responses report accurate counts. Existing cases cover successful responses and token handling. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
 | TC-UNIT-BE-020 | Verify evaluation form, submission, and status success contracts. | Request forms and token status, submit evaluations, and request evaluation status using mocked dependencies. | Successful responses report the expected evaluation data and status. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
 | TC-UNIT-BE-021 | Verify report download success behavior. | Request a curved report and download CSV containing quoted fields and a student without scores. | The response includes the report contract and correctly escaped CSV with missing scores blank. | — | [controllerSuccessPaths.test.js](../../../../../src/backend/tests/controllerSuccessPaths.test.js) |
 | TC-UNIT-BE-022 | Verify course and student failure boundaries. | Request a missing course, add a duplicate student, delete a missing student, and submit an empty bulk-delete request. | Missing and duplicate records return detectable errors; empty bulk deletion is rejected. | — | [controllerFailureBoundary.test.js](../../../../../src/backend/tests/controllerFailureBoundary.test.js) |
@@ -115,18 +115,21 @@ included in this unit command.
 
 ## 6. Test Results
 
-Latest recorded local backend verification: October 31, 2026, revision
+Prior recorded local backend verification: October 31, 2026, revision
 `d0088f7`.
 
 | Command | Recorded result | Detailed record |
 | --- | --- | --- |
 | `npm --prefix src/backend test` | 16 files, 143 tests passed | [October 31 recorded unit results](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/unit-testing.md#test-results) |
 
-The project-level record also reports clean installations and passing unit
-suites on Node 22.22.2, 24.15.0, and 26.0.0. Those are historical results.
-No local unit-suite run was performed for this document edit. This table does
-not report current PR CI results, and a local pass does not establish whether
-the corresponding CI check is required before merging.
+On November 13, 2026, the `fix/staging-invitations-teams` worktree rebased onto
+`dc5f32e` passed `npm --prefix src/backend test` (17 files, 149 tests). The
+course/team cases use mocked email and fake timers for ten-second spacing,
+continuation after one SMTP failure, and a zero-interval override for isolated
+transport. No SMTP service or database was contacted. The
+project-level record also reports clean installations and passing unit suites
+on Node 22.22.2, 24.15.0, and 26.0.0; those are historical results. This
+local pass is not a hosted CI or Render result.
 
 ## 7. Limitations and Remaining Coverage
 

@@ -9,6 +9,20 @@ const {
   sendEvaluationReminder,
 } = require('../utils/emailUtils');
 
+function invitationIntervalMs() {
+  const configured = process.env.SMTP_INVITATION_INTERVAL_MS;
+  const interval = configured === undefined ? 10000 : Number(configured);
+  if (
+    (configured !== undefined && !/^\d+$/.test(configured)) ||
+    !Number.isSafeInteger(interval)
+  ) {
+    throw new Error(
+      'SMTP_INVITATION_INTERVAL_MS must be a nonnegative integer',
+    );
+  }
+  return interval;
+}
+
 /**
  * Send evaluation invitations to all students in a specific team
  */
@@ -53,8 +67,12 @@ exports.sendTeamEvaluations = async (req, res, next) => {
       `Starting to send evaluations to ${students.length} students for team ${team_id} in course ${course_id}`,
     );
 
-    // Send email to each student
-    for (const student of students) {
+    const intervalMs = invitationIntervalMs();
+    // Space attempts for rate-limited SMTP sandboxes; do not delay after the last.
+    for (const [index, student] of students.entries()) {
+      if (index > 0 && intervalMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
       try {
         // Generate evaluation token if student doesn't have one
         if (!student.evaluation_token) {
@@ -152,8 +170,12 @@ exports.sendEvaluations = async (req, res, next) => {
       `Starting to send evaluations to ${students.length} students for course ${course_id}`,
     );
 
-    // Send email to each student
-    for (const student of students) {
+    const intervalMs = invitationIntervalMs();
+    // Space attempts for rate-limited SMTP sandboxes; do not delay after the last.
+    for (const [index, student] of students.entries()) {
+      if (index > 0 && intervalMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
       try {
         console.log(`Processing student: ${student.name} (${student.email})`);
 
