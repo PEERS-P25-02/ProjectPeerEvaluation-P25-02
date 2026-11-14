@@ -19,6 +19,12 @@ The publication job builds the repository-root frontend Dockerfile and `src/back
 
 The first hosted deployment reached `live` for both configured image-backed service IDs. Configure `RENDER_API_KEY` as a GitHub Actions secret and `BACKEND_SERVICE_ID` and `FRONTEND_SERVICE_ID` as Actions variables that identify only the staging services. Each service's configured image repository must match its corresponding published GHCR image. Confirm the services cannot independently deploy an unverified Git commit and review Render's overlapping-deploy policy when changing service settings. Keep credentials, Atlas and Mailtrap values, and real student data out of Actions logs and artifacts.
 
+### Staging invitation interval
+
+The backend waits ten seconds between individual course/team invitation attempts by default (`SMTP_INVITATION_INTERVAL_MS=10000` when unset). This matches the published Mailtrap Free Email Sandbox limit of one message per ten seconds for a single sequential batch; the first attempt starts immediately and there is no wait after the last. Keep staging at the default or set the same value explicitly. Isolated local/CI Mailpit uses `0` because it has no staging rate limit. The interval does not change recipient selection, saved tokens, SMTP failure counts, or HTTP 502 partial-failure behavior.
+
+The delay is **per request**, not a shared rate limiter. Concurrent invitation requests, multiple backend instances, or reminders/password-reset messages can still exceed Mailtrap's shared limit. A batch of 19 students needs at least 180 seconds of gaps before SMTP and database time, while the frontend API client times out at 180 seconds; larger batches can therefore finish on the server after the browser has timed out. A retry can resend to students whose first invitation was accepted. Use a higher-throughput sandbox or a separately planned asynchronous sending design for larger or concurrent batches. No hosted invitation behavior is verified by local tests alone. [Mailtrap plan limits](https://mailtrap.io/pricing/)
+
 The API key must be able to trigger and retrieve deploys for both services. The workflow does not create or change Render services, registry credentials, or service settings. If a variable is missing or points to the wrong service, correct the Actions setting before retrying; do not put service IDs or the API key in workflow source.
 
 ## Deployment sequence and evidence

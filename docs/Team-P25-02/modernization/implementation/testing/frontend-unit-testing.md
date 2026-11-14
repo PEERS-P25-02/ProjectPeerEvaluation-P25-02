@@ -61,7 +61,7 @@ recorded regression.
 | TC-UNIT-FE-011 | Verify reports load, filter, generate, retry, and export. | Load courses and report data, filter active courses, trigger generation failure/retry, and download CSV. | Active-course choices and report results render; retry works; CSV success/failure is reported and temporary URL is released. | — | [Reports.test.jsx](../../../../../src/frontend/tests/Reports.test.jsx) |
 | TC-UNIT-FE-012 | Verify course lifecycle UI. | Load/refresh, create, edit, and delete a course; cancel deletion and simulate create failure. | Refreshed course details render; cancellation makes no delete request; failed creation retains entered details. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
 | TC-UNIT-FE-013 | Verify roster operations and CSV handling. | Add, edit, delete, search roster students; upload CSV and simulate processing failure. | Roster updates/filtering render; CSV result/error appears and selected file remains available for retry. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
-| TC-UNIT-FE-014 | Verify teams and membership operations. | Create/edit/delete teams; add and remove students and clear teams. | Team list and membership counts refresh to reflect confirmed operations. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
+| TC-UNIT-FE-014 | Verify teams and membership operations. | Create/edit/delete teams; add and remove students and clear teams. | Manual creation sends the API's `{ teams: [...] }` body, shows the new empty team and refreshed count without changing student assignments; other confirmed operations refresh team list and membership counts. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
 | TC-UNIT-FE-015 | Verify invitation, launch, status, reminder, and reset UI. | Send invitations, exercise health-check and send failures, launch evaluations, view status, request reminders, and reset evaluations. | UI reports outcomes and refreshed completion status; failed actions do not claim success. Mocked reminder confirmation does not establish recipient selection or email delivery. | — | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
 | TC-UNIT-FE-016 | Verify cancellation of a required reset. | Queue a team add after evaluations were sent, then cancel the reset prompt. | Neither reset nor membership request is sent; displayed membership counts remain unchanged. | REG-CW05-07 | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx) |
 | TC-UNIT-FE-017 | Verify required-reset failure blocks membership add/removal. | Attempt add and removal when evaluations were sent; reject the required reset. | Membership mutation is not sent and membership UI remains; failure is shown. | REG-CW05-08 | [CourseManagement.test.jsx](../../../../../src/frontend/tests/CourseManagement.test.jsx), [CourseManagement.resetSequencing.test.jsx](../../../../../src/frontend/tests/CourseManagement.resetSequencing.test.jsx) |
@@ -92,7 +92,7 @@ npx vitest run src/frontend/tests/CourseManagement.resetSequencing.test.jsx
 
 ## 6. Test Results
 
-Latest recorded local verification: October 31, 2026, revision `d0088f7`.
+Prior recorded local verification: October 31, 2026, revision `d0088f7`.
 
 | Command | Recorded result | Detailed record |
 | --- | --- | --- |
@@ -106,10 +106,13 @@ failed because membership requests followed a failed reset. These were
 mocked component checks without running application services. See the
 [dated reset verification at revision 4721cbf](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/4721cbfbf683064351dc65d377fe8b3c4aac5ca9/docs/Team-P25-02/modernization/implementation/testing/frontend-unit-test-validation.md#october-28-follow-up-required-reset-before-team-changes).
 
-The October 31 table is the latest recorded local frontend result. No local
-unit-suite run was performed for this documentation edit; this section does
-not report current PR CI results. A local pass does not establish whether
-the corresponding CI check is required before merging.
+On November 13, 2026, the `fix/staging-invitations-teams` worktree rebased onto
+`dc5f32e` passed `npm test -- --run
+src/frontend/tests/CourseManagement.test.jsx` (the package script selected all
+10 frontend files, 85 tests). The corrected Create Team component case asserts
+the API envelope, an empty team in the refreshed list, the course count, and
+unchanged synthetic student assignment. The API was mocked; this is not a
+backend persistence, hosted CI, or Render result.
 
 ## 7. Limitations and Remaining Coverage
 

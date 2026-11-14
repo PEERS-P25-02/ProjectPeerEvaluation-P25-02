@@ -1025,7 +1025,9 @@ function CourseManagement() {
     }
 
     try {
-      await api.post(`/courses/${teamsCourse._id}/teams`, [newTeamData]);
+      await api.post(`/courses/${teamsCourse._id}/teams`, {
+        teams: [newTeamData],
+      });
       setAlert({
         severity: 'success',
         message: `Team "${newTeamData.team_name}" created successfully`,

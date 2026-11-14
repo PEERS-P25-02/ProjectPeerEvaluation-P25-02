@@ -41,6 +41,8 @@ services:
       SMTP_USER: ''
       SMTP_PASS: ''
       SMTP_FROM: peers-e2e@example.invalid
+      # Keep isolated browser tests fast; Mailpit does not impose the staging limit.
+      SMTP_INVITATION_INTERVAL_MS: '0'
     depends_on:
       mongodb:
         condition: service_healthy
