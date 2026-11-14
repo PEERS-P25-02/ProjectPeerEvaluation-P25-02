@@ -82,7 +82,10 @@ describe('Team API and database integration', () => {
   });
 
   it('TEAM-02 OP-33-15 creates distinct empty teams and updates course count', async () => {
-    const { Team, Course } = state.context.models;
+    const { Team, Course, Student } = state.context.models;
+    const studentsBefore = await Student.find({
+      course_id: state.fixture.course._id,
+    }).lean();
     const result = await request('POST', '', {
       teams: [{ team_name: 'New Alpha' }, { team_name: 'New Beta' }],
     });
@@ -105,15 +108,21 @@ describe('Team API and database integration', () => {
     expect((await Course.findById(state.fixture.course._id)).team_count).toBe(
       3,
     );
+    expect(
+      await Student.find({ course_id: state.fixture.course._id }).lean(),
+    ).toEqual(studentsBefore);
   });
 
-  it('TEAM-03 OP-33-15 rejects empty creation without writes', async () => {
-    const before = await snapshot();
-    const result = await request('POST', '', { teams: [] });
-    expect(result.status).toBe(400);
-    expect(result.body.error.code).toBe('VALIDATION_ERROR');
-    expect(await snapshot()).toEqual(before);
-  });
+  it.each([{ teams: [] }, [{ team_name: 'Missing envelope' }]])(
+    'TEAM-03 OP-33-15 rejects an invalid create body without writes: %j',
+    async (body) => {
+      const before = await snapshot();
+      const result = await request('POST', '', body);
+      expect(result.status).toBe(400);
+      expect(result.body.error.code).toBe('VALIDATION_ERROR');
+      expect(await snapshot()).toEqual(before);
+    },
+  );
 
   it('TEAM-04 OP-33-16 persists rename/status and updates student labels', async () => {
     const { Team, Student } = state.context.models;

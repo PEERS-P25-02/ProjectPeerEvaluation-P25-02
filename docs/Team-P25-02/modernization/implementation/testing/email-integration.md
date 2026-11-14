@@ -58,7 +58,7 @@ The first command runs every test in the three selected integration files, inclu
 
 The historical October 31, 2026 full integration run at revision `d0088f7` passed 200 tests across 15 files, exited successfully, and verified cleanup. It included the three files listed above; it was a combined-suite result, not a separate email-only execution. The original result is recorded in the [integration test results at commit `dd7d26d`](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/blob/dd7d26d1aa3b4431b6cd477271e19ca8f792435f/docs/Team-P25-02/modernization/implementation/testing/integration-testing.md#test-results).
 
-The source assertions are implemented. The dated local result verifies that revision's combined suite. No new application test was run for this documentation change, and the local result does not by itself establish that these cases are required by CI on every change.
+On November 13, 2026, the `fix/staging-invitations-teams` worktree rebased onto `dc5f32e` passed `npm run test:integration -- src/backend/tests/integration/emailIntegration.test.js src/backend/tests/integration/authorization.test.js`: 55 tests in two files (seven invitation and 48 authorization), exit 0, isolated project cleanup verified. The test backend explicitly uses a zero invitation interval with Mailpit; backend unit tests separately verify the ten-second default using fake timers. This local pass does not establish Mailtrap Free acceptance, Render behavior, or CI enforcement.
 
 ## 7. Limitations and Remaining Coverage
 

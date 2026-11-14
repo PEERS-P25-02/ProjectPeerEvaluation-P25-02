@@ -76,6 +76,8 @@ The October 31, 2026 full integration run passed 200 tests across 15 files at re
 
 The test sources and assertions are **implemented**. This dated full-suite result is local **verified** evidence for that revision. It does not establish that every case is selected or CI-enforced on every change. No new test run was performed for this documentation rewrite.
 
+On November 13, 2026, the `fix/staging-invitations-teams` worktree rebased onto `dc5f32e` passed `npm run test:integration -- src/backend/tests/integration/emailIntegration.test.js src/backend/tests/integration/authorization.test.js` (55 tests in two files, including 48 authorization cases; exit 0 and isolated project cleanup verified). The protected-route set includes team creation and rejects requests for a different professor's course without writes. This focused run is local evidence only.
+
 ## 7. Limitations and Remaining Coverage
 
 - Logout is client-side and does not revoke an issued JWT. Tests do not promise immediate revocation after account deletion or password changes.
