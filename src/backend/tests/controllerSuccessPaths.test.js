@@ -508,6 +508,79 @@ describe('evaluation controller success paths', () => {
     );
   });
 
+  it.each([
+    ['course', 10000],
+    ['team', 10000],
+    ['course', 0],
+    ['team', 0],
+  ])(
+    'spaces %s invitations by %i ms and continues after SMTP failure',
+    async (scope, interval) => {
+      vi.stubEnv('SMTP_INVITATION_INTERVAL_MS', String(interval));
+      vi.useFakeTimers();
+      vi.setSystemTime(0);
+      try {
+        const recipients = [0, 1, 2].map((number) => ({
+          ...student,
+          _id: id(),
+          name: `Student ${number}`,
+          email: `student-${number}@example.invalid`,
+          evaluation_token: `token-${number}`,
+        }));
+        vi.spyOn(Course, 'findById').mockResolvedValue(course);
+        vi.spyOn(Team, 'findById').mockResolvedValue({ course_id: courseId });
+        vi.spyOn(Student, 'find').mockImplementation(() =>
+          scope === 'course'
+            ? { populate: vi.fn().mockResolvedValue(recipients) }
+            : Promise.resolve(recipients),
+        );
+        vi.spyOn(Student, 'findOneAndUpdate').mockResolvedValue(student);
+        const attempts = [];
+        invitationSpy.mockImplementation((recipient) => {
+          attempts.push({ email: recipient.email, time: Date.now() });
+          return Promise.resolve(
+            attempts.length === 2
+              ? { success: false, error: 'Synthetic SMTP rejection' }
+              : { success: true },
+          );
+        });
+
+        const res = response();
+        const handler =
+          scope === 'course'
+            ? evaluationController.sendEvaluations
+            : evaluationController.sendTeamEvaluations;
+        const sending = handler(
+          {
+            params: { course_id: String(courseId), team_id: String(id()) },
+            body: {},
+          },
+          res,
+          vi.fn(),
+        );
+        await vi.advanceTimersByTimeAsync(interval * 2);
+        expect(attempts).toEqual(
+          recipients.map((recipient, index) => ({
+            email: recipient.email,
+            time: index * interval,
+          })),
+        );
+        expect(res.status).toHaveBeenCalledWith(502);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            emails_sent: 2,
+            total_students: 3,
+            failed: [expect.stringContaining('Synthetic SMTP rejection')],
+          }),
+        );
+        await sending;
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
   it.each(['course', 'team'])(
     'does not count a %s invitation when the token-matched acceptance update fails',
     async (scope) => {

@@ -41,6 +41,8 @@ services:
       SMTP_USER: ''
       SMTP_PASS: ''
       SMTP_FROM: peers-e2e@example.invalid
+      # Keep isolated browser tests fast; Mailpit does not impose the staging limit.
+      SMTP_INVITATION_INTERVAL_MS: '0'
     depends_on:
       mongodb:
         condition: service_healthy
@@ -80,6 +82,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.e2e
+      args:
+        PLAYWRIGHT_VERSION: ${E2E_PLAYWRIGHT_VERSION:?E2E runner must provide the locked Playwright version}
     init: true
     # Give Chromium private shared memory without sharing the host IPC namespace.
     shm_size: 1gb
