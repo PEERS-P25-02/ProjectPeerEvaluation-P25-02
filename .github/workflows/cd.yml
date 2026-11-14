@@ -175,6 +175,14 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
+      - name: Require the staging smoke fixture token before deployment
+        env:
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: |
+          if [[ ! "$STAGING_EVALUATION_TOKEN" =~ ^[A-Za-z0-9_-]{12,256}$ ]]; then
+            echo "::error::Staging smoke fixture token is not configured."
+            exit 1
+          fi
       - name: Deploy and verify staging services
         id: deploy
         run: node scripts/deployStaging.cjs
@@ -185,10 +193,58 @@ jobs:
           name: staging-deployment-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: staging-deployment.json
           if-no-files-found: error
+  validate-staging-smoke:
+    name: Validate deployed staging smoke checks
+    needs: [decide-staging, publish-staging-images, deploy-staging]
+    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      FRONTEND_IMAGE: ${{ needs.publish-staging-images.outputs.frontend_image }}
+      BACKEND_IMAGE: ${{ needs.publish-staging-images.outputs.backend_image }}
+      STAGING_FRONTEND_URL: https://projectpeerevaluation-p25-02-frontend.onrender.com
+      STAGING_BACKEND_URL: https://peers-staging-backend.onrender.com
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Mask the fixture token in workflow logs
+        env:
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: echo "::add-mask::$STAGING_EVALUATION_TOKEN"
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run staging-only smoke checks
+        id: smoke
+        env:
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: npx playwright test --config=playwright.staging.config.cjs
+      - name: Write bounded validation evidence
+        if: ${{ always() }}
+        env:
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: node scripts/writeStagingSmokeEvidence.cjs
+      - name: Upload staging smoke evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: staging-smoke-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: staging-smoke-result.json
+          if-no-files-found: error
   record-staging-success:
     name: Record successful staging baseline
-    needs: [decide-staging, deploy-staging]
-    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.deploy-staging.result == 'success' }}
+    needs: [decide-staging, deploy-staging, validate-staging-smoke]
+    if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
