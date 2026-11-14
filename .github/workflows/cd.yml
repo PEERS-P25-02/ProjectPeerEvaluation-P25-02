@@ -194,7 +194,7 @@ jobs:
           path: staging-deployment.json
           if-no-files-found: error
   validate-staging-smoke:
-    name: Validate deployed staging smoke checks
+    name: Staging Smoke Tests
     needs: [decide-staging, publish-staging-images, deploy-staging]
     if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' }}
     runs-on: ubuntu-latest
@@ -242,7 +242,7 @@ jobs:
           path: staging-smoke-result.json
           if-no-files-found: error
   record-staging-success:
-    name: Record successful staging baseline
+    name: Successful Staging Baseline
     needs: [decide-staging, deploy-staging, validate-staging-smoke]
     if: ${{ needs.decide-staging.result == 'success' && needs.decide-staging.outputs.deploy == 'true' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
     runs-on: ubuntu-latest
