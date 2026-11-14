@@ -81,6 +81,7 @@ The root `.env.example` documents the local defaults. `npm run setup:env` preser
 | `SMTP_AUTH_REQUIRED` | Defaults to `true` in backend code; local setup uses `false` for Mailpit. Staging should use appropriate authenticated settings. |
 | `SMTP_USER`, `SMTP_PASS` | SMTP credentials; both must be set together when authentication is used. Local Mailpit leaves both empty. |
 | `SMTP_FROM` | Sender address displayed in generated email; local example is `peers-test@example.com`. |
+| `SMTP_INVITATION_INTERVAL_MS` | Gap between attempts within one course/team invitation request; defaults to `10000` ms when unset. Use `0` only with isolated local/CI Mailpit, as in `.env.example` and the test Compose stacks. Supply a nonnegative integer. |
 | `SMTP_SERVICE` | Optional Nodemailer provider preset; when set, it overrides `SMTP_HOST` and `SMTP_PORT`. Leave unset for Mailpit. |
 
 The project documents distinguish local/CI Mailpit capture from a separate Mailtrap Email Testing sandbox for staging. The Compose stack overrides SMTP to Mailpit. Deployment environment values are configured separately; this guide does not verify deployed settings. See the [environment configuration record](../modernization/plans/development-environment/02-configuration-and-testing-plan.md) for project documentation about those environments.

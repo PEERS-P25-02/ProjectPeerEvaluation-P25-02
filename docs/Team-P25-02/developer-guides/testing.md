@@ -108,6 +108,17 @@ for dated hosted results. These checks do not establish complete
 functional regression coverage; see the
 [E2E limitations](../modernization/implementation/testing/end-to-end-testing.md#7-limitations-and-remaining-coverage).
 
+Post-deployment staging checks use a separate configuration and are never
+part of local or normal CI runs. Hosted CD invokes them only after both exact
+Render image digests are live. For an explicitly authorized manual staging
+run, set the two exact staging origins and protected synthetic evaluation
+token, then run `npm run test:staging`; the config rejects any other target
+before browser startup. Do not pass the token on a command line. The checks
+are read-only and require the separately provisioned reusable synthetic
+course/student/teammate fixture. Traces, screenshots, and video are disabled.
+See the [staging smoke record](../modernization/implementation/testing/staging-smoke-tests.md)
+for fixture details, retained evidence, and limitations.
+
 ## Linting and formatting
 
 Run from the repository root. Lint covers frontend, backend, tests, and tooling JavaScript/JSX. Formatting checks and writes JavaScript/JSX files across the repository.

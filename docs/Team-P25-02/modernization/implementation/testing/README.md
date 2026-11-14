@@ -17,6 +17,7 @@ the 74 expected critical-workflow outcomes.
 | Authentication and authorization integration | [Authentication and authorization integration](authentication-authorization-integration.md) |
 | Email integration: invitations, reminders, reset links | [Email integration](email-integration.md) |
 | Browser journeys and smoke checks | [End-to-end testing](end-to-end-testing.md) |
+| Deployed staging smoke checks | [Staging smoke tests](staging-smoke-tests.md) |
 | API operation traceability reference | [API/database operation inventory](api-database-operation-inventory.md) |
 
 The operation inventory's `OP-33` identifiers name API operations, not
