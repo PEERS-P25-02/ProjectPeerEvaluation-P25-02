@@ -7,11 +7,8 @@ const { execFileSync } = require('node:child_process');
 const { REQUIRED_SMOKE_CHECKS } = require('../tests/staging/safe-evidence.cjs');
 const {
   buildManifest,
-  currentImageFromDeploys,
-  driftDecision,
   imageRef,
-  listCurrentImage,
-  parseAnnotatedMarker,
+  parseAnnotatedTag,
   validateManifest,
 } = require('./stagingHistory.cjs');
 
@@ -52,8 +49,8 @@ const identity = {
 test('validates and round-trips a complete versioned manifest', () => {
   const value = buildManifest(deployment(), smoke(), identity);
   assert.equal(validateManifest(value), value);
-  const tag = `object ${sha}\ntype commit\ntag staging-last-success\n\n${JSON.stringify(value)}\n`;
-  assert.deepEqual(parseAnnotatedMarker(tag), value);
+  const tag = `object ${sha}\ntype commit\ntag staging-success/cd-123-2\n\n${JSON.stringify(value)}\n`;
+  assert.deepEqual(parseAnnotatedTag(tag), value);
 });
 
 test('rejects mismatched SHA, digest, IDs, deployment and smoke evidence', () => {
@@ -92,53 +89,127 @@ test('rejects mismatched SHA, digest, IDs, deployment and smoke evidence', () =>
   assert.throws(() => validateManifest(duplicateServices));
 });
 
-test('marker parsing rejects lightweight or malformed tag objects', () => {
-  assert.throws(() => parseAnnotatedMarker(sha));
+test('annotated tag parsing rejects lightweight or malformed tag objects', () => {
+  assert.throws(() => parseAnnotatedTag(sha));
   assert.throws(() =>
-    parseAnnotatedMarker(`object ${sha}\ntype commit\ntag x\n\nnot-json`),
+    parseAnnotatedTag(`object ${sha}\ntype commit\ntag x\n\nnot-json`),
   );
 });
 
-test('drift check skips only exact current digest pair and deploys on drift or invalid manifest', () => {
-  const manifest = buildManifest(deployment(), smoke(), identity);
-  assert.deepEqual(
-    driftDecision(
-      manifest,
-      manifest.backend_image,
-      manifest.frontend_image,
-      manifest.backend_service_id,
-      manifest.frontend_service_id,
+test('CD publishes both images for every eligible current main merge', () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, '../.github/workflows/cd.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /jobs:\n {2}publish-staging-images:/);
+  for (const guard of [
+    "conclusion == 'success'",
+    "event == 'push'",
+    "head_branch == 'main'",
+    'repository.full_name == github.repository',
+    'main_tip" != "$CI_CANDIDATE_SHA',
+    'parent_count" != 2',
+    'cancel-in-progress: false',
+  ])
+    assert.ok(workflow.includes(guard), guard);
+  const publication = workflow.indexOf('docker/login-action');
+  assert.ok(workflow.indexOf('parent_count" != 2') < publication);
+  assert.equal(
+    (workflow.match(/uses: docker\/build-push-action@/g) || []).length,
+    2,
+  );
+  for (const expected of [
+    'steps.frontend.outputs.digest',
+    'steps.backend.outputs.digest',
+    'node scripts/deployStaging.cjs',
+    'playwright.staging.config.cjs',
+    'node scripts/writeStagingSmokeEvidence.cjs',
+    'if-no-files-found: error',
+  ])
+    assert.ok(workflow.includes(expected), expected);
+  for (const obsolete of [
+    'decide-staging',
+    'decideStaging',
+    'staging-last-success',
+    'baseline',
+    'drift',
+    '--atomic',
+    '--force',
+    'git diff',
+  ])
+    assert.ok(!workflow.includes(obsolete), obsolete);
+  const deploy = workflow
+    .split('  deploy-staging:')[1]
+    .split('  validate-staging-smoke:')[0];
+  assert.match(deploy, /needs: publish-staging-images/);
+  assert.ok(
+    deploy.includes("needs.publish-staging-images.result == 'success'"),
+  );
+  const smokeJob = workflow
+    .split('  validate-staging-smoke:')[1]
+    .split('  record-staging-success:')[0];
+  assert.ok(smokeJob.includes("needs.deploy-staging.result == 'success'"));
+  const record = workflow.split('  record-staging-success:')[1];
+  for (const job of [
+    'publish-staging-images',
+    'deploy-staging',
+    'validate-staging-smoke',
+  ])
+    assert.ok(record.includes(`needs.${job}.result == 'success'`));
+  for (const artifact of ['staging-deployment', 'staging-smoke'])
+    assert.ok(
+      record.includes(
+        `${artifact}-` +
+          '$' +
+          '{{ env.SOURCE_SHA }}-$' +
+          '{{ github.run_id }}-$' +
+          '{{ github.run_attempt }}',
+      ),
+    );
+  assert.ok(
+    record.indexOf('node scripts/stagingHistory.cjs manifest') <
+      record.indexOf('git tag -a'),
+  );
+  assert.ok(
+    record.indexOf('git ls-remote --refs origin') <
+      record.indexOf('git tag -a'),
+  );
+  assert.match(record, /git push origin "refs\/tags\/\$HISTORY_TAG"/);
+  assert.ok(
+    record.indexOf('test "$history_object" = "$(git rev-parse') <
+      record.indexOf('### Verified staging success history'),
+  );
+  assert.ok(
+    !fs
+      .readFileSync(path.join(__dirname, '../.github/workflows/ci.yml'), 'utf8')
+      .includes('decideStaging'),
+  );
+});
+
+test('missing, duplicate or unsuccessful smoke checks cannot create a manifest', () => {
+  for (const checks of [
+    [],
+    smoke().checks.slice(1),
+    [smoke().checks[0], smoke().checks[0], smoke().checks[2]],
+  ])
+    assert.throws(() =>
+      buildManifest(deployment(), { ...smoke(), checks }, identity),
+    );
+  for (const changes of [
+    { validation_result: 'failed' },
+    { smoke_outcome: 'failure' },
+    { source_sha: 'f'.repeat(40) },
+    { frontend_image: digest('frontend', 'f') },
+  ])
+    assert.throws(() =>
+      buildManifest(deployment(), { ...smoke(), ...changes }, identity),
+    );
+  assert.throws(() =>
+    buildManifest(
+      { ...deployment(), backend_health: { http_status: 503, status: 'OK' } },
+      smoke(),
+      identity,
     ),
-    { deploy: false, reason: 'baseline-images-current' },
-  );
-  assert.equal(
-    driftDecision(manifest, digest('backend', 'd'), manifest.frontend_image)
-      .deploy,
-    true,
-  );
-  assert.equal(
-    driftDecision(
-      manifest,
-      manifest.backend_image,
-      manifest.frontend_image,
-      'srv-other',
-      manifest.frontend_service_id,
-    ).deploy,
-    true,
-  );
-  assert.equal(
-    driftDecision(
-      manifest,
-      manifest.backend_image,
-      manifest.frontend_image,
-      manifest.backend_service_id,
-      manifest.backend_service_id,
-    ).deploy,
-    true,
-  );
-  assert.equal(
-    driftDecision({}, manifest.backend_image, manifest.frontend_image).deploy,
-    true,
   );
   assert.equal(
     imageRef(digest('backend', 'b').replace('.io/', 'xio/'), 'backend'),
@@ -146,295 +217,51 @@ test('drift check skips only exact current digest pair and deploys on drift or i
   );
 });
 
-test('Render state requires one unambiguous live image and no active deploy', () => {
-  const current = {
-    cursor: 'cursor-1',
-    deploy: {
-      id: 'dep-1',
-      status: 'live',
-      image: { ref: digest('backend', 'b') },
-    },
-  };
-  assert.equal(
-    currentImageFromDeploys([current.deploy]),
-    digest('backend', 'b'),
-  );
-  assert.throws(() =>
-    currentImageFromDeploys([
-      { ...current.deploy, status: 'update_in_progress' },
-      current.deploy,
-    ]),
-  );
-  assert.throws(() =>
-    currentImageFromDeploys([
-      current.deploy,
-      { ...current.deploy, id: 'dep-2' },
-    ]),
-  );
-  assert.throws(() => currentImageFromDeploys([]));
-});
-
-test('Render lookup follows cursors and fails closed on API or pagination uncertainty', async () => {
-  const seen = [];
-  const response = (rows) => ({ ok: true, json: async () => rows });
-  const fetcher = async (url) => {
-    seen.push(url.searchParams.get('cursor'));
-    return response(
-      seen.length === 1
-        ? Array.from({ length: 100 }, (_, index) => ({
-            cursor: `c${index}`,
-            deploy: { id: `dep-${index}`, status: 'deactivated' },
-          }))
-        : [
-            {
-              cursor: 'end',
-              deploy: {
-                id: 'dep-last',
-                status: 'live',
-                image: { ref: digest('backend', 'b') },
-              },
-            },
-          ],
-    );
-  };
-  assert.equal(
-    await listCurrentImage('srv-backend1', 'synthetic-key', fetcher),
-    digest('backend', 'b'),
-  );
-  assert.deepEqual(seen, [null, 'c99']);
-  await assert.rejects(() =>
-    listCurrentImage('srv-backend1', 'synthetic-key', async () => ({
-      ok: false,
-    })),
-  );
-  await assert.rejects(() =>
-    listCurrentImage('srv-backend1', 'synthetic-key', async () =>
-      response(
-        Array(100).fill({ cursor: 'same', deploy: { status: 'deactivated' } }),
-      ),
-    ),
-  );
-});
-
-test('CD workflow wires same-run artifacts, drift guard, final decision and atomic refs', () => {
-  const workflow = fs.readFileSync(
-    path.join(__dirname, '../.github/workflows/cd.yml'),
-    'utf8',
-  );
-  for (const expected of [
-    'staging-deployment-$' +
-      '{{ env.SOURCE_SHA }}-$' +
-      '{{ github.run_id }}-$' +
-      '{{ github.run_attempt }}',
-    'staging-smoke-$' +
-      '{{ env.SOURCE_SHA }}-$' +
-      '{{ github.run_id }}-$' +
-      '{{ github.run_attempt }}',
-    'node scripts/stagingHistory.cjs drift',
-    'steps.final-decision.outputs.deploy',
-    'git push --atomic',
-    '--force-with-lease=refs/tags/staging-last-success:$old_marker',
-    'refs/tags/$HISTORY_TAG',
-    'Verified staging success history',
-  ])
-    assert.ok(workflow.includes(expected), expected);
-  assert.match(workflow, /actions\/download-artifact@[^\s]+/);
-  assert.ok(!workflow.includes('refs/tags/staging-last-success" --force'));
-});
-
-test('atomic Git push updates history and leased marker together or updates neither', () => {
+test('single annotated history push verifies its exact object and rejects duplicate writers', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'staging-history-'));
   const bare = path.join(root, 'remote.git');
   const work = path.join(root, 'work');
-  const run = (cwd, args, options = {}) =>
-    execFileSync('git', args, { cwd, ...options });
+  const run = (cwd, args) =>
+    execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  const tag = 'staging-success/cd-123-2';
+  const ref = `refs/tags/${tag}`;
   try {
     run(root, ['init', '--bare', '--quiet', bare]);
     run(root, ['init', '--quiet', work]);
     run(work, ['config', 'user.name', 'Synthetic Test']);
     run(work, ['config', 'user.email', 'test@example.invalid']);
-    fs.writeFileSync(path.join(work, 'file'), 'one');
+    fs.writeFileSync(path.join(work, 'file'), 'synthetic');
     run(work, ['add', 'file']);
-    run(work, ['commit', '--quiet', '-m', 'one']);
-    const first = run(work, ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    run(work, ['tag', '-a', 'staging-last-success', first, '-m', 'old marker']);
-    const old = run(work, ['rev-parse', 'refs/tags/staging-last-success'], {
-      encoding: 'utf8',
-    }).trim();
-    run(work, ['push', '--atomic', bare, 'refs/tags/staging-last-success']);
-    run(work, ['tag', '-a', 'staging-success/cd-1-1', first, '-m', '{}']);
-    run(work, [
-      'tag',
-      '-f',
-      '-a',
-      'staging-last-success',
-      first,
-      '-m',
-      '{"schema_version":1}',
-    ]);
-    run(work, [
-      'push',
-      '--atomic',
-      `--force-with-lease=refs/tags/staging-last-success:${old}`,
-      bare,
-      'refs/tags/staging-success/cd-1-1',
-      'refs/tags/staging-last-success',
-    ]);
-    assert.ok(
-      run(bare, ['show-ref', '--verify', 'refs/tags/staging-success/cd-1-1'], {
-        encoding: 'utf8',
-      }),
+    run(work, ['commit', '--quiet', '-m', 'synthetic']);
+    assert.equal(run(work, ['ls-remote', '--refs', bare, ref]), '');
+    const sourceSha = run(work, ['rev-parse', 'HEAD']);
+    const manifest = buildManifest(
+      { ...deployment(), source_sha: sourceSha },
+      { ...smoke(), source_sha: sourceSha },
+      { ...identity, sourceSha },
     );
-    const stableHistory = run(
-      bare,
-      ['rev-parse', 'refs/tags/staging-success/cd-1-1'],
-      { encoding: 'utf8' },
-    ).trim();
-    const stableMarker = run(
-      bare,
-      ['rev-parse', 'refs/tags/staging-last-success'],
-      { encoding: 'utf8' },
-    ).trim();
-    fs.writeFileSync(path.join(work, 'file'), 'two');
-    run(work, ['add', 'file']);
-    run(work, ['commit', '--quiet', '-m', 'two']);
-    const second = run(work, ['rev-parse', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim();
-    run(work, [
-      'tag',
-      '-f',
-      '-a',
-      'staging-success/cd-1-1',
-      second,
-      '-m',
-      'duplicate',
-    ]);
-    run(work, [
-      'tag',
-      '-f',
-      '-a',
-      'staging-last-success',
-      second,
-      '-m',
-      'new marker',
-    ]);
-    run(work, ['tag', '-a', 'staging-success/cd-2-1', second, '-m', '{}']);
-    assert.throws(() =>
-      run(work, [
-        'push',
-        '--atomic',
-        `--force-with-lease=refs/tags/staging-last-success:${stableMarker}`,
-        bare,
-        'refs/tags/staging-success/cd-1-1',
-        'refs/tags/staging-last-success',
-      ]),
-    );
+    run(work, ['tag', '-a', tag, '-m', JSON.stringify(manifest)]);
+    run(work, ['push', bare, ref]);
+    const object = run(work, ['rev-parse', ref]);
     assert.equal(
-      run(bare, ['rev-parse', 'refs/tags/staging-last-success'], {
-        encoding: 'utf8',
-      }).trim(),
-      stableMarker,
+      run(work, ['ls-remote', '--refs', bare, ref]).split(/\s+/)[0],
+      object,
     );
-    run(work, [
-      'tag',
-      '-f',
-      '-a',
-      'staging-last-success',
-      first,
-      '-m',
-      'new marker',
-    ]);
-    assert.throws(() =>
-      run(work, [
-        'push',
-        '--atomic',
-        `--force-with-lease=refs/tags/staging-last-success:${old}`,
-        bare,
-        'refs/tags/staging-success/cd-2-1',
-        'refs/tags/staging-last-success',
-      ]),
+    assert.deepEqual(
+      parseAnnotatedTag(run(bare, ['cat-file', '-p', object])),
+      manifest,
     );
+    // Simulate another writer winning after the remote absence check.
+    run(work, ['tag', '-f', '-a', tag, '-m', 'duplicate writer']);
+    assert.throws(() => run(work, ['push', bare, ref]));
+    assert.equal(run(bare, ['rev-parse', ref]), object);
     assert.equal(
-      run(bare, ['rev-parse', 'refs/tags/staging-last-success'], {
-        encoding: 'utf8',
-      }).trim(),
-      stableMarker,
-    );
-    assert.equal(
-      run(bare, ['rev-parse', 'refs/tags/staging-success/cd-1-1'], {
-        encoding: 'utf8',
-      }).trim(),
-      stableHistory,
-    );
-    assert.throws(() =>
-      run(bare, ['show-ref', '--verify', 'refs/tags/staging-success/cd-2-1']),
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test('empty marker lease creates both refs, then rejects a stale absence assumption', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'staging-history-'));
-  const bare = path.join(root, 'remote.git');
-  const work = path.join(root, 'work');
-  const run = (cwd, args, options = {}) =>
-    execFileSync('git', args, { cwd, ...options });
-  try {
-    run(root, ['init', '--bare', '--quiet', bare]);
-    run(root, ['init', '--quiet', work]);
-    run(work, ['config', 'user.name', 'Synthetic Test']);
-    run(work, ['config', 'user.email', 'test@example.invalid']);
-    fs.writeFileSync(path.join(work, 'file'), 'one');
-    run(work, ['add', 'file']);
-    run(work, ['commit', '--quiet', '-m', 'one']);
-    const first = run(work, ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    run(work, ['tag', '-a', 'staging-success/cd-3-1', first, '-m', '{}']);
-    run(work, ['tag', '-a', 'staging-last-success', first, '-m', 'marker']);
-    run(work, [
-      'push',
-      '--atomic',
-      '--force-with-lease=refs/tags/staging-last-success:',
-      bare,
-      'refs/tags/staging-success/cd-3-1',
-      'refs/tags/staging-last-success',
-    ]);
-    const marker = run(work, ['rev-parse', 'refs/tags/staging-last-success'], {
-      encoding: 'utf8',
-    }).trim();
-    const history = run(
-      work,
-      ['rev-parse', 'refs/tags/staging-success/cd-3-1'],
-      { encoding: 'utf8' },
-    ).trim();
-    run(work, ['tag', '-f', '-a', 'staging-last-success', first, '-m', 'next']);
-    run(work, ['tag', '-a', 'staging-success/cd-3-2', first, '-m', '{}']);
-
-    assert.throws(() =>
-      run(work, [
-        'push',
-        '--atomic',
-        '--force-with-lease=refs/tags/staging-last-success:',
-        bare,
-        'refs/tags/staging-success/cd-3-2',
-        'refs/tags/staging-last-success',
-      ]),
-    );
-    assert.equal(
-      run(bare, ['rev-parse', 'refs/tags/staging-last-success'], {
-        encoding: 'utf8',
-      }).trim(),
-      marker,
-    );
-    assert.equal(
-      run(bare, ['rev-parse', 'refs/tags/staging-success/cd-3-1'], {
-        encoding: 'utf8',
-      }).trim(),
-      history,
-    );
-    assert.throws(() =>
-      run(bare, ['show-ref', '--verify', 'refs/tags/staging-success/cd-3-2']),
+      run(bare, ['for-each-ref', '--format=%(refname)', 'refs/tags']),
+      ref,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
