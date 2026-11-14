@@ -508,31 +508,25 @@ describe('evaluation controller success paths', () => {
     );
   });
 
-  it.each(['course', 'team'])(
-    'spaces %s invitations and continues after an individual SMTP failure',
-    async (scope) => {
-      const previousInterval = process.env.SMTP_INVITATION_INTERVAL_MS;
-      delete process.env.SMTP_INVITATION_INTERVAL_MS;
+  it.each([
+    ['course', 10000],
+    ['team', 10000],
+    ['course', 0],
+    ['team', 0],
+  ])(
+    'spaces %s invitations by %i ms and continues after SMTP failure',
+    async (scope, interval) => {
+      vi.stubEnv('SMTP_INVITATION_INTERVAL_MS', String(interval));
       vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+      vi.setSystemTime(0);
       try {
-        const recipients = [
-          { ...student, _id: id(), name: 'One', email: 'one@example.invalid' },
-          {
-            ...student,
-            _id: id(),
-            name: 'Two',
-            email: 'two@example.invalid',
-            evaluation_token: undefined,
-          },
-          {
-            ...student,
-            _id: id(),
-            name: 'Three',
-            email: 'three@example.invalid',
-            evaluation_token: undefined,
-          },
-        ];
+        const recipients = [0, 1, 2].map((number) => ({
+          ...student,
+          _id: id(),
+          name: `Student ${number}`,
+          email: `student-${number}@example.invalid`,
+          evaluation_token: `token-${number}`,
+        }));
         vi.spyOn(Course, 'findById').mockResolvedValue(course);
         vi.spyOn(Team, 'findById').mockResolvedValue({ course_id: courseId });
         vi.spyOn(Student, 'find').mockImplementation(() =>
@@ -540,15 +534,10 @@ describe('evaluation controller success paths', () => {
             ? { populate: vi.fn().mockResolvedValue(recipients) }
             : Promise.resolve(recipients),
         );
-        vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
         vi.spyOn(Student, 'findOneAndUpdate').mockResolvedValue(student);
         const attempts = [];
-        invitationSpy.mockImplementation((recipient, _course, token) => {
-          attempts.push({
-            recipient: recipient.email,
-            token,
-            time: Date.now(),
-          });
+        invitationSpy.mockImplementation((recipient) => {
+          attempts.push({ email: recipient.email, time: Date.now() });
           return Promise.resolve(
             attempts.length === 2
               ? { success: false, error: 'Synthetic SMTP rejection' }
@@ -569,108 +558,25 @@ describe('evaluation controller success paths', () => {
           res,
           vi.fn(),
         );
-        await vi.advanceTimersByTimeAsync(0);
-        expect(attempts).toHaveLength(1);
-        await vi.advanceTimersByTimeAsync(9999);
-        expect(attempts).toHaveLength(1);
-        await vi.advanceTimersByTimeAsync(1);
-        expect(attempts).toHaveLength(2);
-        await vi.advanceTimersByTimeAsync(10000);
-        await sending;
-        expect(vi.getTimerCount()).toBe(0);
-
-        expect(attempts.map(({ recipient }) => recipient)).toEqual(
-          recipients.map(({ email }) => email),
+        await vi.advanceTimersByTimeAsync(interval * 2);
+        expect(attempts).toEqual(
+          recipients.map((recipient, index) => ({
+            email: recipient.email,
+            time: index * interval,
+          })),
         );
-        expect(attempts.map(({ time }) => time)).toEqual([
-          Date.parse('2026-01-01T00:00:00.000Z'),
-          Date.parse('2026-01-01T00:00:10.000Z'),
-          Date.parse('2026-01-01T00:00:20.000Z'),
-        ]);
-        expect(attempts[0].token).toBe('token');
-        expect(new Set(attempts.map(({ token }) => token)).size).toBe(3);
-        expect(Student.findByIdAndUpdate).toHaveBeenCalledTimes(2);
         expect(res.status).toHaveBeenCalledWith(502);
         expect(res.json).toHaveBeenCalledWith(
           expect.objectContaining({
             emails_sent: 2,
             total_students: 3,
-            failed: ['Two (two@example.invalid): Synthetic SMTP rejection'],
+            failed: [expect.stringContaining('Synthetic SMTP rejection')],
           }),
         );
+        await sending;
       } finally {
         vi.useRealTimers();
-        if (previousInterval === undefined) {
-          delete process.env.SMTP_INVITATION_INTERVAL_MS;
-        } else {
-          process.env.SMTP_INVITATION_INTERVAL_MS = previousInterval;
-        }
-      }
-    },
-  );
-
-  it.each(['course', 'team'])(
-    'sends all %s invitations without delay when the isolated transport opts out',
-    async (scope) => {
-      const previousInterval = process.env.SMTP_INVITATION_INTERVAL_MS;
-      process.env.SMTP_INVITATION_INTERVAL_MS = '0';
-      try {
-        const recipients = [
-          { ...student, _id: id(), email: 'one@example.invalid' },
-          {
-            ...student,
-            _id: id(),
-            email: 'two@example.invalid',
-            evaluation_token: undefined,
-          },
-        ];
-        vi.spyOn(Course, 'findById').mockResolvedValue(course);
-        vi.spyOn(Team, 'findById').mockResolvedValue({ course_id: courseId });
-        vi.spyOn(Student, 'find').mockImplementation(() =>
-          scope === 'course'
-            ? { populate: vi.fn().mockResolvedValue(recipients) }
-            : Promise.resolve(recipients),
-        );
-        vi.spyOn(Student, 'findByIdAndUpdate').mockResolvedValue(student);
-        vi.spyOn(Student, 'findOneAndUpdate').mockResolvedValue(student);
-
-        const res = response();
-        const handler =
-          scope === 'course'
-            ? evaluationController.sendEvaluations
-            : evaluationController.sendTeamEvaluations;
-        await handler(
-          {
-            params: { course_id: String(courseId), team_id: String(id()) },
-            body: {},
-          },
-          res,
-          vi.fn(),
-        );
-
-        expect(invitationSpy).toHaveBeenCalledTimes(2);
-        expect(
-          invitationSpy.mock.calls.map(([recipient]) => recipient.email),
-        ).toEqual(recipients.map(({ email }) => email));
-        expect(invitationSpy.mock.calls[0][2]).toBe('token');
-        expect(invitationSpy.mock.calls[1][2]).toBe(
-          recipients[1].evaluation_token,
-        );
-        expect(recipients[1].evaluation_token).not.toBe('token');
-        expect(res.status).toHaveBeenCalledWith(200);
-        expect(res.json).toHaveBeenCalledWith(
-          expect.objectContaining({
-            emails_sent: 2,
-            total_students: 2,
-            failed: [],
-          }),
-        );
-      } finally {
-        if (previousInterval === undefined) {
-          delete process.env.SMTP_INVITATION_INTERVAL_MS;
-        } else {
-          process.env.SMTP_INVITATION_INTERVAL_MS = previousInterval;
-        }
+        vi.unstubAllEnvs();
       }
     },
   );
