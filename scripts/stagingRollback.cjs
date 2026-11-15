@@ -28,6 +28,7 @@ const runGit = (args, options = {}) => {
   }).trim();
 };
 
+/** Validate the manual dispatch before any remote lookup or deployment work. */
 function validateDispatch(input) {
   if (!TAG_PATTERN.test(input.targetTag || ''))
     throw new Error('Select one exact staging-success CD or rollback tag.');
@@ -54,11 +55,13 @@ function validateDispatch(input) {
   };
 }
 
+/** Fetch and bind the selected history entry to its annotated Git tag object. */
 function readTarget(input, options = {}) {
   const git = options.git || runGit;
   const fetchTag = `refs/tags/${input.targetTag}:refs/tags/${input.targetTag}`;
   git(['fetch', '--no-tags', 'origin', fetchTag]);
   const ref = `refs/tags/${input.targetTag}`;
+  // A lightweight tag has no manifest-bearing tag object to validate.
   if (git(['cat-file', '-t', ref]) !== 'tag')
     throw new Error('Target is not an annotated tag.');
   const targetObjectId = git(['rev-parse', `${ref}^{tag}`]);
@@ -82,6 +85,7 @@ function requireConfiguredServices(manifest, env) {
     );
 }
 
+/** Remove URLs, control characters, and configured credentials from evidence text. */
 function safeReason(value, env = process.env) {
   let result = String(value || '')
     .replace(/https?:\/\/[^\s"'<>]+/gi, '[URL REDACTED]')
@@ -108,6 +112,7 @@ function writeOutput(file, values) {
   );
 }
 
+/** Validate the request and save a fixed target for the locked mutation job. */
 async function preflight(options = {}) {
   const env = options.env || process.env;
   const input = validateDispatch({
@@ -134,6 +139,7 @@ async function preflight(options = {}) {
   return target;
 }
 
+/** Re-read the remote tag immediately before mutation to detect target drift. */
 function mutationCheck(options = {}) {
   const env = options.env || process.env;
   const input = validateDispatch({
@@ -156,6 +162,7 @@ function mutationCheck(options = {}) {
   return current;
 }
 
+/** Restore the selected digest pair through the shared backend-first deployer. */
 async function deploy(options = {}) {
   const env = options.env || process.env;
   const target = JSON.parse(
@@ -165,6 +172,8 @@ async function deploy(options = {}) {
   const save = (record) =>
     fs.writeFileSync(outputPath, `${JSON.stringify(record, null, 2)}\n`);
   try {
+    // Verified-history eligibility intentionally skips the moving-main check used by CD.
+    // Rollback restores the image pair and source recorded in the selected manifest.
     return await runDeployment(
       {
         sourceSha: target.manifest.source_sha,
@@ -187,6 +196,7 @@ async function deploy(options = {}) {
   }
 }
 
+/** Build success history only from verified deployment and smoke evidence. */
 function recordSuccess(options = {}) {
   const env = options.env || process.env;
   const target = JSON.parse(
@@ -198,6 +208,7 @@ function recordSuccess(options = {}) {
   const smoke = JSON.parse(
     fs.readFileSync(env.SMOKE_FILE || 'staging-smoke-result.json', 'utf8'),
   );
+  // Smoke code comes from dispatched main; every required check must pass.
   if (
     smoke.validation_result !== 'success' ||
     smoke.smoke_outcome !== 'success' ||
@@ -226,6 +237,7 @@ function recordSuccess(options = {}) {
   return manifest;
 }
 
+/** Publish a new rollback tag only after verifying the target tag stayed unchanged. */
 function appendHistory(options = {}) {
   const env = options.env || process.env;
   const target = JSON.parse(
@@ -238,6 +250,7 @@ function appendHistory(options = {}) {
     'origin',
     `refs/tags/${target.target_tag}`,
   ]).split(/\s+/)[0];
+  // Recheck the chosen object before publishing a separate immutable rollback record.
   if (currentObject !== target.target_tag_object)
     throw new Error('Selected target tag changed after preflight.');
   const tag = `staging-success/rollback-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`;
@@ -276,6 +289,7 @@ function appendHistory(options = {}) {
   return tag;
 }
 
+/** Write a bounded, redacted outcome even when an earlier phase failed. */
 function writeEvidence(options = {}) {
   const env = options.env || process.env;
   const readJson = (file) => {
@@ -303,6 +317,7 @@ function writeEvidence(options = {}) {
         : finalOutcome === 'failure' && deployment?.result === 'success'
           ? 'history'
           : deployment?.phase || safe(env.PHASE) || 'preflight';
+  // Evidence deliberately copies selected fields and sanitizes free-form text.
   const evidence = {
     target_tag: target?.target_tag || safe(env.TARGET_TAG),
     success_tag: /^staging-success\/rollback-[0-9]+-[0-9]+$/.test(

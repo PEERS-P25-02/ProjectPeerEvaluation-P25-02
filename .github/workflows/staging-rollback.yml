@@ -1,4 +1,5 @@
 name: Manual Staging Rollback
+# Operators select a verified history tag; this workflow restores its image pair.
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +12,7 @@ on:
         required: true
         type: string
       compatibility_acknowledged:
+        # Image rollback leaves Atlas data and external configuration as they are.
         description: I checked current database and external-configuration compatibility
         required: true
         type: boolean
@@ -18,6 +20,8 @@ on:
 permissions:
   contents: read
 jobs:
+  # Reject malformed requests and history before entering the deployment queue.
+  # This job reads the tag as evidence and pins every later step to github.sha.
   preflight:
     name: Read-only Rollback Preflight
     runs-on: ubuntu-latest
@@ -35,6 +39,7 @@ jobs:
       target_backend_image: ${{ steps.target.outputs.target_backend_image }}
       target_frontend_image: ${{ steps.target.outputs.target_frontend_image }}
     steps:
+      # workflow_dispatch on main supplies this SHA; never check out old target code.
       - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.sha }}
@@ -54,6 +59,7 @@ jobs:
           PHASE: preflight
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/stagingRollback.cjs evidence
+      # Upload the outcome even when validation fails; pass the target forward only on success.
       - uses: actions/upload-artifact@v7.0.2
         if: ${{ always() }}
         with:
@@ -67,6 +73,8 @@ jobs:
           path: staging-rollback-target.json
           if-no-files-found: error
 
+  # This job holds the same group as the entire automatic CD run. A queued CD
+  # starts afterward and may replace the restored images, as approved.
   rollback:
     name: Rollback Staging
     needs: preflight
@@ -92,6 +100,7 @@ jobs:
       BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
       FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
     steps:
+      # Use the dispatched main workflow code; the target tag supplies data only.
       - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.sha }}
@@ -104,6 +113,7 @@ jobs:
         with:
           name: staging-rollback-target-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidence/target
+      # Prepare smoke tooling inside the job so it is ready after Render deploys.
       - name: Validate the synthetic smoke fixture token
         id: fixture_token
         env:
@@ -125,6 +135,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Inspect each exact digest once under the lock. Missing images stop before Render POST.
       - name: Confirm both exact history digests before Render checks
         id: digest_check
         env:
@@ -140,6 +151,8 @@ jobs:
             exit 1
           fi
           docker logout ghcr.io
+      # Render's filtered query detects active external deploys; the tag recheck
+      # detects an observed ref change between preflight and mutation.
       - name: Check Render state and unchanged target before mutation
         id: mutation_check
         env:
@@ -149,11 +162,14 @@ jobs:
           mv evidence/target/staging-rollback-target.json staging-rollback-target.json
           node scripts/stagingCoordination.cjs mutation-check
           node scripts/stagingRollback.cjs mutation-check
+      # The shared helper deploys backend first, verifies its image and health,
+      # then deploys and verifies the frontend on the recorded digest.
       - name: Deploy both recorded image digests and verify backend health
         id: deploy
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: node scripts/stagingRollback.cjs deploy
+      # Tests come from dispatched main; SOURCE_SHA identifies the restored code in evidence.
       - name: Run dispatched-main staging smoke checks against restored images
         id: smoke
         env:
@@ -167,6 +183,7 @@ jobs:
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
         run: node scripts/writeStagingSmokeEvidence.cjs
+      # Only all-pass deployment and smoke records can produce a new success tag.
       - name: Validate all-pass evidence and build rollback history manifest
         id: manifest
         if: ${{ success() }}
@@ -180,6 +197,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ success() }}
         run: node scripts/stagingRollback.cjs record
+      # Always retain a small redacted audit record, including partial failures.
       - name: Write redacted rollback outcome evidence
         if: ${{ always() }}
         env:

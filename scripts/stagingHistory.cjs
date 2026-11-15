@@ -8,6 +8,7 @@ const IMAGE_REPOSITORIES = {
   backend: 'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend',
   frontend: 'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend',
 };
+/** Reject invalid history evidence with a uniform manifest error surface. */
 function fail(message) {
   throw new Error(message);
 }
@@ -71,6 +72,7 @@ function buildManifestForKind(deployment, smoke, identity, kind, extra = {}) {
     fail(
       'Smoke evidence does not contain exactly the required passing checks.',
     );
+  // Keep the serialized contract exact so extra, unreviewed fields cannot enter history.
   if (
     !/^[0-9]+$/.test(identity.runId || '') ||
     !/^[0-9]+$/.test(identity.runAttempt || '')
@@ -107,6 +109,7 @@ function buildRollbackManifest(
   targetManifest,
   targetTag,
 ) {
+  // The rollback record must describe the same source and image pair as its chosen history entry.
   validateManifest(targetManifest);
   const expectedTag = `staging-success/${targetManifest.kind}-${targetManifest.workflow_run_id}-${targetManifest.workflow_run_attempt}`;
   if (targetTag !== expectedTag)
@@ -147,6 +150,7 @@ function validateManifest(value) {
     'workflow_run_attempt',
     'smoke_checks',
   ];
+  // Rollback adds only its target reference and the two deploy IDs being restored.
   if (value.kind === 'rollback')
     expectedKeys.push(
       'target_tag',
@@ -204,6 +208,7 @@ function validateManifest(value) {
   return value;
 }
 
+/** Parse and cross-check Git tag headers against the JSON manifest body. */
 function parseAnnotatedTag(tagObject) {
   const separator = tagObject.indexOf('\n\n');
   if (

@@ -13,7 +13,8 @@ env:
   CI_RUN_ID: ${{ github.event.workflow_run.id }}
   CI_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
 concurrency:
-  # Keep publication runs serialized, including reruns.
+  # The whole CD run shares this group with manual rollback's mutation job.
+  # A CD queued during rollback can deploy after it and replace that recovery.
   group: cd-staging-images
   cancel-in-progress: false
   queue: max
@@ -251,6 +252,7 @@ jobs:
           test -n "$history_object"
           test "$history_object" = "$(git rev-parse "refs/tags/$HISTORY_TAG")"
           printf '### Verified staging success history\n\n**%s**\n\n[View annotated tag](https://github.com/%s/tree/%s)\n' "$HISTORY_TAG" "$GITHUB_REPOSITORY" "$HISTORY_TAG" >> "$GITHUB_STEP_SUMMARY"
+  # Keep failures visible and point maintainers to the separate manual workflow.
   recovery-guidance:
     name: Staging Recovery Guidance
     needs: [publish-staging-images, deploy-staging, validate-staging-smoke, record-staging-success]

@@ -21,11 +21,13 @@ const EXPECTED_SERVICES = {
   },
 };
 
+/** Require workflow configuration before contacting the coordination API. */
 function requireEnv(env, key) {
   if (!env[key]) throw new Error(`${key} is required.`);
   return env[key];
 }
 
+/** Fetch bounded JSON and reduce API failures to safe, status-only errors. */
 async function requestJson(fetcher, url, headers) {
   const response = await fetcher(url, {
     headers,
@@ -36,6 +38,7 @@ async function requestJson(fetcher, url, headers) {
   return response.json();
 }
 
+/** Confirm service identity and fail closed if Render reports an active deploy. */
 async function inspectService(fetcher, apiKey, serviceId, kind) {
   const expected = EXPECTED_SERVICES[kind];
   if (!expected) throw new Error('Unknown configured Render service kind.');
@@ -65,6 +68,7 @@ async function inspectService(fetcher, apiKey, serviceId, kind) {
     );
 
   const query = new URLSearchParams({ limit: '1' });
+  // Repeated status parameters ask Render for any active state in one result set.
   // Render models status as a query array; repeated keys encode its form/explode representation.
   for (const status of ACTIVE_DEPLOY_STATUSES) query.append('status', status);
   const rows = await requestJson(
