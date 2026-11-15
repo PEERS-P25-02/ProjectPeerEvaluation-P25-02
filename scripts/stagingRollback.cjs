@@ -21,11 +21,33 @@ const runGit = (args, options = {}) => {
     remote && auth
       ? ['-c', `http.https://github.com/.extraheader=${auth}`, ...args]
       : args;
-  return execFileSync('git', gitArgs, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options,
-  }).trim();
+  try {
+    return (options.execFileSync || execFileSync)('git', gitArgs, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...options,
+    }).trim();
+  } catch (error) {
+    const operation =
+      {
+        fetch: 'fetch target',
+        'ls-remote': 'check remote tag',
+        push: 'push history tag',
+        tag: 'create history tag',
+        'rev-parse': 'resolve commit',
+        'cat-file': 'inspect target',
+        config: 'configure tag identity',
+      }[args[0]] || 'run Git operation';
+    const stderr = String(error.stderr || '').toLowerCase();
+    const category = /authentication|403|401|permission denied/.test(stderr)
+      ? 'authentication or permission failure'
+      : /could not resolve|connection|timed out|network/.test(stderr)
+        ? 'network failure'
+        : /shallow|not our ref|unadvertised/.test(stderr)
+          ? 'required object unavailable'
+          : 'Git command failed';
+    throw new Error(`Could not ${operation}: ${category}.`);
+  }
 };
 
 /** Validate the manual dispatch before any remote lookup or deployment work. */
@@ -245,6 +267,26 @@ function appendHistory(options = {}) {
     fs.readFileSync(env.TARGET_FILE || 'staging-rollback-target.json', 'utf8'),
   );
   const git = options.git || runGit;
+  // Fetch the exact annotated target because checkout actions may leave a shallow
+  // local clone without historical commits. Bind both tag object and peeled commit.
+  git([
+    'fetch',
+    '--no-tags',
+    'origin',
+    `+refs/tags/${target.target_tag}:refs/tags/${target.target_tag}`,
+  ]);
+  const localTargetObject = git([
+    'rev-parse',
+    `refs/tags/${target.target_tag}^{tag}`,
+  ]);
+  const localTargetCommit = git(['rev-parse', `${target.target_tag}^{commit}`]);
+  if (
+    localTargetObject !== target.target_tag_object ||
+    localTargetCommit !== target.manifest.source_sha
+  )
+    throw new Error(
+      'Fetched target tag does not match the preflight object and commit.',
+    );
   const currentObject = git([
     'ls-remote',
     '--refs',
@@ -414,6 +456,7 @@ module.exports = {
   mutationCheck,
   preflight,
   readTarget,
+  runGit,
   recordSuccess,
   safeReason,
   validateDispatch,
