@@ -34,6 +34,10 @@ jobs:
       COMPATIBILITY_ACKNOWLEDGED: ${{ inputs.compatibility_acknowledged }}
       BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
       FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
+      STAGING_BACKEND_NAME: ${{ vars.STAGING_BACKEND_NAME || 'peers-staging-backend' }}
+      STAGING_FRONTEND_NAME: ${{ vars.STAGING_FRONTEND_NAME || 'PEERS Staging Frontend' }}
+      STAGING_BACKEND_URL: ${{ vars.STAGING_BACKEND_URL || 'https://peers-staging-backend.onrender.com' }}
+      STAGING_FRONTEND_URL: ${{ vars.STAGING_FRONTEND_URL || 'https://projectpeerevaluation-p25-02-frontend.onrender.com' }}
     outputs:
       target_sha: ${{ steps.target.outputs.target_sha }}
       target_backend_image: ${{ steps.target.outputs.target_backend_image }}
@@ -95,10 +99,12 @@ jobs:
       TARGET_SHA: ${{ needs.preflight.outputs.target_sha }}
       BACKEND_IMAGE: ${{ needs.preflight.outputs.target_backend_image }}
       FRONTEND_IMAGE: ${{ needs.preflight.outputs.target_frontend_image }}
-      STAGING_FRONTEND_URL: https://projectpeerevaluation-p25-02-frontend.onrender.com
-      STAGING_BACKEND_URL: https://peers-staging-backend.onrender.com
       BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
       FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
+      STAGING_BACKEND_NAME: ${{ vars.STAGING_BACKEND_NAME || 'peers-staging-backend' }}
+      STAGING_FRONTEND_NAME: ${{ vars.STAGING_FRONTEND_NAME || 'PEERS Staging Frontend' }}
+      STAGING_BACKEND_URL: ${{ vars.STAGING_BACKEND_URL || 'https://peers-staging-backend.onrender.com' }}
+      STAGING_FRONTEND_URL: ${{ vars.STAGING_FRONTEND_URL || 'https://projectpeerevaluation-p25-02-frontend.onrender.com' }}
     steps:
       # Use the dispatched main workflow code; the target tag supplies data only.
       - uses: actions/checkout@v7.0.1
@@ -158,6 +164,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          BACKEND_IMAGE: ${{ needs.preflight.outputs.target_backend_image }}
+          FRONTEND_IMAGE: ${{ needs.preflight.outputs.target_frontend_image }}
         run: |
           mv evidence/target/staging-rollback-target.json staging-rollback-target.json
           node scripts/stagingCoordination.cjs mutation-check
@@ -205,6 +213,7 @@ jobs:
           SMOKE_FILE: staging-smoke-result.json
           FINAL_OUTCOME: ${{ job.status }}
           PHASE: rollback
+          COORDINATION_FAILURE_CATEGORY: ${{ steps.mutation_check.outputs.coordination_failure_category }}
           SUCCESS_TAG: ${{ steps.record.outputs.success_tag }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

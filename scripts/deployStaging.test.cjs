@@ -67,6 +67,9 @@ async function rejectsWith(inputValue, setup, message) {
         response(200, { status: 'live', image: { ref: input.frontendImage } }),
       ],
     });
+    h.options.env = {
+      STAGING_BACKEND_URL: 'https://replacement-api.onrender.com',
+    };
     const record = await runDeployment(input, h.options);
     assert.equal(record.phase, 'complete');
     assert.equal(record.result, 'success');
@@ -87,6 +90,12 @@ async function rejectsWith(inputValue, setup, message) {
     assert.equal(
       h.events[0].init.headers.Authorization,
       `Bearer ${input.apiKey}`,
+    );
+    assert.ok(
+      h.events.some(
+        (event) =>
+          event.url === 'https://replacement-api.onrender.com/api/health',
+      ),
     );
     assert.equal(JSON.stringify(record).includes(input.apiKey), false);
   }

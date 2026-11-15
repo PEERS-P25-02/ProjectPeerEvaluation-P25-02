@@ -5,12 +5,20 @@ const {
   checkCoordination,
   inspectService,
 } = require('./stagingCoordination.cjs');
+const { readStagingServiceConfig } = require('../tests/staging/config.cjs');
 
 const json = (body) => ({ ok: true, status: 200, json: async () => body });
 const env = {
   RENDER_API_KEY: 'render-token',
   BACKEND_SERVICE_ID: 'srv-backend',
   FRONTEND_SERVICE_ID: 'srv-frontend',
+  BACKEND_IMAGE: `ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend@sha256:${'a'.repeat(64)}`,
+  FRONTEND_IMAGE: `ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend@sha256:${'b'.repeat(64)}`,
+  STAGING_BACKEND_URL: 'https://peers-staging-backend.onrender.com',
+  STAGING_FRONTEND_URL:
+    'https://projectpeerevaluation-p25-02-frontend.onrender.com',
+  STAGING_BACKEND_NAME: 'peers-staging-backend',
+  STAGING_FRONTEND_NAME: 'PEERS Staging Frontend',
 };
 const services = {
   'srv-backend': {
@@ -23,7 +31,7 @@ const services = {
   },
   'srv-frontend': {
     id: 'srv-frontend',
-    name: 'projectpeerevaluation-p25-02-frontend',
+    name: 'PEERS Staging Frontend',
     type: 'web_service',
     serviceDetails: {
       url: 'https://projectpeerevaluation-p25-02-frontend.onrender.com',
@@ -32,6 +40,7 @@ const services = {
       'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend@sha256:abc',
   },
 };
+const config = readStagingServiceConfig(env);
 function makeFetch({
   serviceOverrides = {},
   deploys = {},
@@ -82,6 +91,34 @@ test('Render active status array is sent as repeated status query parameters', a
   }
 });
 
+test('configured service names and origins are used for identity checks', async () => {
+  const configuredEnv = {
+    ...env,
+    STAGING_BACKEND_NAME: 'Replacement API',
+    STAGING_FRONTEND_NAME: 'Replacement Web',
+    STAGING_BACKEND_URL: 'https://api-replacement.onrender.com',
+    STAGING_FRONTEND_URL: 'https://web-replacement.onrender.com',
+  };
+  const { fetch } = makeFetch({
+    serviceOverrides: {
+      'srv-backend': {
+        ...services['srv-backend'],
+        name: configuredEnv.STAGING_BACKEND_NAME,
+        serviceDetails: { url: configuredEnv.STAGING_BACKEND_URL },
+      },
+      'srv-frontend': {
+        ...services['srv-frontend'],
+        name: configuredEnv.STAGING_FRONTEND_NAME,
+        serviceDetails: { url: configuredEnv.STAGING_FRONTEND_URL },
+      },
+    },
+  });
+  assert.equal(
+    (await checkCoordination({ env: configuredEnv, fetch })).busy,
+    false,
+  );
+});
+
 test('an active deploy returned by the filtered list makes coordination busy', async () => {
   const { fetch } = makeFetch({
     deploys: {
@@ -119,12 +156,20 @@ test('service identity requires exact name, URL, and GHCR repository', async (t)
   await t.test('rejects a non-object service response', async () => {
     const { fetch } = makeFetch({ serviceOverrides: { 'srv-backend': null } });
     await assert.rejects(
-      inspectService(fetch, env.RENDER_API_KEY, 'srv-backend', 'backend'),
-      /name, URL, or GHCR image repository/,
+      inspectService(
+        fetch,
+        env.RENDER_API_KEY,
+        'srv-backend',
+        'backend',
+        config,
+        env.BACKEND_IMAGE,
+      ),
+      /ID does not match Render/,
     );
   });
   for (const [field, value] of [
     ['name', 'wrong-name'],
+    ['type', 'static_site'],
     ['serviceDetails', { url: 'https://wrong.onrender.com' }],
     ['imagePath', 'ghcr.io/other/image:latest'],
   ]) {
@@ -135,8 +180,15 @@ test('service identity requires exact name, URL, and GHCR repository', async (t)
         },
       });
       await assert.rejects(
-        inspectService(fetch, env.RENDER_API_KEY, 'srv-backend', 'backend'),
-        /name, URL, or GHCR image repository/,
+        inspectService(
+          fetch,
+          env.RENDER_API_KEY,
+          'srv-backend',
+          'backend',
+          config,
+          env.BACKEND_IMAGE,
+        ),
+        /does not match Render|not web_service|repository does not match/,
       );
     });
   }
@@ -170,6 +222,8 @@ test('identical service IDs and Render API errors fail closed', async (t) => {
         env.RENDER_API_KEY,
         'srv-backend',
         'backend',
+        config,
+        env.BACKEND_IMAGE,
       ),
       /network unavailable/,
     );

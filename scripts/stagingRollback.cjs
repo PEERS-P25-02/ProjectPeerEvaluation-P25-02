@@ -182,6 +182,7 @@ async function deploy(options = {}) {
         backendServiceId: env.BACKEND_SERVICE_ID,
         frontendServiceId: env.FRONTEND_SERVICE_ID,
         apiKey: env.RENDER_API_KEY,
+        env,
       },
       {
         ...options.deploymentOptions,
@@ -309,8 +310,14 @@ function writeEvidence(options = {}) {
     (!smoke ||
       smoke.validation_result !== 'success' ||
       smoke.smoke_outcome !== 'success');
-  const phase =
-    deployment?.result === 'failure'
+  const coordinationFailure = /^[a-z0-9_]{1,80}$/.test(
+    env.COORDINATION_FAILURE_CATEGORY || '',
+  )
+    ? env.COORDINATION_FAILURE_CATEGORY
+    : null;
+  const phase = coordinationFailure
+    ? 'coordination'
+    : deployment?.result === 'failure'
       ? deployment.phase || 'rollback'
       : smokeFailed
         ? 'smoke'
@@ -344,7 +351,9 @@ function writeEvidence(options = {}) {
     retry_counts: deployment?.retry_counts || {},
     deployment_result: deployment?.result || 'not_started',
     failure_reason:
-      safe(deployment?.failure_reason).slice(0, 320) ||
+      (coordinationFailure
+        ? `Coordination check failed: ${coordinationFailure}.`
+        : safe(deployment?.failure_reason).slice(0, 320)) ||
       (finalOutcome === 'failure'
         ? 'Rollback workflow failed; inspect the Actions run for step details.'
         : null),
