@@ -2,16 +2,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 const test = require('node:test');
 const { REQUIRED_SMOKE_CHECKS } = require('../tests/staging/safe-evidence.cjs');
 const {
-  appendHistory,
   mutationCheck,
   preflight,
   readTarget,
-  recordSuccess,
-  runGit,
   safeReason,
   validateDispatch,
   writeEvidence,
@@ -63,6 +59,10 @@ test('CD and rollback share one mutation group without a CD skip', () => {
     rollback.indexOf('node scripts/stagingCoordination.cjs mutation-check') <
       rollback.indexOf('node scripts/stagingRollback.cjs deploy'),
   );
+  assert.ok(
+    rollback.indexOf('node scripts/stagingRollback.cjs verify') <
+      rollback.indexOf('Write redacted rollback outcome evidence'),
+  );
   for (const key of [
     'STAGING_BACKEND_NAME',
     'STAGING_FRONTEND_NAME',
@@ -75,6 +75,12 @@ test('CD and rollback share one mutation group without a CD skip', () => {
   assert.match(
     rollback,
     /COORDINATION_FAILURE_CATEGORY:.*mutation_check\.outputs/,
+  );
+  assert.match(rollback, /contents: read/);
+  assert.match(rollback, /stagingRollback\.cjs verify/);
+  assert.doesNotMatch(
+    rollback,
+    /contents: write|stagingRollback\.cjs record|staging-success\/rollback-/,
   );
 });
 
@@ -90,7 +96,7 @@ function gitStub(currentObjectId = tagObjectId) {
   };
 }
 
-test('dispatch validation requires exact history selection, bounded reason, ack, and main SHA', () => {
+test('dispatch validation requires an exact CD success target, bounded reason, ack, and main SHA', () => {
   const input = {
     targetTag: tagName,
     reason: 'Restore after deployment incident',
@@ -101,7 +107,15 @@ test('dispatch validation requires exact history selection, bounded reason, ack,
   assert.equal(validateDispatch(input).targetTag, tagName);
   assert.throws(
     () => validateDispatch({ ...input, targetTag: 'staging-last-success' }),
-    /exact staging-success/,
+    /exact staging-success CD/,
+  );
+  assert.throws(
+    () =>
+      validateDispatch({
+        ...input,
+        targetTag: 'staging-success/rollback-20-1',
+      }),
+    /exact staging-success CD/,
   );
   assert.throws(
     () => validateDispatch({ ...input, acknowledged: 'false' }),
@@ -177,51 +191,28 @@ test('preflight validates main dispatch and target, then mutation check rejects 
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
-test('rollback success requires all smoke checks, then appends one verified tag', () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-tag-'));
+test('success gate binds live deploy and smoke evidence to selected CD digests', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-verify-'));
   const targetFile = path.join(directory, 'target.json');
   const deploymentFile = path.join(directory, 'deployment.json');
   const smokeFile = path.join(directory, 'smoke.json');
-  const manifestFile = path.join(directory, 'manifest.json');
-  const summaryFile = path.join(directory, 'summary');
-  const outputFile = path.join(directory, 'output');
-  const env = {
-    TARGET_FILE: targetFile,
-    DEPLOYMENT_FILE: deploymentFile,
-    SMOKE_FILE: smokeFile,
-    MANIFEST_FILE: manifestFile,
-    GITHUB_STEP_SUMMARY: summaryFile,
-    GITHUB_OUTPUT: outputFile,
-    GITHUB_REPOSITORY: 'org/repo',
-    GITHUB_RUN_ID: '30',
-    GITHUB_RUN_ATTEMPT: '1',
-    BACKEND_SERVICE_ID: manifest.backend_service_id,
-    FRONTEND_SERVICE_ID: manifest.frontend_service_id,
-  };
   fs.writeFileSync(
     targetFile,
-    JSON.stringify({
-      target_tag: tagName,
-      target_tag_object: tagObjectId,
-      manifest,
-    }),
+    JSON.stringify({ target_tag: tagName, manifest }),
   );
-  fs.writeFileSync(
-    deploymentFile,
-    JSON.stringify({
-      source_sha: sha,
-      backend_image: manifest.backend_image,
-      frontend_image: manifest.frontend_image,
-      backend_service_id: manifest.backend_service_id,
-      frontend_service_id: manifest.frontend_service_id,
-      backend_deploy_id: 'dep-newbackend',
-      frontend_deploy_id: 'dep-newfrontend',
-      backend_status: 'live',
-      frontend_status: 'live',
-      backend_health: { http_status: 200, status: 'OK' },
-      result: 'success',
-    }),
-  );
+  const deployment = {
+    source_sha: sha,
+    backend_image: manifest.backend_image,
+    frontend_image: manifest.frontend_image,
+    backend_service_id: manifest.backend_service_id,
+    frontend_service_id: manifest.frontend_service_id,
+    backend_deploy_id: 'dep-newbackend',
+    frontend_deploy_id: 'dep-newfrontend',
+    backend_status: 'live',
+    frontend_status: 'live',
+    backend_health: { http_status: 200, status: 'OK' },
+    result: 'success',
+  };
   const smoke = {
     source_sha: sha,
     backend_image: manifest.backend_image,
@@ -230,223 +221,34 @@ test('rollback success requires all smoke checks, then appends one verified tag'
     smoke_outcome: 'success',
     checks: REQUIRED_SMOKE_CHECKS.map((name) => ({ name, status: 'passed' })),
   };
+  fs.writeFileSync(deploymentFile, JSON.stringify(deployment));
   fs.writeFileSync(smokeFile, JSON.stringify(smoke));
-  const success = recordSuccess({ env });
-  assert.equal(success.target_tag, tagName);
-  assert.equal(success.target_backend_deploy_id, manifest.backend_deploy_id);
-  assert.equal(success.backend_deploy_id, 'dep-newbackend');
-  let pushed = false;
-  const commands = [];
-  const git = (args) => {
-    commands.push(args);
-    if (args[0] === 'ls-remote') {
-      if (args.at(-1) === `refs/tags/${tagName}`)
-        return `${tagObjectId}\trefs/tags/${tagName}`;
-      return pushed
-        ? `${'e'.repeat(40)}\trefs/tags/staging-success/rollback-30-1`
-        : '';
-    }
-    if (args[0] === 'push') {
-      pushed = true;
-      return '';
-    }
-    if (args[0] === 'fetch') return '';
-    if (args[0] === 'rev-parse') {
-      if (args[1].endsWith('^{tag}')) return tagObjectId;
-      if (args[1].endsWith('^{commit}')) return sha;
-      return 'e'.repeat(40);
-    }
-    return '';
+  const env = {
+    TARGET_FILE: targetFile,
+    DEPLOYMENT_FILE: deploymentFile,
+    SMOKE_FILE: smokeFile,
   };
-  assert.equal(appendHistory({ env, git }), 'staging-success/rollback-30-1');
-  assert.ok(
-    commands.some(
-      (args) =>
-        args[0] === 'fetch' &&
-        args.includes(`+refs/tags/${tagName}:refs/tags/${tagName}`),
-    ),
-  );
-  assert.equal(commands.filter(([name]) => name === 'push').length, 1);
-  assert.match(fs.readFileSync(summaryFile, 'utf8'), /rollback-30-1/);
-  assert.throws(() => appendHistory({ env, git }), /already exists/);
+  const { verifySuccess } = require('./stagingRollback.cjs');
+  const result = verifySuccess({ env });
+  assert.equal(result.deployment.backend_deploy_id, 'dep-newbackend');
+  for (const bad of [
+    { ...deployment, backend_image: 'wrong' },
+    { ...deployment, frontend_status: 'building' },
+    { ...deployment, backend_health: { http_status: 503, status: null } },
+    { ...deployment, backend_deploy_id: null },
+    { ...deployment, backend_deploy_id: manifest.backend_deploy_id },
+    { ...deployment, frontend_deploy_id: manifest.frontend_deploy_id },
+  ]) {
+    fs.writeFileSync(deploymentFile, JSON.stringify(bad));
+    assert.throws(() => verifySuccess({ env }), /Deployment evidence/);
+  }
+  fs.writeFileSync(deploymentFile, JSON.stringify(deployment));
   fs.writeFileSync(
     smokeFile,
-    JSON.stringify({ ...smoke, checks: smoke.checks.slice(0, 2) }),
+    JSON.stringify({ ...smoke, source_sha: 'f'.repeat(40) }),
   );
-  assert.throws(() => recordSuccess({ env }), /three current-main smoke/);
+  assert.throws(() => verifySuccess({ env }), /smoke checks/);
   fs.rmSync(directory, { recursive: true, force: true });
-});
-
-test('history append fails safely when the fetched target differs from preflight', () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'rollback-target-pin-'),
-  );
-  const targetFile = path.join(directory, 'target.json');
-  fs.writeFileSync(
-    targetFile,
-    JSON.stringify({
-      target_tag: tagName,
-      target_tag_object: tagObjectId,
-      manifest: { ...manifest },
-    }),
-  );
-  const calls = [];
-  const git = (args) => {
-    calls.push(args);
-    if (args[0] === 'fetch') return '';
-    if (args[0] === 'rev-parse') return 'f'.repeat(40);
-    throw new Error('Unexpected git operation');
-  };
-  assert.throws(
-    () => appendHistory({ env: { TARGET_FILE: targetFile }, git }),
-    /does not match the preflight/,
-  );
-  assert.equal(
-    calls.some(([operation]) => operation === 'push'),
-    false,
-  );
-  fs.rmSync(directory, { recursive: true, force: true });
-});
-
-test('history append fetches a historical target absent from a shallow checkout', () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'rollback-shallow-git-'),
-  );
-  const remote = path.join(directory, 'remote.git');
-  const seed = path.join(directory, 'seed');
-  const checkout = path.join(directory, 'checkout');
-  const target = path.join(directory, 'target.json');
-  const manifestFile = path.join(directory, 'manifest.json');
-  const summaryFile = path.join(directory, 'summary.md');
-  const git = (cwd, args) =>
-    execFileSync('git', args, {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
-  try {
-    execFileSync('git', ['init', '--bare', remote], { stdio: 'ignore' });
-    git(remote, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
-    fs.mkdirSync(seed);
-    git(seed, ['init', '-b', 'main']);
-    git(seed, ['config', 'user.name', 'Synthetic Test']);
-    git(seed, ['config', 'user.email', 'synthetic@example.test']);
-    fs.writeFileSync(path.join(seed, 'history.txt'), 'historical source\n');
-    git(seed, ['add', 'history.txt']);
-    git(seed, ['commit', '-m', 'historical source']);
-    const historicalSha = git(seed, ['rev-parse', 'HEAD']);
-    const historicalManifest = {
-      kind: 'cd',
-      schema_version: 1,
-      source_sha: historicalSha,
-      backend_image: manifest.backend_image,
-      frontend_image: manifest.frontend_image,
-      backend_service_id: manifest.backend_service_id,
-      frontend_service_id: manifest.frontend_service_id,
-      backend_deploy_id: manifest.backend_deploy_id,
-      frontend_deploy_id: manifest.frontend_deploy_id,
-      workflow_run_id: '20',
-      workflow_run_attempt: '1',
-      smoke_checks: manifest.smoke_checks,
-    };
-    const historyTag = `staging-success/cd-20-1`;
-    git(seed, [
-      'tag',
-      '-a',
-      historyTag,
-      '-m',
-      JSON.stringify(historicalManifest),
-    ]);
-    const tagObject = git(seed, ['rev-parse', `refs/tags/${historyTag}`]);
-    git(seed, ['remote', 'add', 'origin', remote]);
-    git(seed, ['push', 'origin', 'main', `refs/tags/${historyTag}`]);
-    fs.writeFileSync(path.join(seed, 'history.txt'), 'newer source\n');
-    git(seed, ['commit', '-am', 'newer source']);
-    git(seed, ['push', 'origin', 'main']);
-    execFileSync(
-      'git',
-      ['clone', '--depth', '1', `file://${remote}`, checkout],
-      {
-        stdio: ['ignore', 'pipe', 'pipe'],
-      },
-    );
-    assert.throws(() =>
-      git(checkout, ['cat-file', '-e', `${historicalSha}^{commit}`]),
-    );
-    fs.writeFileSync(
-      target,
-      JSON.stringify({
-        target_tag: historyTag,
-        target_tag_object: tagObject,
-        manifest: historicalManifest,
-      }),
-    );
-    fs.writeFileSync(
-      manifestFile,
-      JSON.stringify({ source_sha: historicalSha }),
-    );
-    const commands = [];
-    let pushStubbed = false;
-    const gitForAppend = (args) => {
-      commands.push(args);
-      if (args[0] === 'push') {
-        pushStubbed = true;
-        return '';
-      }
-      if (args[0] === 'ls-remote' && pushStubbed) {
-        const ref = args.at(-1);
-        const object = git(checkout, ['rev-parse', ref]);
-        return `${object}\t${ref}`;
-      }
-      return git(checkout, args);
-    };
-    assert.equal(
-      appendHistory({
-        env: {
-          TARGET_FILE: target,
-          MANIFEST_FILE: manifestFile,
-          GITHUB_RUN_ID: '30',
-          GITHUB_RUN_ATTEMPT: '1',
-          GITHUB_STEP_SUMMARY: summaryFile,
-          GITHUB_REPOSITORY: 'example/repo',
-        },
-        git: gitForAppend,
-      }),
-      'staging-success/rollback-30-1',
-    );
-    assert.ok(commands.some(([operation]) => operation === 'fetch'));
-    assert.equal(
-      git(checkout, ['cat-file', '-e', `${historicalSha}^{commit}`]),
-      '',
-    );
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test('Git subprocess diagnostics omit arguments, auth headers, and unbounded stderr', () => {
-  const token = 'synthetic-secret-token';
-  const auth = Buffer.from(`x-access-token:${token}`).toString('base64');
-  assert.throws(
-    () =>
-      runGit(['push', 'origin', 'refs/tags/private-tag'], {
-        env: { GITHUB_TOKEN: token },
-        execFileSync: () => {
-          const error = new Error('failed');
-          error.stderr = `AUTHORIZATION: basic ${auth}\n${'sensitive '.repeat(1000)}`;
-          throw error;
-        },
-      }),
-    (error) => {
-      assert.match(error.message, /push history tag: Git command failed/);
-      assert.doesNotMatch(
-        error.message,
-        /private-tag|synthetic-secret|AUTHORIZATION|x-access-token/,
-      );
-      assert.ok(error.message.length < 120);
-      return true;
-    },
-  );
 });
 
 test('evidence redacts URLs and secrets and records only the rollback audit fields', () => {
@@ -457,6 +259,7 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
   const deploymentFile = path.join(directory, 'deployment.json');
   const smokeFile = path.join(directory, 'smoke.json');
   const evidenceFile = path.join(directory, 'evidence.json');
+  const summaryFile = path.join(directory, 'summary.md');
   fs.writeFileSync(
     targetFile,
     JSON.stringify({
@@ -472,7 +275,10 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
       phase: 'backend_health',
       result: 'failure',
       failure_reason: 'https://secret.example/token',
-      backend_health: { http_status: 503, status: null },
+      backend_health: {
+        http_status: 503,
+        status: 'render-secret https://secret.example/token',
+      },
       retry_counts: { backend_status_get: 2 },
     }),
   );
@@ -494,11 +300,12 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
     DEPLOYMENT_FILE: deploymentFile,
     SMOKE_FILE: smokeFile,
     EVIDENCE_FILE: evidenceFile,
+    GITHUB_STEP_SUMMARY: summaryFile,
+    REPORT_STAGE: 'rollback',
     TARGET_TAG: tagName,
     ROLLBACK_REASON: `incident at https://example.com ${'x'.repeat(600)}`,
     GITHUB_ACTOR: 'tester',
     GITHUB_SHA: sha,
-    SUCCESS_TAG: 'staging-success/rollback-30-1',
     RENDER_API_KEY: 'render-secret',
     GITHUB_TOKEN: 'github-secret',
     STAGING_EVALUATION_TOKEN: 'fixture-secret',
@@ -511,7 +318,10 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
       phase: 'backend_health',
       result: 'failure',
       failure_reason: 'render-secret github-secret fixture-secret',
-      backend_health: { http_status: 503, status: null },
+      backend_health: {
+        http_status: 503,
+        status: 'render-secret https://secret.example/token',
+      },
       retry_counts: { backend_status_get: 2 },
     }),
   );
@@ -530,10 +340,10 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
   );
   const evidence = writeEvidence({ env });
   assert.equal(evidence.target_tag, tagName);
-  assert.equal(evidence.success_tag, 'staging-success/rollback-30-1');
   assert.equal(evidence.target_sha, sha);
   assert.equal(evidence.dispatch_sha, sha);
   assert.equal(evidence.backend_health.http_status, 503);
+  assert.equal(evidence.backend_health.status, '[REDACTED] [URL REDACTED]');
   assert.equal(evidence.smoke_checks[0].status, 'failed');
   assert.equal(evidence.smoke_checks[0].diagnostic, undefined);
   assert.equal(evidence.failure_reason, '[REDACTED] [REDACTED] [REDACTED]');
@@ -547,6 +357,10 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
   assert.doesNotMatch(
     stored,
     /secret\.example|render-secret|github-secret|fixture-secret|workflow_steps/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(summaryFile, 'utf8'),
+    /secret\.example|render-secret|github-secret|fixture-secret/,
   );
   fs.writeFileSync(
     deploymentFile,
@@ -573,22 +387,22 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
       DEPLOYMENT_FILE: path.join(directory, 'missing-deployment.json'),
       SMOKE_FILE: path.join(directory, 'missing-smoke.json'),
       EVIDENCE_FILE: path.join(directory, 'fallback-evidence.json'),
-      SUCCESS_TAG: 'unexpected-tag',
     },
   });
   assert.equal(
     fallback.failure_reason,
     'Rollback workflow failed; inspect the Actions run for step details.',
   );
-  assert.equal(fallback.success_tag, null);
   const coordinationFailure = writeEvidence({
     env: {
       EVIDENCE_FILE: path.join(directory, 'coordination-evidence.json'),
       FINAL_OUTCOME: 'failure',
+      REPORT_STAGE: 'preflight',
       COORDINATION_FAILURE_CATEGORY: 'frontend_name_mismatch',
     },
   });
   assert.equal(coordinationFailure.phase, 'coordination');
+  assert.equal(coordinationFailure.report_stage, 'preflight');
   assert.equal(
     coordinationFailure.failure_reason,
     'Coordination check failed: frontend_name_mismatch.',

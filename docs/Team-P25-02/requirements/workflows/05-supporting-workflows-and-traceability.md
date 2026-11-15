@@ -34,6 +34,8 @@ Modernization workflows are separated from PEERS functional workflows because th
 | MW-05 | Post-Deployment Validation | CI/CD Pipeline | After staging deployment, health checks and selected smoke validation confirm application availability, database connectivity, and selected critical workflow usability. | FR-22 |
 | MW-06 | Pipeline and Deployment Evidence | CI/CD Pipeline / Maintainer | Logs or reports retain evidence of build, test, dependency/security, and deployment results for review and demonstration. | FR-23 |
 
+For manual staging recovery under [issue #169](https://github.com/PEERS-P25-02/ProjectPeerEvaluation-P25-02/issues/169), a maintainer selects an existing verified `staging-success/cd-*` tag. The rollback run succeeds only after the recorded backend and frontend digests are live on new Render deployments, backend health passes, and all three staging smoke checks pass. Its Actions summary and redacted artifact report the target, restored images, verification results, and failure phase when applicable. Recovery creates no new Git tag or GitHub Release; CD continues to record verified deployments in its existing success tags.
+
 <br>
 
 <a id="07-excluded-and-unsupported-workflows"></a>

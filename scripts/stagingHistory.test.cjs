@@ -7,7 +7,6 @@ const { execFileSync } = require('node:child_process');
 const { REQUIRED_SMOKE_CHECKS } = require('../tests/staging/safe-evidence.cjs');
 const {
   buildManifest,
-  buildRollbackManifest,
   imageRef,
   parseAnnotatedTag,
   validateManifest,
@@ -52,59 +51,6 @@ test('validates and round-trips a complete versioned manifest', () => {
   assert.equal(validateManifest(value), value);
   const tag = `object ${sha}\ntype commit\ntag staging-success/cd-123-2\n\n${JSON.stringify(value)}\n`;
   assert.deepEqual(parseAnnotatedTag(tag), value);
-});
-
-test('builds and parses rollback manifests targeting either history kind', () => {
-  const cdTarget = buildManifest(deployment(), smoke(), identity);
-  const rollbackDeployment = {
-    ...deployment(),
-    backend_deploy_id: 'dep-backendnew',
-    frontend_deploy_id: 'dep-frontendnew',
-  };
-  const rollbackIdentity = { ...identity, runId: '456', runAttempt: '1' };
-  for (const [targetManifest, targetTag] of [
-    [cdTarget, 'staging-success/cd-123-2'],
-    [
-      buildRollbackManifest(
-        rollbackDeployment,
-        smoke(),
-        rollbackIdentity,
-        cdTarget,
-        'staging-success/cd-123-2',
-      ),
-      'staging-success/rollback-456-1',
-    ],
-  ]) {
-    const value = buildRollbackManifest(
-      rollbackDeployment,
-      smoke(),
-      rollbackIdentity,
-      targetManifest,
-      targetTag,
-    );
-    assert.equal(value.kind, 'rollback');
-    assert.equal(value.target_tag, targetTag);
-    assert.equal(
-      value.target_backend_deploy_id,
-      targetManifest.backend_deploy_id,
-    );
-    assert.equal(
-      value.target_frontend_deploy_id,
-      targetManifest.frontend_deploy_id,
-    );
-    assert.equal(validateManifest(value), value);
-    const tag = `object ${sha}\ntype commit\ntag staging-success/rollback-456-1\n\n${JSON.stringify(value)}\n`;
-    assert.deepEqual(parseAnnotatedTag(tag), value);
-  }
-  const wrongName = buildRollbackManifest(
-    rollbackDeployment,
-    smoke(),
-    rollbackIdentity,
-    cdTarget,
-    'staging-success/cd-123-2',
-  );
-  wrongName.target_tag = 'bad-tag';
-  assert.throws(() => validateManifest(wrongName));
 });
 
 test('rejects mismatched SHA, digest, IDs, deployment and smoke evidence', () => {

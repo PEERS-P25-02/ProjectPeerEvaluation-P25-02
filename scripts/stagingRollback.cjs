@@ -1,19 +1,16 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { runDeployment } = require('./deployStaging.cjs');
-const {
-  parseAnnotatedTag,
-  buildRollbackManifest,
-} = require('./stagingHistory.cjs');
+const { parseAnnotatedTag } = require('./stagingHistory.cjs');
 const {
   allRequiredSmokeChecksPassed,
 } = require('../tests/staging/safe-evidence.cjs');
 
-const TAG_PATTERN = /^staging-success\/(?:cd|rollback)-[0-9]+-[0-9]+$/;
+const TAG_PATTERN = /^staging-success\/cd-[0-9]+-[0-9]+$/;
 const REASON_MAX = 500;
 const runGit = (args, options = {}) => {
   const token = options.env?.GITHUB_TOKEN || process.env.GITHUB_TOKEN;
-  const remote = ['fetch', 'ls-remote', 'push'].includes(args[0]);
+  const remote = ['fetch', 'ls-remote'].includes(args[0]);
   const auth = token
     ? `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`
     : null;
@@ -32,11 +29,8 @@ const runGit = (args, options = {}) => {
       {
         fetch: 'fetch target',
         'ls-remote': 'check remote tag',
-        push: 'push history tag',
-        tag: 'create history tag',
         'rev-parse': 'resolve commit',
         'cat-file': 'inspect target',
-        config: 'configure tag identity',
       }[args[0]] || 'run Git operation';
     const stderr = String(error.stderr || '').toLowerCase();
     const category = /authentication|403|401|permission denied/.test(stderr)
@@ -53,7 +47,7 @@ const runGit = (args, options = {}) => {
 /** Validate the manual dispatch before any remote lookup or deployment work. */
 function validateDispatch(input) {
   if (!TAG_PATTERN.test(input.targetTag || ''))
-    throw new Error('Select one exact staging-success CD or rollback tag.');
+    throw new Error('Select one exact staging-success CD tag.');
   if (
     typeof input.reason !== 'string' ||
     input.reason.trim().length < 1 ||
@@ -90,6 +84,8 @@ function readTarget(input, options = {}) {
   if (!/^[0-9a-f]{40}$/.test(targetObjectId))
     throw new Error('Target tag object ID is invalid.');
   const manifest = parseAnnotatedTag(git(['cat-file', 'tag', targetObjectId]));
+  if (manifest.kind !== 'cd')
+    throw new Error('Only CD success tags may be rollback targets.');
   const manifestTag = `staging-success/${manifest.kind}-${manifest.workflow_run_id}-${manifest.workflow_run_attempt}`;
   if (input.targetTag !== manifestTag)
     throw new Error('Selected target tag name does not match its manifest.');
@@ -219,8 +215,8 @@ async function deploy(options = {}) {
   }
 }
 
-/** Build success history only from verified deployment and smoke evidence. */
-function recordSuccess(options = {}) {
+/** Require deployment and smoke evidence to match the selected target. */
+function verifySuccess(options = {}) {
   const env = options.env || process.env;
   const target = JSON.parse(
     fs.readFileSync(env.TARGET_FILE || 'staging-rollback-target.json', 'utf8'),
@@ -231,105 +227,38 @@ function recordSuccess(options = {}) {
   const smoke = JSON.parse(
     fs.readFileSync(env.SMOKE_FILE || 'staging-smoke-result.json', 'utf8'),
   );
-  // Smoke code comes from dispatched main; every required check must pass.
+  // Bind deployment and smoke evidence to the selected immutable CD target.
   if (
+    deployment.result !== 'success' ||
+    deployment.source_sha !== target.manifest.source_sha ||
+    deployment.backend_image !== target.manifest.backend_image ||
+    deployment.frontend_image !== target.manifest.frontend_image ||
+    deployment.backend_service_id !== target.manifest.backend_service_id ||
+    deployment.frontend_service_id !== target.manifest.frontend_service_id ||
+    !/^dep-[a-z0-9]+$/.test(deployment.backend_deploy_id || '') ||
+    !/^dep-[a-z0-9]+$/.test(deployment.frontend_deploy_id || '') ||
+    deployment.backend_deploy_id === target.manifest.backend_deploy_id ||
+    deployment.frontend_deploy_id === target.manifest.frontend_deploy_id ||
+    deployment.backend_status !== 'live' ||
+    deployment.frontend_status !== 'live' ||
+    deployment.backend_health?.http_status !== 200 ||
+    deployment.backend_health?.status !== 'OK'
+  )
+    throw new Error(
+      'Deployment evidence does not verify the selected live image pair and backend health.',
+    );
+  if (
+    smoke.source_sha !== target.manifest.source_sha ||
+    smoke.backend_image !== target.manifest.backend_image ||
+    smoke.frontend_image !== target.manifest.frontend_image ||
     smoke.validation_result !== 'success' ||
     smoke.smoke_outcome !== 'success' ||
     !allRequiredSmokeChecksPassed(smoke.checks)
   )
     throw new Error(
-      'All three current-main smoke checks must pass before recording rollback success.',
+      'All three smoke checks must pass for the selected source and image pair.',
     );
-  const manifest = buildRollbackManifest(
-    deployment,
-    smoke,
-    {
-      sourceSha: deployment.source_sha,
-      frontendImage: deployment.frontend_image,
-      backendImage: deployment.backend_image,
-      runId: env.GITHUB_RUN_ID,
-      runAttempt: env.GITHUB_RUN_ATTEMPT,
-      backendServiceId: env.BACKEND_SERVICE_ID,
-      frontendServiceId: env.FRONTEND_SERVICE_ID,
-    },
-    target.manifest,
-    target.target_tag,
-  );
-  const file = env.MANIFEST_FILE || 'staging-rollback-success.json';
-  fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`);
-  return manifest;
-}
-
-/** Publish a new rollback tag only after verifying the target tag stayed unchanged. */
-function appendHistory(options = {}) {
-  const env = options.env || process.env;
-  const target = JSON.parse(
-    fs.readFileSync(env.TARGET_FILE || 'staging-rollback-target.json', 'utf8'),
-  );
-  const git = options.git || runGit;
-  // Fetch the exact annotated target because checkout actions may leave a shallow
-  // local clone without historical commits. Bind both tag object and peeled commit.
-  git([
-    'fetch',
-    '--no-tags',
-    'origin',
-    `+refs/tags/${target.target_tag}:refs/tags/${target.target_tag}`,
-  ]);
-  const localTargetObject = git([
-    'rev-parse',
-    `refs/tags/${target.target_tag}^{tag}`,
-  ]);
-  const localTargetCommit = git(['rev-parse', `${target.target_tag}^{commit}`]);
-  if (
-    localTargetObject !== target.target_tag_object ||
-    localTargetCommit !== target.manifest.source_sha
-  )
-    throw new Error(
-      'Fetched target tag does not match the preflight object and commit.',
-    );
-  const currentObject = git([
-    'ls-remote',
-    '--refs',
-    'origin',
-    `refs/tags/${target.target_tag}`,
-  ]).split(/\s+/)[0];
-  // Recheck the chosen object before publishing a separate immutable rollback record.
-  if (currentObject !== target.target_tag_object)
-    throw new Error('Selected target tag changed after preflight.');
-  const tag = `staging-success/rollback-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`;
-  if (git(['ls-remote', '--refs', 'origin', `refs/tags/${tag}`]))
-    throw new Error('Rollback success tag already exists remotely.');
-  const manifestFile = env.MANIFEST_FILE || 'staging-rollback-success.json';
-  git(['config', 'user.name', 'github-actions[bot]']);
-  git([
-    'config',
-    'user.email',
-    '41898282+github-actions[bot]@users.noreply.github.com',
-  ]);
-  git([
-    'tag',
-    '-a',
-    tag,
-    JSON.parse(fs.readFileSync(manifestFile, 'utf8')).source_sha,
-    '-F',
-    manifestFile,
-  ]);
-  git(['push', 'origin', `refs/tags/${tag}`]);
-  const remoteObject = git([
-    'ls-remote',
-    '--refs',
-    'origin',
-    `refs/tags/${tag}`,
-  ]).split(/\s+/)[0];
-  const localObject = git(['rev-parse', `refs/tags/${tag}`]);
-  if (!remoteObject || remoteObject !== localObject)
-    throw new Error('Remote rollback success tag could not be verified.');
-  fs.appendFileSync(
-    env.GITHUB_STEP_SUMMARY || '/dev/null',
-    `### Verified staging rollback success\n\n**${tag}**\n\n[View annotated tag](https://github.com/${env.GITHUB_REPOSITORY}/tree/${tag})\n`,
-  );
-  if (env.GITHUB_OUTPUT) writeOutput(env.GITHUB_OUTPUT, { success_tag: tag });
-  return tag;
+  return { deployment, smoke, target };
 }
 
 /** Write a bounded, redacted outcome even when an earlier phase failed. */
@@ -357,26 +286,27 @@ function writeEvidence(options = {}) {
   )
     ? env.COORDINATION_FAILURE_CATEGORY
     : null;
+  const verificationFailed =
+    deployment?.result === 'success' &&
+    finalOutcome === 'failure' &&
+    !smokeFailed;
   const phase = coordinationFailure
     ? 'coordination'
     : deployment?.result === 'failure'
       ? deployment.phase || 'rollback'
       : smokeFailed
         ? 'smoke'
-        : finalOutcome === 'failure' && deployment?.result === 'success'
-          ? 'history'
+        : verificationFailed
+          ? 'verification'
           : deployment?.phase || safe(env.PHASE) || 'preflight';
   // Evidence deliberately copies selected fields and sanitizes free-form text.
   const evidence = {
     target_tag: target?.target_tag || safe(env.TARGET_TAG),
-    success_tag: /^staging-success\/rollback-[0-9]+-[0-9]+$/.test(
-      env.SUCCESS_TAG || '',
-    )
-      ? env.SUCCESS_TAG
-      : null,
     target_sha: target?.manifest?.source_sha || null,
     target_backend_image: target?.manifest?.backend_image || null,
     target_frontend_image: target?.manifest?.frontend_image || null,
+    backend_image: deployment?.backend_image || null,
+    frontend_image: deployment?.frontend_image || null,
     target_backend_deploy_id: target?.manifest?.backend_deploy_id || null,
     target_frontend_deploy_id: target?.manifest?.frontend_deploy_id || null,
     actor: safe(env.GITHUB_ACTOR).slice(0, 100),
@@ -386,10 +316,20 @@ function writeEvidence(options = {}) {
       : null,
     backend_deploy_id: deployment?.backend_deploy_id || null,
     frontend_deploy_id: deployment?.frontend_deploy_id || null,
-    backend_status: deployment?.backend_status || null,
-    frontend_status: deployment?.frontend_status || null,
-    backend_health: deployment?.backend_health || null,
+    backend_status: safe(deployment?.backend_status).slice(0, 80) || null,
+    frontend_status: safe(deployment?.frontend_status).slice(0, 80) || null,
+    backend_health: deployment?.backend_health
+      ? {
+          http_status: Number.isInteger(deployment.backend_health.http_status)
+            ? deployment.backend_health.http_status
+            : null,
+          status: safe(deployment.backend_health.status).slice(0, 80) || null,
+        }
+      : null,
     phase,
+    report_stage: ['preflight', 'rollback'].includes(env.REPORT_STAGE)
+      ? env.REPORT_STAGE
+      : 'rollback',
     retry_counts: deployment?.retry_counts || {},
     deployment_result: deployment?.result || 'not_started',
     failure_reason:
@@ -423,7 +363,7 @@ function writeEvidence(options = {}) {
   );
   fs.appendFileSync(
     env.GITHUB_STEP_SUMMARY || '/dev/null',
-    `### Staging rollback ${evidence.final_outcome}\n- Target tag: \`${evidence.target_tag}\`\n- Target SHA: \`${evidence.target_sha || 'not validated'}\`\n- Phase: \`${evidence.phase}\`\n- Reason: ${evidence.reason}\n- Failure: ${evidence.failure_reason || 'none'}\n`,
+    `### Staging ${evidence.report_stage} ${evidence.final_outcome}\n- Phase: \`${evidence.phase}\`\n- Target tag: \`${evidence.target_tag || 'not validated'}\`\n- Target SHA: \`${evidence.target_sha || 'not validated'}\`\n- Backend target digest: \`${evidence.target_backend_image || 'not validated'}\`\n- Frontend target digest: \`${evidence.target_frontend_image || 'not validated'}\`\n- Backend observed digest: \`${evidence.backend_image || 'not observed'}\`\n- Frontend observed digest: \`${evidence.frontend_image || 'not observed'}\`\n- Backend deploy: \`${evidence.backend_deploy_id || 'not started'}\` (${evidence.backend_status || 'unknown'})\n- Frontend deploy: \`${evidence.frontend_deploy_id || 'not started'}\` (${evidence.frontend_status || 'unknown'})\n- Backend health: \`${evidence.backend_health?.http_status ?? 'unknown'} ${evidence.backend_health?.status || ''}\`\n- Smoke: \`${evidence.smoke_outcome}\` (${evidence.smoke_checks.map(({ name, status }) => `${name}: ${status}`).join(', ') || 'no checks'})\n- Reason: ${evidence.reason}\n- Failure: ${evidence.failure_reason || 'none'}\n`,
   );
   return evidence;
 }
@@ -434,15 +374,15 @@ async function main() {
     if (mode === 'preflight') await preflight();
     else if (mode === 'mutation-check') mutationCheck();
     else if (mode === 'deploy') await deploy();
-    else if (mode === 'manifest') recordSuccess();
-    else if (mode === 'record') appendHistory();
+    else if (mode === 'verify') verifySuccess();
     else if (mode === 'evidence') writeEvidence();
     else throw new Error('Unknown staging rollback command.');
   } catch (error) {
     const message = safeReason(error.message).slice(0, 320);
+    const label = mode === 'preflight' ? 'Preflight failed' : 'Rollback failed';
     fs.appendFileSync(
       process.env.GITHUB_STEP_SUMMARY || '/dev/null',
-      `Rollback failed: ${message}\n`,
+      `${label}: ${message}\n`,
     );
     console.error(`::error::${message}`);
     process.exitCode = 1;
@@ -451,13 +391,12 @@ async function main() {
 
 if (require.main === module) main();
 module.exports = {
-  appendHistory,
   deploy,
   mutationCheck,
   preflight,
   readTarget,
   runGit,
-  recordSuccess,
+  verifySuccess,
   safeReason,
   validateDispatch,
   writeEvidence,
