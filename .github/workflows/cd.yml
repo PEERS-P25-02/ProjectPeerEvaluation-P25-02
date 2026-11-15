@@ -16,6 +16,7 @@ concurrency:
   # Keep publication runs serialized, including reruns.
   group: cd-staging-images
   cancel-in-progress: false
+  queue: max
 jobs:
   publish-staging-images:
     name: Publish Staging Images
@@ -119,6 +120,9 @@ jobs:
     timeout-minutes: 35
     permissions:
       contents: read
+      actions: read
+    outputs:
+      skip: ${{ steps.coordination.outputs.skip }}
     env:
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
       BACKEND_IMAGE: ${{ needs.publish-staging-images.outputs.backend_image }}
@@ -133,7 +137,13 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
+      - name: Skip a CD run that overlapped rollback
+        id: coordination
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/stagingCoordination.cjs cd-guard
       - name: Require the staging smoke fixture token before deployment
+        if: ${{ steps.coordination.outputs.skip != 'true' }}
         env:
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
         run: |
@@ -143,9 +153,10 @@ jobs:
           fi
       - name: Deploy and verify staging services
         id: deploy
+        if: ${{ steps.coordination.outputs.skip != 'true' }}
         run: node scripts/deployStaging.cjs
       - name: Upload deployment result
-        if: ${{ always() }}
+        if: ${{ always() && steps.coordination.outcome == 'success' && steps.coordination.outputs.skip != 'true' }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: staging-deployment-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -154,7 +165,7 @@ jobs:
   validate-staging-smoke:
     name: Staging Smoke Tests
     needs: [publish-staging-images, deploy-staging]
-    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' }}
+    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.deploy-staging.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -202,7 +213,7 @@ jobs:
   record-staging-success:
     name: Record Verified Staging Success
     needs: [publish-staging-images, deploy-staging, validate-staging-smoke]
-    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
+    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.deploy-staging.outputs.skip != 'true' && needs.validate-staging-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -250,3 +261,19 @@ jobs:
           test -n "$history_object"
           test "$history_object" = "$(git rev-parse "refs/tags/$HISTORY_TAG")"
           printf '### Verified staging success history\n\n**%s**\n\n[View annotated tag](https://github.com/%s/tree/%s)\n' "$HISTORY_TAG" "$GITHUB_REPOSITORY" "$HISTORY_TAG" >> "$GITHUB_STEP_SUMMARY"
+  recovery-guidance:
+    name: Staging Recovery Guidance
+    needs: [publish-staging-images, deploy-staging, validate-staging-smoke, record-staging-success]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Link manual staging rollback
+        env:
+          PUBLISH_RESULT: ${{ needs.publish-staging-images.result }}
+          DEPLOY_RESULT: ${{ needs.deploy-staging.result }}
+          SMOKE_RESULT: ${{ needs.validate-staging-smoke.result }}
+          HISTORY_RESULT: ${{ needs.record-staging-success.result }}
+        run: |
+          printf '### Staging CD failed\n\nJob outcomes: publication `%s`, deployment `%s`, smoke `%s`, history `%s`. Inspect the failed job and its bounded evidence before recovery. If both services need restoration, use [Manual Staging Rollback](https://github.com/%s/actions/workflows/staging-rollback.yml) with a verified success tag.\n' "$PUBLISH_RESULT" "$DEPLOY_RESULT" "$SMOKE_RESULT" "$HISTORY_RESULT" "$GITHUB_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"

@@ -49,6 +49,7 @@ async function runDeployment(input, options = {}) {
     backend_status: null,
     frontend_status: null,
     backend_health: null,
+    retry_counts: {},
     result: 'pending',
     phase: 'validation',
     failure_reason: null,
@@ -83,6 +84,39 @@ async function runDeployment(input, options = {}) {
           .split(/\s+/)[0];
         return tip === input.sourceSha;
       });
+    if (options.checkEligibility) {
+      record.phase = 'rollback_eligibility_check';
+      persist();
+      if (!(await options.checkEligibility()))
+        throw new Error('Rollback eligibility check failed before deployment.');
+    }
+    const retryLimit = options.retryTransient === true ? 2 : 0;
+    const retryBackoffMs = options.retryBackoffMs || [250, 1000];
+    const isTransientReadStatus = (status) => status === 429 || status >= 500;
+    const requestWithRetry = async (operation, url, init = {}) => {
+      const method = init.method || 'GET';
+      let retryCount = 0;
+      while (true) {
+        try {
+          const result = await request(url, init);
+          // A 429 explicitly rejects the deploy request. A 5xx response can
+          // follow an accepted deploy, so POST retries must stop there.
+          const retryable =
+            method === 'GET'
+              ? isTransientReadStatus(result.response.status)
+              : result.response.status === 429;
+          if (!retryable || retryCount >= retryLimit) return result;
+        } catch (error) {
+          if (method !== 'GET' || retryCount >= retryLimit) throw error;
+        }
+        retryCount += 1;
+        record.retry_counts[operation] = retryCount;
+        persist();
+        await wait(
+          retryBackoffMs[Math.min(retryCount - 1, retryBackoffMs.length - 1)],
+        );
+      }
+    };
     const request = async (url, init = {}) => {
       const response = await fetcher(url, {
         ...init,
@@ -101,13 +135,16 @@ async function runDeployment(input, options = {}) {
       return { response, body };
     };
     const deployService = async (kind, serviceId, image) => {
-      record.phase = `${kind}_main_check`;
-      persist();
-      if (!(await checkMain()))
-        throw new Error(`Current main tip changed before ${kind} deploy.`);
+      if (!options.checkEligibility) {
+        record.phase = `${kind}_main_check`;
+        persist();
+        if (!(await checkMain()))
+          throw new Error(`Current main tip changed before ${kind} deploy.`);
+      }
       record.phase = `${kind}_request`;
       persist();
-      const { response, body } = await request(
+      const { response, body } = await requestWithRetry(
+        `${kind}_deploy_post`,
         `${API_BASE}/services/${serviceId}/deploys`,
         {
           method: 'POST',
@@ -134,7 +171,8 @@ async function runDeployment(input, options = {}) {
       persist();
       const deadline = clock() + timeout;
       while (clock() <= deadline) {
-        const result = await request(
+        const result = await requestWithRetry(
+          `${kind}_status_get`,
           `${API_BASE}/services/${serviceId}/deploys/${body.id}`,
         );
         if (

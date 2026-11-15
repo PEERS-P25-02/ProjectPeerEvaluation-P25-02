@@ -59,7 +59,12 @@ fs.writeFileSync(
   'staging-smoke-result.json',
   `${JSON.stringify(result, null, 2)}\n`,
 );
-const summary = `### Staging smoke validation ${result.validation_result}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n- All three required checks passed: \`${requiredChecksPassed}\`\n`;
+const recoveryLink =
+  !validationPassed &&
+  /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.GITHUB_REPOSITORY || '')
+    ? `- Recovery: [Manual Staging Rollback](https://github.com/${process.env.GITHUB_REPOSITORY}/actions/workflows/staging-rollback.yml) with a verified success tag after inspecting this failure.\n`
+    : '';
+const summary = `### Staging smoke validation ${result.validation_result}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n- All three required checks passed: \`${requiredChecksPassed}\`\n${recoveryLink}`;
 fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/dev/null', summary);
 if (!validationPassed) {
   console.error(

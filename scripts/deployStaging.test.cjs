@@ -92,7 +92,54 @@ async function rejectsWith(inputValue, setup, message) {
   }
   {
     const h = harness({ responses: [response(202, {})] });
+    h.options.retryTransient = true;
     await rejectsWith(input, h, /HTTP 202; inspect Render/);
+    assert.equal(h.events.length, 1);
+  }
+  {
+    const h = harness({
+      responses: [
+        response(429, {}),
+        response(201, { id: 'dep-backend1' }),
+        response(503, {}),
+        response(200, { status: 'live', image: { ref: input.backendImage } }),
+        response(201, { id: 'dep-frontend1' }),
+        response(200, { status: 'live', image: { ref: input.frontendImage } }),
+      ],
+    });
+    h.options.retryTransient = true;
+    h.options.retryBackoffMs = [0, 0];
+    h.options.checkMain = () => false;
+    h.options.checkEligibility = async () => true;
+    const record = await runDeployment(input, h.options);
+    assert.equal(record.result, 'success');
+    assert.deepEqual(record.retry_counts, {
+      backend_deploy_post: 1,
+      backend_status_get: 1,
+    });
+    assert.equal(
+      h.events.filter((event) => event.init.method === 'POST').length,
+      3,
+    );
+    assert.ok(
+      h.records.some((saved) => saved.phase === 'rollback_eligibility_check'),
+    );
+    assert.ok(h.records.some((saved) => saved.phase === 'backend_request'));
+    assert.ok(h.records.some((saved) => saved.phase === 'frontend_request'));
+    assert.ok(!h.records.some((saved) => saved.phase.endsWith('_main_check')));
+  }
+  {
+    const h = harness({ responses: [response(503, {})] });
+    h.options.retryTransient = true;
+    h.options.retryBackoffMs = [0, 0];
+    await rejectsWith(input, h, /HTTP 503/);
+    assert.equal(h.events.length, 1);
+  }
+  {
+    const h = harness();
+    h.options.checkEligibility = async () => false;
+    await rejectsWith(input, h, /eligibility check failed/);
+    assert.equal(h.events.length, 0);
   }
   {
     const h = harness({ responses: [response(401, { secret: input.apiKey })] });

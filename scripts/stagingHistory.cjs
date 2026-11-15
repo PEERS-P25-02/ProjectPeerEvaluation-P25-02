@@ -28,7 +28,7 @@ function validId(value, prefix) {
   );
 }
 
-function buildManifest(deployment, smoke, identity) {
+function buildManifestForKind(deployment, smoke, identity, kind, extra = {}) {
   const sha = deployment?.source_sha;
   if (
     !/^[0-9a-f]{40}$/.test(sha || '') ||
@@ -77,7 +77,7 @@ function buildManifest(deployment, smoke, identity) {
   )
     fail('Invalid CD run identity.');
   return {
-    kind: 'cd',
+    kind,
     schema_version: 1,
     source_sha: sha,
     backend_image: deployment.backend_image,
@@ -92,7 +92,38 @@ function buildManifest(deployment, smoke, identity) {
       name,
       result: 'passed',
     })),
+    ...extra,
   };
+}
+
+function buildManifest(deployment, smoke, identity) {
+  return buildManifestForKind(deployment, smoke, identity, 'cd');
+}
+
+function buildRollbackManifest(
+  deployment,
+  smoke,
+  identity,
+  targetManifest,
+  targetTag,
+) {
+  validateManifest(targetManifest);
+  const expectedTag = `staging-success/${targetManifest.kind}-${targetManifest.workflow_run_id}-${targetManifest.workflow_run_attempt}`;
+  if (targetTag !== expectedTag)
+    fail('Target tag name does not match its manifest.');
+  if (
+    targetManifest.source_sha !== deployment?.source_sha ||
+    targetManifest.backend_image !== deployment?.backend_image ||
+    targetManifest.frontend_image !== deployment?.frontend_image ||
+    targetManifest.backend_service_id !== deployment?.backend_service_id ||
+    targetManifest.frontend_service_id !== deployment?.frontend_service_id
+  )
+    fail('Target manifest does not match the restored source and images.');
+  return buildManifestForKind(deployment, smoke, identity, 'rollback', {
+    target_tag: targetTag,
+    target_backend_deploy_id: targetManifest.backend_deploy_id,
+    target_frontend_deploy_id: targetManifest.frontend_deploy_id,
+  });
 }
 
 function validateManifest(value) {
@@ -116,9 +147,16 @@ function validateManifest(value) {
     'workflow_run_attempt',
     'smoke_checks',
   ];
+  if (value.kind === 'rollback')
+    expectedKeys.push(
+      'target_tag',
+      'target_backend_deploy_id',
+      'target_frontend_deploy_id',
+    );
   if (Object.keys(value).sort().join(',') !== expectedKeys.sort().join(','))
     fail('Invalid success manifest.');
-  if (value.kind !== 'cd') fail('Invalid success manifest.');
+  if (!['cd', 'rollback'].includes(value.kind))
+    fail('Invalid success manifest.');
   for (const kind of ['backend', 'frontend']) {
     if (
       !imageRef(value[`${kind}_image`], kind) ||
@@ -129,6 +167,17 @@ function validateManifest(value) {
   }
   if (value.backend_service_id === value.frontend_service_id)
     fail('Invalid success manifest.');
+  if (value.kind === 'rollback') {
+    const targetTagPattern =
+      /^staging-success\/(cd|rollback)-([0-9]+)-([0-9]+)$/;
+    const target = targetTagPattern.exec(value.target_tag || '');
+    if (
+      !target ||
+      !validId(value.target_backend_deploy_id, 'dep') ||
+      !validId(value.target_frontend_deploy_id, 'dep')
+    )
+      fail('Invalid success manifest.');
+  }
   if (
     !/^[0-9]+$/.test(value.workflow_run_id || '') ||
     !/^[0-9]+$/.test(value.workflow_run_attempt || '')
@@ -166,6 +215,13 @@ function parseAnnotatedTag(tagObject) {
   const manifest = validateManifest(
     JSON.parse(tagObject.slice(separator + 2).trim()),
   );
+  const embeddedTag = tagObject
+    .split('\n')
+    .find((line) => line.startsWith('tag '))
+    ?.slice('tag '.length);
+  const expectedTag = `staging-success/${manifest.kind}-${manifest.workflow_run_id}-${manifest.workflow_run_attempt}`;
+  if (embeddedTag !== expectedTag)
+    fail('Tag name does not match its manifest.');
   if (tagObject.split('\n', 1)[0] !== `object ${manifest.source_sha}`)
     fail('Tag commit does not match its manifest.');
   return manifest;
@@ -198,6 +254,7 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
+  buildRollbackManifest,
   buildManifest,
   imageRef,
   parseAnnotatedTag,
