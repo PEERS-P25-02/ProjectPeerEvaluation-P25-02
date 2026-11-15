@@ -61,6 +61,19 @@ test('CD and rollback share one mutation group without a CD skip', () => {
     rollback.indexOf('node scripts/stagingCoordination.cjs mutation-check') <
       rollback.indexOf('node scripts/stagingRollback.cjs deploy'),
   );
+  for (const key of [
+    'STAGING_BACKEND_NAME',
+    'STAGING_FRONTEND_NAME',
+    'STAGING_BACKEND_URL',
+    'STAGING_FRONTEND_URL',
+  ]) {
+    assert.match(cd, new RegExp(`vars\\.${key} \\|\\|`));
+    assert.match(rollback, new RegExp(`vars\\.${key} \\|\\|`));
+  }
+  assert.match(
+    rollback,
+    /COORDINATION_FAILURE_CATEGORY:.*mutation_check\.outputs/,
+  );
 });
 
 function gitStub(currentObjectId = tagObjectId) {
@@ -382,5 +395,21 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
     'Rollback workflow failed; inspect the Actions run for step details.',
   );
   assert.equal(fallback.success_tag, null);
+  const coordinationFailure = writeEvidence({
+    env: {
+      EVIDENCE_FILE: path.join(directory, 'coordination-evidence.json'),
+      FINAL_OUTCOME: 'failure',
+      COORDINATION_FAILURE_CATEGORY: 'frontend_name_mismatch',
+    },
+  });
+  assert.equal(coordinationFailure.phase, 'coordination');
+  assert.equal(
+    coordinationFailure.failure_reason,
+    'Coordination check failed: frontend_name_mismatch.',
+  );
+  assert.equal(coordinationFailure.deployment_result, 'not_started');
+  assert.equal(coordinationFailure.backend_deploy_id, null);
+  assert.equal(coordinationFailure.frontend_deploy_id, null);
+  assert.equal(coordinationFailure.smoke_outcome, 'not_started');
   fs.rmSync(directory, { recursive: true, force: true });
 });

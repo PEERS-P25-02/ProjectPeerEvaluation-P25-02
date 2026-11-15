@@ -6,9 +6,9 @@ const BACKEND_REPOSITORY =
 const FRONTEND_REPOSITORY =
   'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend';
 const API_BASE = 'https://api.render.com/v1';
-const HEALTH_URL = 'https://peers-staging-backend.onrender.com/api/health';
+const { readStagingServiceConfig } = require('../tests/staging/config.cjs');
 
-function validateInput(input) {
+function validateInput(input, env = input.env || process.env) {
   if (!/^[0-9a-f]{40}$/.test(input.sourceSha || ''))
     throw new Error('Invalid source SHA.');
   for (const [name, ref, repository] of [
@@ -31,6 +31,7 @@ function validateInput(input) {
     if (!/^srv-[a-z0-9]+$/.test(id || ''))
       throw new Error(`Invalid ${name} service ID.`);
   }
+  readStagingServiceConfig(env);
   if (!input.apiKey) throw new Error('RENDER_API_KEY is missing.');
 }
 
@@ -66,13 +67,17 @@ async function runDeployment(input, options = {}) {
   const timeout = options.timeout || 600000;
   const pollInterval = options.pollInterval || 10000;
   const requestTimeout = options.requestTimeout || 30000;
+  let serviceConfig;
   const safeMessage = (message) =>
     input.apiKey
       ? String(message).replaceAll(input.apiKey, '[REDACTED]')
       : String(message);
 
   try {
-    validateInput(input);
+    serviceConfig = readStagingServiceConfig(
+      options.env || input.env || process.env,
+    );
+    validateInput(input, options.env || input.env || process.env);
     const eligibility = options.eligibility || 'current-main';
     if (!['current-main', 'verified-history'].includes(eligibility))
       throw new Error('Unknown staging deployment eligibility policy.');
@@ -222,9 +227,12 @@ async function runDeployment(input, options = {}) {
     let healthy = false;
     while (clock() <= healthDeadline) {
       try {
-        const response = await fetcher(options.healthUrl || HEALTH_URL, {
-          signal: AbortSignal.timeout(requestTimeout),
-        });
+        const response = await fetcher(
+          options.healthUrl || `${serviceConfig.backendUrl}/api/health`,
+          {
+            signal: AbortSignal.timeout(requestTimeout),
+          },
+        );
         let body;
         try {
           body = await response.json();
@@ -283,6 +291,7 @@ async function main() {
     backendServiceId: process.env.BACKEND_SERVICE_ID,
     frontendServiceId: process.env.FRONTEND_SERVICE_ID,
     apiKey: process.env.RENDER_API_KEY,
+    env: process.env,
   };
   const save = (record) => {
     latest = { ...record };
