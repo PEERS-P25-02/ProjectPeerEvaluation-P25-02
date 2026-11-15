@@ -13,9 +13,11 @@ env:
   CI_RUN_ID: ${{ github.event.workflow_run.id }}
   CI_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
 concurrency:
-  # Keep publication runs serialized, including reruns.
+  # The whole CD run shares this group with manual rollback's mutation job.
+  # A CD queued during rollback can deploy after it and replace that recovery.
   group: cd-staging-images
   cancel-in-progress: false
+  queue: max
 jobs:
   publish-staging-images:
     name: Publish Staging Images
@@ -250,3 +252,20 @@ jobs:
           test -n "$history_object"
           test "$history_object" = "$(git rev-parse "refs/tags/$HISTORY_TAG")"
           printf '### Verified staging success history\n\n**%s**\n\n[View annotated tag](https://github.com/%s/tree/%s)\n' "$HISTORY_TAG" "$GITHUB_REPOSITORY" "$HISTORY_TAG" >> "$GITHUB_STEP_SUMMARY"
+  # Keep failures visible and point maintainers to the separate manual workflow.
+  recovery-guidance:
+    name: Staging Recovery Guidance
+    needs: [publish-staging-images, deploy-staging, validate-staging-smoke, record-staging-success]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Link manual staging rollback
+        env:
+          PUBLISH_RESULT: ${{ needs.publish-staging-images.result }}
+          DEPLOY_RESULT: ${{ needs.deploy-staging.result }}
+          SMOKE_RESULT: ${{ needs.validate-staging-smoke.result }}
+          HISTORY_RESULT: ${{ needs.record-staging-success.result }}
+        run: |
+          printf '### Staging CD failed\n\nJob outcomes: publication `%s`, deployment `%s`, smoke `%s`, history `%s`. Inspect the failed job and its bounded evidence before recovery. If both services need restoration, use [Manual Staging Rollback](https://github.com/%s/actions/workflows/staging-rollback.yml) with a verified success tag.\n' "$PUBLISH_RESULT" "$DEPLOY_RESULT" "$SMOKE_RESULT" "$HISTORY_RESULT" "$GITHUB_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"
