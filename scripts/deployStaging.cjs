@@ -72,6 +72,9 @@ async function runDeployment(input, options = {}) {
 
   try {
     validateInput(input);
+    const eligibility = options.eligibility || 'current-main';
+    if (!['current-main', 'verified-history'].includes(eligibility))
+      throw new Error('Unknown staging deployment eligibility policy.');
     const checkMain =
       options.checkMain ||
       (() => {
@@ -84,12 +87,6 @@ async function runDeployment(input, options = {}) {
           .split(/\s+/)[0];
         return tip === input.sourceSha;
       });
-    if (options.checkEligibility) {
-      record.phase = 'rollback_eligibility_check';
-      persist();
-      if (!(await options.checkEligibility()))
-        throw new Error('Rollback eligibility check failed before deployment.');
-    }
     const retryLimit = options.retryTransient === true ? 2 : 0;
     const retryBackoffMs = options.retryBackoffMs || [250, 1000];
     const isTransientReadStatus = (status) => status === 429 || status >= 500;
@@ -135,7 +132,9 @@ async function runDeployment(input, options = {}) {
       return { response, body };
     };
     const deployService = async (kind, serviceId, image) => {
-      if (!options.checkEligibility) {
+      // CD follows the moving main tip; a verified rollback restores a pinned
+      // historical digest pair even if main advances during recovery.
+      if (eligibility === 'current-main') {
         record.phase = `${kind}_main_check`;
         persist();
         if (!(await checkMain()))

@@ -16,18 +16,14 @@ on:
         type: boolean
         default: false
 permissions:
-  actions: read
   contents: read
-  packages: read
 jobs:
   preflight:
     name: Read-only Rollback Preflight
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      actions: read
       contents: read
-      packages: read
     env:
       TARGET_TAG: ${{ inputs.target_tag }}
       ROLLBACK_REASON: ${{ inputs.reason }}
@@ -46,48 +42,16 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-      - name: Check CD/rollback and Render are idle
-        id: coordination
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: node scripts/stagingCoordination.cjs preflight
       - name: Validate dispatch and selected annotated history tag
         id: target
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/stagingRollback.cjs preflight
-      - name: Authenticate to GHCR for exact digest checks
-        id: ghcr_login
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Confirm both exact history digests are available
-        id: digests
-        env:
-          BACKEND_IMAGE: ${{ steps.target.outputs.target_backend_image }}
-          FRONTEND_IMAGE: ${{ steps.target.outputs.target_frontend_image }}
-        run: |
-          if ! docker manifest inspect "$BACKEND_IMAGE" >/dev/null; then
-            echo "::error::Backend history digest is unavailable in GHCR."
-            exit 1
-          fi
-          if ! docker manifest inspect "$FRONTEND_IMAGE" >/dev/null; then
-            echo "::error::Frontend history digest is unavailable in GHCR."
-            exit 1
-          fi
-          docker logout ghcr.io
       - name: Write bounded preflight outcome evidence
         if: ${{ always() }}
         env:
           FINAL_OUTCOME: ${{ job.status }}
-          FAILED_STEP: ${{ job.status == 'failure' && steps.coordination.outcome == 'failure' && 'coordination' || job.status == 'failure' && steps.target.outcome == 'failure' && 'target-validation' || job.status == 'failure' && steps.ghcr_login.outcome == 'failure' && 'ghcr-login' || job.status == 'failure' && steps.digests.outcome == 'failure' && 'digest-availability' || '' }}
-          PREFLIGHT_COORDINATION_OUTCOME: ${{ steps.coordination.outcome }}
-          PREFLIGHT_TARGET_OUTCOME: ${{ steps.target.outcome }}
-          PREFLIGHT_DIGESTS_OUTCOME: ${{ steps.digests.outcome }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          PHASE: preflight
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/stagingRollback.cjs evidence
       - uses: actions/upload-artifact@v7.0.2
@@ -114,7 +78,6 @@ jobs:
       cancel-in-progress: false
       queue: max
     permissions:
-      actions: read
       contents: write
       packages: read
     env:
@@ -156,28 +119,28 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Authenticate for the repeated exact digest check
+      - name: Authenticate for the exact digest check
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Reconfirm both exact history digests before mutation
-        id: digest_recheck
+      - name: Confirm both exact history digests before Render checks
+        id: digest_check
         env:
           BACKEND_IMAGE: ${{ needs.preflight.outputs.target_backend_image }}
           FRONTEND_IMAGE: ${{ needs.preflight.outputs.target_frontend_image }}
         run: |
           if ! docker manifest inspect "$BACKEND_IMAGE" >/dev/null; then
-            echo "::error::Backend history digest became unavailable in GHCR."
+            echo "::error::Backend history digest is unavailable in GHCR."
             exit 1
           fi
           if ! docker manifest inspect "$FRONTEND_IMAGE" >/dev/null; then
-            echo "::error::Frontend history digest became unavailable in GHCR."
+            echo "::error::Frontend history digest is unavailable in GHCR."
             exit 1
           fi
           docker logout ghcr.io
-      - name: Check idle state and unchanged target immediately before mutation
+      - name: Check Render state and unchanged target before mutation
         id: mutation_check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -189,10 +152,9 @@ jobs:
       - name: Deploy both recorded image digests and verify backend health
         id: deploy
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: node scripts/stagingRollback.cjs deploy
-      - name: Run current-main staging smoke checks
+      - name: Run dispatched-main staging smoke checks against restored images
         id: smoke
         env:
           SOURCE_SHA: ${{ needs.preflight.outputs.target_sha }}
@@ -224,15 +186,7 @@ jobs:
           DEPLOYMENT_FILE: staging-deployment.json
           SMOKE_FILE: staging-smoke-result.json
           FINAL_OUTCOME: ${{ job.status }}
-          FAILED_STEP: ${{ job.status == 'failure' && steps.fixture_token.outcome == 'failure' && 'fixture-token' || job.status == 'failure' && steps.dependencies.outcome == 'failure' && 'dependencies' || job.status == 'failure' && steps.digest_recheck.outcome == 'failure' && 'digest-recheck' || job.status == 'failure' && steps.mutation_check.outcome == 'failure' && 'mutation-check' || job.status == 'failure' && steps.deploy.outcome == 'failure' && 'deploy' || job.status == 'failure' && steps.smoke.outcome == 'failure' && 'smoke' || job.status == 'failure' && steps.manifest.outcome == 'failure' && 'manifest' || job.status == 'failure' && steps.record.outcome == 'failure' && 'record' || '' }}
-          MUTATION_CHECK_OUTCOME: ${{ steps.mutation_check.outcome }}
-          DIGEST_RECHECK_OUTCOME: ${{ steps.digest_recheck.outcome }}
-          FIXTURE_TOKEN_OUTCOME: ${{ steps.fixture_token.outcome }}
-          DEPENDENCIES_OUTCOME: ${{ steps.dependencies.outcome }}
-          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
-          SMOKE_STEP_OUTCOME: ${{ steps.smoke.outcome }}
-          MANIFEST_OUTCOME: ${{ steps.manifest.outcome }}
-          RECORD_OUTCOME: ${{ steps.record.outcome }}
+          PHASE: rollback
           SUCCESS_TAG: ${{ steps.record.outputs.success_tag }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

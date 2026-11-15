@@ -1,262 +1,177 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
-  activeRuns,
+  ACTIVE_DEPLOY_STATUSES,
   checkCoordination,
   inspectService,
-  listCompletedRollbackRuns,
-  rollbackOverlappedCd,
 } = require('./stagingCoordination.cjs');
 
 const json = (body) => ({ ok: true, status: 200, json: async () => body });
+const env = {
+  RENDER_API_KEY: 'render-token',
+  BACKEND_SERVICE_ID: 'srv-backend',
+  FRONTEND_SERVICE_ID: 'srv-frontend',
+};
+const services = {
+  'srv-backend': {
+    id: 'srv-backend',
+    name: 'peers-staging-backend',
+    type: 'web_service',
+    serviceDetails: { url: 'https://peers-staging-backend.onrender.com' },
+    imagePath:
+      'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend:latest',
+  },
+  'srv-frontend': {
+    id: 'srv-frontend',
+    name: 'projectpeerevaluation-p25-02-frontend',
+    type: 'web_service',
+    serviceDetails: {
+      url: 'https://projectpeerevaluation-p25-02-frontend.onrender.com',
+    },
+    imagePath:
+      'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend@sha256:abc',
+  },
+};
+function makeFetch({
+  serviceOverrides = {},
+  deploys = {},
+  failures = {},
+} = {}) {
+  const calls = [];
+  const fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    const parsed = new URL(String(url));
+    const serviceId = parsed.pathname.split('/')[3];
+    if (failures[parsed.pathname])
+      return {
+        ok: false,
+        status: failures[parsed.pathname],
+        json: async () => ({}),
+      };
+    if (parsed.pathname.endsWith('/deploys'))
+      return json(deploys[serviceId] ?? []);
+    return json(
+      Object.hasOwn(serviceOverrides, serviceId)
+        ? serviceOverrides[serviceId]
+        : services[serviceId],
+    );
+  };
+  return { fetch, calls };
+}
 
-test('active workflow runs exclude current run and include queued work', () => {
-  const busy = activeRuns(
-    [
-      { id: 1, status: 'in_progress' },
-      { id: 2, status: 'queued' },
-      { id: 3, status: 'completed' },
-    ],
-    1,
-  );
-  assert.deepEqual(
-    busy.map((run) => run.id),
-    [2],
-  );
+test('Render active status array is sent as repeated status query parameters', async () => {
+  const { fetch, calls } = makeFetch();
+  const result = await checkCoordination({ env, fetch });
+
+  assert.deepEqual(result, {
+    busy: false,
+    services: ['srv-backend', 'srv-frontend'],
+  });
+  assert.equal(calls.length, 4);
+  for (const { url, options } of calls.filter(({ url }) =>
+    url.includes('/deploys?'),
+  )) {
+    const parsed = new URL(url);
+    assert.deepEqual(
+      parsed.searchParams.getAll('status'),
+      ACTIVE_DEPLOY_STATUSES,
+    );
+    assert.equal(parsed.searchParams.get('limit'), '1');
+    assert.equal(options.headers.Authorization, 'Bearer render-token');
+    assert.ok(options.signal instanceof AbortSignal);
+  }
 });
 
-test('Render checks the exact staging URL and image repository with cursor deploy pages', async () => {
-  const fetch = async (url) => {
-    if (url.endsWith('/services/srv-backend'))
-      return json({
-        id: 'srv-backend',
-        name: 'peers-staging-backend',
-        type: 'web_service',
-        serviceDetails: { url: 'https://peers-staging-backend.onrender.com' },
-        imagePath:
-          'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend:latest',
-      });
-    if (url.endsWith('/services/srv-backend/deploys?limit=100'))
-      return json([{ cursor: 'cursor-1', deploy: { status: 'live' } }]);
-    if (url.endsWith('/services/srv-backend/deploys?limit=100&cursor=cursor-1'))
-      return json([]);
-    throw new Error(`Unexpected URL ${url}`);
-  };
-  await inspectService(fetch, 'key', 'srv-backend', 'backend');
-  await assert.rejects(
-    inspectService(
-      async () =>
-        json({
-          id: 'srv-backend',
-          name: 'wrong',
-          type: 'web_service',
-        }),
-      'key',
-      'srv-backend',
-      'backend',
-    ),
-    /name, URL, or GHCR image repository/,
-  );
-  await assert.rejects(
-    inspectService(
-      async (url) =>
-        url.includes('/deploys?')
-          ? json([{ cursor: 'cursor-1', deploy: { status: 'mystery' } }])
-          : json({
-              id: 'srv-backend',
-              name: 'peers-staging-backend',
-              type: 'web_service',
-              serviceDetails: {
-                url: 'https://peers-staging-backend.onrender.com',
-              },
-              imagePath:
-                'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend:latest',
-            }),
-      'key',
-      'srv-backend',
-      'backend',
-    ),
-    /unknown status/,
-  );
-  await assert.rejects(
-    inspectService(
-      async (url) =>
-        url.includes('/deploys?')
-          ? json([{ cursor: 'cursor-1', deploy: { status: 'queued' } }])
-          : json({
-              id: 'srv-backend',
-              name: 'peers-staging-backend',
-              type: 'web_service',
-              serviceDetails: {
-                url: 'https://peers-staging-backend.onrender.com',
-              },
-              imagePath:
-                'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend:latest',
-            }),
-      'key',
-      'srv-backend',
-      'backend',
-    ),
-    /active or queued/,
-  );
+test('an active deploy returned by the filtered list makes coordination busy', async () => {
+  const { fetch } = makeFetch({
+    deploys: {
+      'srv-frontend': [{ cursor: 'cursor-1', deploy: { status: 'queued' } }],
+    },
+  });
+  await assert.rejects(checkCoordination({ env, fetch }), /active or queued/);
 });
 
-test('active workflow scan fails closed when a filtered status exceeds one page', async () => {
-  const env = {
-    GITHUB_TOKEN: 'token',
-    GITHUB_REPOSITORY: 'org/repo',
-    GITHUB_RUN_ID: '3',
-    RENDER_API_KEY: 'render',
-    BACKEND_SERVICE_ID: 'srv-backend',
-    FRONTEND_SERVICE_ID: 'srv-frontend',
-  };
-  const fetch = async (url) => {
-    if (url.includes('/workflows/'))
-      return json({ total_count: 101, workflow_runs: [] });
-    throw new Error(`Unexpected URL ${url}`);
-  };
-  await assert.rejects(
-    checkCoordination({ env, fetch }),
-    /bounded safety check/,
-  );
+test('malformed and unexpected filtered results fail closed', async (t) => {
+  await t.test('non-array response', async () => {
+    const { fetch } = makeFetch({ deploys: { 'srv-backend': {} } });
+    await assert.rejects(checkCoordination({ env, fetch }), /unavailable/);
+  });
+  await t.test('missing deploy status', async () => {
+    const { fetch } = makeFetch({
+      deploys: { 'srv-backend': [{ cursor: 'cursor-1', deploy: {} }] },
+    });
+    await assert.rejects(checkCoordination({ env, fetch }), /malformed/);
+  });
+  await t.test('unexpected status despite filter', async () => {
+    const { fetch } = makeFetch({
+      deploys: {
+        'srv-backend': [{ cursor: 'cursor-1', deploy: { status: 'live' } }],
+      },
+    });
+    await assert.rejects(
+      checkCoordination({ env, fetch }),
+      /unexpected status/,
+    );
+  });
 });
 
-test('locked rollback rejects a CD that completed after rollback dispatch', async () => {
-  const env = {
-    GITHUB_TOKEN: 'token',
-    GITHUB_REPOSITORY: 'org/repo',
-    GITHUB_RUN_ID: '3',
-    RENDER_API_KEY: 'render',
-    BACKEND_SERVICE_ID: 'srv-backend',
-    FRONTEND_SERVICE_ID: 'srv-frontend',
-  };
-  const fetch = async (url) => {
-    if (url.endsWith('/actions/runs/3'))
-      return json({ id: 3, created_at: '2026-11-14T12:00:00Z' });
-    if (url.includes('created=%3E%3D2026-11-14T12%3A00%3A00Z'))
-      return json({
-        total_count: 1,
-        workflow_runs: [{ id: 4, status: 'completed' }],
+test('service identity requires exact name, URL, and GHCR repository', async (t) => {
+  await t.test('rejects a non-object service response', async () => {
+    const { fetch } = makeFetch({ serviceOverrides: { 'srv-backend': null } });
+    await assert.rejects(
+      inspectService(fetch, env.RENDER_API_KEY, 'srv-backend', 'backend'),
+      /name, URL, or GHCR image repository/,
+    );
+  });
+  for (const [field, value] of [
+    ['name', 'wrong-name'],
+    ['serviceDetails', { url: 'https://wrong.onrender.com' }],
+    ['imagePath', 'ghcr.io/other/image:latest'],
+  ]) {
+    await t.test(`rejects mismatched ${field}`, async () => {
+      const { fetch } = makeFetch({
+        serviceOverrides: {
+          'srv-backend': { ...services['srv-backend'], [field]: value },
+        },
       });
-    if (url.includes('/workflows/'))
-      return json({ total_count: 0, workflow_runs: [] });
-    throw new Error(`Unexpected URL ${url}`);
-  };
-  await assert.rejects(
-    checkCoordination({ env, fetch, requireNoCompletedCdSinceDispatch: true }),
-    /CD run completed since rollback dispatch/,
-  );
+      await assert.rejects(
+        inspectService(fetch, env.RENDER_API_KEY, 'srv-backend', 'backend'),
+        /name, URL, or GHCR image repository/,
+      );
+    });
+  }
 });
 
-test('completed rollback pagination fetches a second page and enforces its 500-run bound', async () => {
-  const headers = {};
-  const urls = [];
-  const fetch = async (url) => {
-    urls.push(url);
-    if (url.endsWith('status=completed&per_page=100&page=1'))
-      return json({
-        total_count: 101,
-        workflow_runs: Array.from({ length: 100 }, (_, id) => ({
-          id,
-          status: 'completed',
-        })),
-      });
-    if (url.endsWith('status=completed&per_page=100&page=2'))
-      return json({
-        total_count: 101,
-        workflow_runs: [{ id: 101, status: 'completed' }],
-      });
-    throw new Error(`Unexpected URL ${url}`);
-  };
-  const runs = await listCompletedRollbackRuns(fetch, headers, 'org/repo');
-  assert.equal(runs.length, 101);
-  assert.equal(urls.length, 2);
-  await assert.rejects(
-    listCompletedRollbackRuns(
-      async () =>
-        json({
-          total_count: 501,
-          workflow_runs: Array.from({ length: 100 }, (_, id) => ({
-            id,
-            status: 'completed',
-          })),
-        }),
-      headers,
-      'org/repo',
-    ),
-    /500-run safety bound/,
-  );
-});
-
-test('CD overlap detects a rollback mutation starting after CD creation and a failed mutation', async () => {
-  const env = {
-    GITHUB_TOKEN: 'token',
-    GITHUB_REPOSITORY: 'org/repo',
-    GITHUB_RUN_ID: '55',
-  };
-  const fetch = async (url) => {
-    if (url.endsWith('/actions/runs/55'))
-      return json({ id: 55, created_at: '2026-11-14T12:05:00Z' });
-    if (url.includes('/workflows/staging-rollback.yml/'))
-      return json({
-        total_count: 1,
-        workflow_runs: [{ id: 70, status: 'completed' }],
-      });
-    if (url.endsWith('/actions/runs/70/jobs?per_page=100'))
-      return json({
-        total_count: 1,
-        jobs: [
-          {
-            name: 'Rollback Staging',
-            started_at: '2026-11-14T12:06:00Z',
-            completed_at: '2026-11-14T12:10:00Z',
-            conclusion: 'failure',
-          },
-        ],
-      });
-    throw new Error(`Unexpected URL ${url}`);
-  };
-  assert.equal(await rollbackOverlappedCd({ env, fetch }), true);
-});
-
-test('CD overlap excludes a later CD and a read-only failed preflight', async () => {
-  const env = {
-    GITHUB_TOKEN: 'token',
-    GITHUB_REPOSITORY: 'org/repo',
-    GITHUB_RUN_ID: '55',
-  };
-  const makeFetch = (createdAt, jobs) => async (url) => {
-    if (url.endsWith('/actions/runs/55'))
-      return json({ id: 55, created_at: createdAt });
-    if (url.includes('/workflows/staging-rollback.yml/'))
-      return json({
-        total_count: 1,
-        workflow_runs: [{ id: 70, status: 'completed' }],
-      });
-    if (url.endsWith('/actions/runs/70/jobs?per_page=100'))
-      return json({ total_count: jobs.length, jobs });
-    throw new Error(`Unexpected URL ${url}`);
-  };
-  const mutation = {
-    name: 'Rollback Staging',
-    started_at: '2026-11-14T12:00:00Z',
-    completed_at: '2026-11-14T12:10:00Z',
-    conclusion: 'success',
-  };
-  assert.equal(
-    await rollbackOverlappedCd({
-      env,
-      fetch: makeFetch('2026-11-14T12:11:00Z', [mutation]),
-    }),
-    false,
-  );
-  assert.equal(
-    await rollbackOverlappedCd({
-      env,
-      fetch: makeFetch('2026-11-14T12:05:00Z', [
-        { ...mutation, name: 'Read-only Rollback Preflight' },
-      ]),
-    }),
-    false,
-  );
+test('identical service IDs and Render API errors fail closed', async (t) => {
+  await t.test('service IDs must differ', async () => {
+    await assert.rejects(
+      checkCoordination({
+        env: { ...env, FRONTEND_SERVICE_ID: env.BACKEND_SERVICE_ID },
+        fetch: async () => assert.fail('No request expected'),
+      }),
+      /must differ/,
+    );
+  });
+  await t.test('non-success response', async () => {
+    const { fetch } = makeFetch({
+      failures: { '/v1/services/srv-backend': 503 },
+    });
+    await assert.rejects(
+      checkCoordination({ env, fetch }),
+      /Coordination API failed \(HTTP 503\)/,
+    );
+  });
+  await t.test('network error', async () => {
+    await assert.rejects(
+      inspectService(
+        async () => {
+          throw new Error('network unavailable');
+        },
+        env.RENDER_API_KEY,
+        'srv-backend',
+        'backend',
+      ),
+      /network unavailable/,
+    );
+  });
 });

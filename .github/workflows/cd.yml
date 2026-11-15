@@ -120,9 +120,6 @@ jobs:
     timeout-minutes: 35
     permissions:
       contents: read
-      actions: read
-    outputs:
-      skip: ${{ steps.coordination.outputs.skip }}
     env:
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
       BACKEND_IMAGE: ${{ needs.publish-staging-images.outputs.backend_image }}
@@ -137,13 +134,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-      - name: Skip a CD run that overlapped rollback
-        id: coordination
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/stagingCoordination.cjs cd-guard
       - name: Require the staging smoke fixture token before deployment
-        if: ${{ steps.coordination.outputs.skip != 'true' }}
         env:
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
         run: |
@@ -153,10 +144,9 @@ jobs:
           fi
       - name: Deploy and verify staging services
         id: deploy
-        if: ${{ steps.coordination.outputs.skip != 'true' }}
         run: node scripts/deployStaging.cjs
       - name: Upload deployment result
-        if: ${{ always() && steps.coordination.outcome == 'success' && steps.coordination.outputs.skip != 'true' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: staging-deployment-${{ env.SOURCE_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -165,7 +155,7 @@ jobs:
   validate-staging-smoke:
     name: Staging Smoke Tests
     needs: [publish-staging-images, deploy-staging]
-    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.deploy-staging.outputs.skip != 'true' }}
+    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -213,7 +203,7 @@ jobs:
   record-staging-success:
     name: Record Verified Staging Success
     needs: [publish-staging-images, deploy-staging, validate-staging-smoke]
-    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.deploy-staging.outputs.skip != 'true' && needs.validate-staging-smoke.result == 'success' }}
+    if: ${{ needs.publish-staging-images.result == 'success' && needs.deploy-staging.result == 'success' && needs.validate-staging-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

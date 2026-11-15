@@ -51,7 +51,6 @@ function validateDispatch(input) {
   return {
     targetTag: input.targetTag,
     reason: input.reason.trim(),
-    dispatchSha: input.dispatchSha,
   };
 }
 
@@ -81,12 +80,6 @@ function requireConfiguredServices(manifest, env) {
     throw new Error(
       'Selected history tag does not match the configured staging service IDs.',
     );
-}
-
-function checkCurrentDispatch(input, options = {}) {
-  const git = options.git || runGit;
-  const tip = git(['ls-remote', 'origin', 'refs/heads/main']).split(/\s+/)[0];
-  return tip === input.dispatchSha;
 }
 
 function safeReason(value, env = process.env) {
@@ -124,10 +117,6 @@ async function preflight(options = {}) {
     dispatchSha: env.GITHUB_SHA,
     ref: env.GITHUB_REF,
   });
-  if (!checkCurrentDispatch(input, options))
-    throw new Error(
-      'Dispatched main commit is no longer the current main tip.',
-    );
   const target = readTarget(input, options);
   requireConfiguredServices(target.manifest, env);
   const out = env.GITHUB_OUTPUT;
@@ -164,16 +153,11 @@ function mutationCheck(options = {}) {
     JSON.stringify(current.manifest) !== JSON.stringify(target.manifest)
   )
     throw new Error('Selected target tag changed after preflight.');
-  if (!checkCurrentDispatch(input, options))
-    throw new Error(
-      'Dispatched main commit is no longer current; no Render deploy was started.',
-    );
   return current;
 }
 
 async function deploy(options = {}) {
   const env = options.env || process.env;
-  const dispatchSha = env.GITHUB_SHA;
   const target = JSON.parse(
     fs.readFileSync(env.TARGET_FILE || 'staging-rollback-target.json', 'utf8'),
   );
@@ -194,7 +178,7 @@ async function deploy(options = {}) {
         ...options.deploymentOptions,
         save,
         retryTransient: true,
-        checkEligibility: () => checkCurrentDispatch({ dispatchSha }, options),
+        eligibility: 'verified-history',
       },
     );
   } catch (error) {
@@ -305,6 +289,20 @@ function writeEvidence(options = {}) {
   const deployment = readJson(env.DEPLOYMENT_FILE || 'staging-deployment.json');
   const smoke = readJson(env.SMOKE_FILE || 'staging-smoke-result.json');
   const safe = (value) => safeReason(value, env);
+  const finalOutcome = env.FINAL_OUTCOME || 'failure';
+  const smokeFailed =
+    deployment?.result === 'success' &&
+    (!smoke ||
+      smoke.validation_result !== 'success' ||
+      smoke.smoke_outcome !== 'success');
+  const phase =
+    deployment?.result === 'failure'
+      ? deployment.phase || 'rollback'
+      : smokeFailed
+        ? 'smoke'
+        : finalOutcome === 'failure' && deployment?.result === 'success'
+          ? 'history'
+          : deployment?.phase || safe(env.PHASE) || 'preflight';
   const evidence = {
     target_tag: target?.target_tag || safe(env.TARGET_TAG),
     success_tag: /^staging-success\/rollback-[0-9]+-[0-9]+$/.test(
@@ -317,7 +315,6 @@ function writeEvidence(options = {}) {
     target_frontend_image: target?.manifest?.frontend_image || null,
     target_backend_deploy_id: target?.manifest?.backend_deploy_id || null,
     target_frontend_deploy_id: target?.manifest?.frontend_deploy_id || null,
-    target_tag_object: target?.target_tag_object || null,
     actor: safe(env.GITHUB_ACTOR).slice(0, 100),
     reason: safe(env.ROLLBACK_REASON),
     dispatch_sha: /^[0-9a-f]{40}$/.test(env.GITHUB_SHA || '')
@@ -328,29 +325,13 @@ function writeEvidence(options = {}) {
     backend_status: deployment?.backend_status || null,
     frontend_status: deployment?.frontend_status || null,
     backend_health: deployment?.backend_health || null,
-    phase:
-      deployment?.phase || safe(env.FAILED_STEP).slice(0, 80) || 'preflight',
+    phase,
     retry_counts: deployment?.retry_counts || {},
     deployment_result: deployment?.result || 'not_started',
-    workflow_steps: [
-      ['preflight_coordination', env.PREFLIGHT_COORDINATION_OUTCOME],
-      ['preflight_target', env.PREFLIGHT_TARGET_OUTCOME],
-      ['preflight_digests', env.PREFLIGHT_DIGESTS_OUTCOME],
-      ['digest_recheck', env.DIGEST_RECHECK_OUTCOME],
-      ['mutation_check', env.MUTATION_CHECK_OUTCOME],
-      ['fixture_token', env.FIXTURE_TOKEN_OUTCOME],
-      ['dependencies', env.DEPENDENCIES_OUTCOME],
-      ['deploy', env.DEPLOY_OUTCOME],
-      ['smoke', env.SMOKE_STEP_OUTCOME],
-      ['manifest', env.MANIFEST_OUTCOME],
-      ['history_tag', env.RECORD_OUTCOME],
-    ]
-      .filter(([, outcome]) => outcome)
-      .map(([step, outcome]) => ({ step, outcome })),
     failure_reason:
       safe(deployment?.failure_reason).slice(0, 320) ||
-      (env.FAILED_STEP
-        ? `Workflow step ${safe(env.FAILED_STEP).slice(0, 80)} failed.`
+      (finalOutcome === 'failure'
+        ? 'Rollback workflow failed; inspect the Actions run for step details.'
         : null),
     smoke_result: smoke?.validation_result || 'not_started',
     smoke_outcome: smoke?.smoke_outcome || 'not_started',
@@ -366,20 +347,9 @@ function writeEvidence(options = {}) {
           ].includes(check?.status)
             ? check.status
             : 'unknown',
-          duration_ms: Number.isFinite(check?.duration_ms)
-            ? Math.max(0, Math.round(check.duration_ms))
-            : null,
-          ...(check?.failure_category
-            ? {
-                failure_category: safe(check.failure_category).slice(0, 80),
-              }
-            : {}),
-          ...(check?.diagnostic
-            ? { diagnostic: safe(check.diagnostic).slice(0, 320) }
-            : {}),
         }))
       : [],
-    final_outcome: env.FINAL_OUTCOME || 'failure',
+    final_outcome: finalOutcome,
   };
   fs.writeFileSync(
     env.EVIDENCE_FILE || 'staging-rollback-evidence.json',
@@ -416,7 +386,6 @@ async function main() {
 if (require.main === module) main();
 module.exports = {
   appendHistory,
-  checkCurrentDispatch,
   deploy,
   mutationCheck,
   preflight,

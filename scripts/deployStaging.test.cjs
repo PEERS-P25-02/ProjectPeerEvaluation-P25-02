@@ -109,8 +109,10 @@ async function rejectsWith(inputValue, setup, message) {
     });
     h.options.retryTransient = true;
     h.options.retryBackoffMs = [0, 0];
-    h.options.checkMain = () => false;
-    h.options.checkEligibility = async () => true;
+    h.options.checkMain = () => {
+      throw new Error('historical rollback must not check current main');
+    };
+    h.options.eligibility = 'verified-history';
     const record = await runDeployment(input, h.options);
     assert.equal(record.result, 'success');
     assert.deepEqual(record.retry_counts, {
@@ -120,9 +122,6 @@ async function rejectsWith(inputValue, setup, message) {
     assert.equal(
       h.events.filter((event) => event.init.method === 'POST').length,
       3,
-    );
-    assert.ok(
-      h.records.some((saved) => saved.phase === 'rollback_eligibility_check'),
     );
     assert.ok(h.records.some((saved) => saved.phase === 'backend_request'));
     assert.ok(h.records.some((saved) => saved.phase === 'frontend_request'));
@@ -137,8 +136,8 @@ async function rejectsWith(inputValue, setup, message) {
   }
   {
     const h = harness();
-    h.options.checkEligibility = async () => false;
-    await rejectsWith(input, h, /eligibility check failed/);
+    h.options.eligibility = 'unsupported';
+    await rejectsWith(input, h, /Unknown staging deployment eligibility/);
     assert.equal(h.events.length, 0);
   }
   {

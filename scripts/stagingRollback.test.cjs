@@ -36,9 +36,36 @@ const manifest = {
 const tagName = 'staging-success/cd-20-1';
 const tagObject = `object ${sha}\ntype commit\ntag ${tagName}\ntagger Agent <agent@example.com> 0 +0000\n\n${JSON.stringify(manifest)}`;
 const tagObjectId = 'd'.repeat(40);
+
+test('CD and rollback share one mutation group without a CD skip', () => {
+  const cd = fs.readFileSync(
+    path.join(__dirname, '../.github/workflows/cd.yml'),
+    'utf8',
+  );
+  const rollback = fs.readFileSync(
+    path.join(__dirname, '../.github/workflows/staging-rollback.yml'),
+    'utf8',
+  );
+  for (const workflow of [cd, rollback]) {
+    assert.match(workflow, /group: cd-staging-images/);
+    assert.match(workflow, /cancel-in-progress: false/);
+    assert.match(workflow, /queue: max/);
+  }
+  assert.doesNotMatch(cd, /stagingCoordination\.cjs cd-guard|outputs\.skip/);
+  assert.equal((rollback.match(/docker manifest inspect/g) || []).length, 2);
+  assert.ok(
+    rollback.indexOf('docker manifest inspect') <
+      rollback.indexOf('node scripts/stagingCoordination.cjs mutation-check'),
+  );
+  assert.ok(
+    rollback.indexOf('node scripts/stagingCoordination.cjs mutation-check') <
+      rollback.indexOf('node scripts/stagingRollback.cjs deploy'),
+  );
+});
+
 function gitStub(currentObjectId = tagObjectId) {
   return (args) => {
-    if (args[0] === 'ls-remote') return `${sha}\trefs/heads/main`;
+    if (args[0] === 'ls-remote') return '';
     if (args[0] === 'fetch') return '';
     if (args[0] === 'cat-file' && args[1] === '-t') return 'tag';
     if (args[0] === 'rev-parse') return currentObjectId;
@@ -73,6 +100,10 @@ test('dispatch validation requires exact history selection, bounded reason, ack,
     () => validateDispatch({ ...input, ref: 'refs/heads/feature' }),
     /dispatched from main/,
   );
+  assert.throws(
+    () => validateDispatch({ ...input, dispatchSha: 'not-a-commit' }),
+    /dispatched from main/,
+  );
 });
 
 test('target reader fetches and validates the exact annotated manifest object', () => {
@@ -91,7 +122,7 @@ test('target reader fetches and validates the exact annotated manifest object', 
   );
 });
 
-test('preflight records only validated target fields and refuses stale main dispatch', async () => {
+test('preflight validates main dispatch and target, then mutation check rejects a changed tag', async () => {
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'rollback-preflight-'),
   );
@@ -219,7 +250,7 @@ test('rollback success requires all smoke checks, then appends one verified tag'
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
-test('evidence redacts URLs, bounds user reason, and includes only safe deployment and smoke fields', () => {
+test('evidence redacts URLs and secrets and records only the rollback audit fields', () => {
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'rollback-evidence-'),
   );
@@ -255,7 +286,6 @@ test('evidence redacts URLs, bounds user reason, and includes only safe deployme
         {
           name: 'test',
           status: 'failed',
-          diagnostic: 'https://secret.example/private',
         },
       ],
     }),
@@ -269,6 +299,7 @@ test('evidence redacts URLs, bounds user reason, and includes only safe deployme
     ROLLBACK_REASON: `incident at https://example.com ${'x'.repeat(600)}`,
     GITHUB_ACTOR: 'tester',
     GITHUB_SHA: sha,
+    SUCCESS_TAG: 'staging-success/rollback-30-1',
     RENDER_API_KEY: 'render-secret',
     GITHUB_TOKEN: 'github-secret',
     STAGING_EVALUATION_TOKEN: 'fixture-secret',
@@ -294,15 +325,19 @@ test('evidence redacts URLs, bounds user reason, and includes only safe deployme
         {
           name: 'test',
           status: 'failed',
-          diagnostic: 'fixture-secret',
         },
       ],
     }),
   );
   const evidence = writeEvidence({ env });
   assert.equal(evidence.target_tag, tagName);
+  assert.equal(evidence.success_tag, 'staging-success/rollback-30-1');
+  assert.equal(evidence.target_sha, sha);
+  assert.equal(evidence.dispatch_sha, sha);
+  assert.equal(evidence.backend_health.http_status, 503);
+  assert.equal(evidence.smoke_checks[0].status, 'failed');
+  assert.equal(evidence.smoke_checks[0].diagnostic, undefined);
   assert.equal(evidence.failure_reason, '[REDACTED] [REDACTED] [REDACTED]');
-  assert.equal(evidence.smoke_checks[0].diagnostic, '[REDACTED]');
   assert.ok(evidence.reason.length <= 500);
   assert.doesNotMatch(evidence.reason, /render-secret|render-/);
   assert.equal(
@@ -312,7 +347,40 @@ test('evidence redacts URLs, bounds user reason, and includes only safe deployme
   const stored = fs.readFileSync(evidenceFile, 'utf8');
   assert.doesNotMatch(
     stored,
-    /secret\.example|render-secret|github-secret|fixture-secret/,
+    /secret\.example|render-secret|github-secret|fixture-secret|workflow_steps/,
   );
+  fs.writeFileSync(
+    deploymentFile,
+    JSON.stringify({ result: 'success', phase: 'complete' }),
+  );
+  const smokeFailure = writeEvidence({
+    env: {
+      ...env,
+      EVIDENCE_FILE: path.join(directory, 'smoke-failure-evidence.json'),
+    },
+  });
+  assert.equal(smokeFailure.phase, 'smoke');
+  const missingSmoke = writeEvidence({
+    env: {
+      ...env,
+      SMOKE_FILE: path.join(directory, 'missing-smoke.json'),
+      EVIDENCE_FILE: path.join(directory, 'missing-smoke-evidence.json'),
+    },
+  });
+  assert.equal(missingSmoke.phase, 'smoke');
+  const fallback = writeEvidence({
+    env: {
+      ...env,
+      DEPLOYMENT_FILE: path.join(directory, 'missing-deployment.json'),
+      SMOKE_FILE: path.join(directory, 'missing-smoke.json'),
+      EVIDENCE_FILE: path.join(directory, 'fallback-evidence.json'),
+      SUCCESS_TAG: 'unexpected-tag',
+    },
+  });
+  assert.equal(
+    fallback.failure_reason,
+    'Rollback workflow failed; inspect the Actions run for step details.',
+  );
+  assert.equal(fallback.success_tag, null);
   fs.rmSync(directory, { recursive: true, force: true });
 });
