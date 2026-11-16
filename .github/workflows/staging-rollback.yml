@@ -60,6 +60,7 @@ jobs:
         if: ${{ always() }}
         env:
           FINAL_OUTCOME: ${{ job.status }}
+          REPORT_STAGE: preflight
           PHASE: preflight
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/stagingRollback.cjs evidence
@@ -90,7 +91,7 @@ jobs:
       cancel-in-progress: false
       queue: max
     permissions:
-      contents: write
+      contents: read
       packages: read
     env:
       TARGET_TAG: ${{ inputs.target_tag }}
@@ -134,8 +135,10 @@ jobs:
         id: dependencies
         run: npm ci
       - name: Install Playwright Chromium
+        id: browser
         run: npx playwright install --with-deps chromium
       - name: Authenticate for the exact digest check
+        id: registry
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -191,20 +194,14 @@ jobs:
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
         run: node scripts/writeStagingSmokeEvidence.cjs
-      # Only all-pass deployment and smoke records can produce a new success tag.
-      - name: Validate all-pass evidence and build rollback history manifest
-        id: manifest
+      # Explicit cross-check is the success gate; smoke writer validates shape only.
+      - name: Verify deployment and smoke evidence against selected target
+        id: verify
         if: ${{ success() }}
         env:
           DEPLOYMENT_FILE: staging-deployment.json
           SMOKE_FILE: staging-smoke-result.json
-        run: node scripts/stagingRollback.cjs manifest
-      - name: Append and verify the unique rollback history tag
-        id: record
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: ${{ success() }}
-        run: node scripts/stagingRollback.cjs record
+        run: node scripts/stagingRollback.cjs verify
       # Always retain a small redacted audit record, including partial failures.
       - name: Write redacted rollback outcome evidence
         if: ${{ always() }}
@@ -212,9 +209,9 @@ jobs:
           DEPLOYMENT_FILE: staging-deployment.json
           SMOKE_FILE: staging-smoke-result.json
           FINAL_OUTCOME: ${{ job.status }}
-          PHASE: rollback
+          REPORT_STAGE: rollback
+          PHASE: ${{ steps.fixture_token.outcome == 'failure' && 'fixture' || steps.dependencies.outcome == 'failure' && 'dependencies' || steps.browser.outcome == 'failure' && 'browser_setup' || steps.registry.outcome == 'failure' && 'registry_auth' || steps.digest_check.outcome == 'failure' && 'digest_check' || steps.mutation_check.outcome == 'failure' && 'coordination' || steps.verify.outcome == 'success' && 'complete' || 'rollback' }}
           COORDINATION_FAILURE_CATEGORY: ${{ steps.mutation_check.outputs.coordination_failure_category }}
-          SUCCESS_TAG: ${{ steps.record.outputs.success_tag }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
