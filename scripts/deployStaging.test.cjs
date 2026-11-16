@@ -67,6 +67,9 @@ async function rejectsWith(inputValue, setup, message) {
         response(200, { status: 'live', image: { ref: input.frontendImage } }),
       ],
     });
+    h.options.env = {
+      STAGING_BACKEND_URL: 'https://replacement-api.onrender.com',
+    };
     const record = await runDeployment(input, h.options);
     assert.equal(record.phase, 'complete');
     assert.equal(record.result, 'success');
@@ -88,11 +91,63 @@ async function rejectsWith(inputValue, setup, message) {
       h.events[0].init.headers.Authorization,
       `Bearer ${input.apiKey}`,
     );
+    assert.ok(
+      h.events.some(
+        (event) =>
+          event.url === 'https://replacement-api.onrender.com/api/health',
+      ),
+    );
     assert.equal(JSON.stringify(record).includes(input.apiKey), false);
   }
   {
     const h = harness({ responses: [response(202, {})] });
+    h.options.retryTransient = true;
     await rejectsWith(input, h, /HTTP 202; inspect Render/);
+    assert.equal(h.events.length, 1);
+  }
+  {
+    const h = harness({
+      responses: [
+        response(429, {}),
+        response(201, { id: 'dep-backend1' }),
+        response(503, {}),
+        response(200, { status: 'live', image: { ref: input.backendImage } }),
+        response(201, { id: 'dep-frontend1' }),
+        response(200, { status: 'live', image: { ref: input.frontendImage } }),
+      ],
+    });
+    h.options.retryTransient = true;
+    h.options.retryBackoffMs = [0, 0];
+    h.options.checkMain = () => {
+      throw new Error('historical rollback must not check current main');
+    };
+    h.options.eligibility = 'verified-history';
+    const record = await runDeployment(input, h.options);
+    assert.equal(record.result, 'success');
+    assert.deepEqual(record.retry_counts, {
+      backend_deploy_post: 1,
+      backend_status_get: 1,
+    });
+    assert.equal(
+      h.events.filter((event) => event.init.method === 'POST').length,
+      3,
+    );
+    assert.ok(h.records.some((saved) => saved.phase === 'backend_request'));
+    assert.ok(h.records.some((saved) => saved.phase === 'frontend_request'));
+    assert.ok(!h.records.some((saved) => saved.phase.endsWith('_main_check')));
+  }
+  {
+    const h = harness({ responses: [response(503, {})] });
+    h.options.retryTransient = true;
+    h.options.retryBackoffMs = [0, 0];
+    await rejectsWith(input, h, /HTTP 503/);
+    assert.equal(h.events.length, 1);
+  }
+  {
+    const h = harness();
+    h.options.eligibility = 'unsupported';
+    await rejectsWith(input, h, /Unknown staging deployment eligibility/);
+    assert.equal(h.events.length, 0);
   }
   {
     const h = harness({ responses: [response(401, { secret: input.apiKey })] });
