@@ -383,7 +383,7 @@ function writeEvidence(options = {}) {
       : null;
     fs.appendFileSync(
       summaryFile,
-      `### Staging preflight ${evidence.final_outcome}\n- Selected CD tag: \`${evidence.target_tag || 'not validated'}\`\n- Source SHA: \`${evidence.target_sha ? evidence.target_sha.slice(0, 7) : 'not validated'}\`\n- Tag/manifest validation: \`${targetValidated}\`\n- Service ID validation: \`${servicesValidated === null ? 'not evaluated' : servicesValidated ? 'passed' : 'failed'}\`\n- Overall preflight: \`${evidence.final_outcome === 'success' ? 'passed' : 'failed'}\`\n`,
+      `### Staging preflight ${evidence.final_outcome}\n- Selected CD tag: \`${evidence.target_tag || 'not validated'}\`\n- Source SHA: \`${evidence.target_sha ? evidence.target_sha.slice(0, 7) : 'not validated'}\`\n- Tag/manifest validation: \`${targetValidated}\`\n- Service ID validation: \`${servicesValidated === null ? 'not evaluated' : servicesValidated ? 'passed' : 'failed'}\`\n- Overall preflight: \`${evidence.final_outcome === 'success' ? 'passed' : 'failed'}\`\n${evidence.final_outcome === 'success' ? '' : `- Failure: ${safe(env.PREFLIGHT_ERROR) || 'Validation failed; inspect the step log.'}\n- Deployment: not started\n`}`,
     );
   } else {
     const shortDigest = (value) => {
@@ -393,24 +393,13 @@ function writeEvidence(options = {}) {
     const deploymentLine = (service) => {
       const targetDigest = evidence[`target_${service}_image`];
       const status = evidence[`${service}_status`];
-      const mismatchFailure =
-        evidence.failure_reason?.startsWith(
-          `${service} live deploy image does not match`,
-        ) && status?.toLowerCase() === 'live';
-      const verifiedPhase =
-        evidence.deployment_result === 'success' ||
-        (service === 'backend' &&
-          [
-            'backend_health',
-            'backend_health_failed',
-            'frontend_request',
-            'frontend_request_failed',
-            'complete',
-          ].includes(evidence.phase)) ||
-        (service === 'frontend' && evidence.phase === 'complete');
-      const digestMatch = mismatchFailure
-        ? 'no'
-        : verifiedPhase && targetDigest
+      // The deployer reports success only after both live refs match their requested digests.
+      const digestMatch =
+        evidence.deployment_result === 'success' &&
+        status === 'live' &&
+        evidence[`${service}_deploy_id`] &&
+        targetDigest &&
+        evidence[`${service}_image`] === targetDigest
           ? 'yes'
           : 'not verified';
       return `- ${service}: target ${shortDigest(targetDigest)}; deploy ${evidence[`${service}_deploy_id`] || 'not started'} (${evidence[`${service}_status`] || 'unknown'}); digest match ${digestMatch}`;
@@ -444,6 +433,8 @@ async function main() {
   } catch (error) {
     const message = safeReason(error.message).slice(0, 320);
     const label = mode === 'preflight' ? 'Preflight failed' : 'Rollback failed';
+    if (mode === 'preflight' && process.env.GITHUB_OUTPUT)
+      writeOutput(process.env.GITHUB_OUTPUT, { validation_error: message });
     if (mode !== 'preflight')
       fs.appendFileSync(
         process.env.GITHUB_STEP_SUMMARY || '/dev/null',

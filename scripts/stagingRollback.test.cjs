@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { spawnSync } = require('node:child_process');
 const { REQUIRED_SMOKE_CHECKS } = require('../tests/staging/safe-evidence.cjs');
 const {
   mutationCheck,
@@ -194,6 +195,9 @@ test('preflight validates main dispatch and target, then mutation check rejects 
     BACKEND_SERVICE_ID: 'srv-other',
     REPORT_STAGE: 'preflight',
     FINAL_OUTCOME: 'failure',
+    PREFLIGHT_ERROR:
+      'Selected history tag does not match configured service IDs: synthetic-secret https://example.test',
+    GITHUB_TOKEN: 'synthetic-secret',
     GITHUB_STEP_SUMMARY: preflightSummary,
     EVIDENCE_FILE: path.join(directory, 'preflight-evidence.json'),
   };
@@ -202,8 +206,15 @@ test('preflight validates main dispatch and target, then mutation check rejects 
   assert.match(rejectedSummary, /Tag\/manifest validation: `passed`/);
   assert.match(rejectedSummary, /Service ID validation: `failed`/);
   assert.match(rejectedSummary, /Overall preflight: `failed`/);
+  assert.match(
+    rejectedSummary,
+    /Failure: Selected history tag does not match configured service IDs:/,
+  );
+  assert.match(rejectedSummary, /Deployment: not started/);
+  assert.doesNotMatch(rejectedSummary, /synthetic-secret|example\.test/);
+  assert.equal((rejectedSummary.match(/- Failure:/g) || []).length, 1);
   assert.doesNotMatch(rejectedSummary, /sha256:|dep-|Backend health|Smoke/);
-  assert.doesNotMatch(rejectedSummary, /Failure:|Preflight failed:/);
+  assert.doesNotMatch(rejectedSummary, /Preflight failed:/);
 
   const invalidTagFile = path.join(directory, 'invalid-tag-target.json');
   await assert.rejects(
@@ -253,6 +264,33 @@ test('preflight validates main dispatch and target, then mutation check rejects 
     fs.readFileSync(invalidDispatchSummaryBlock, 'utf8'),
     /Tag\/manifest validation: `not evaluated`/,
   );
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('preflight sends one sanitized validation error to the outcome step', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-error-'));
+  const output = path.join(directory, 'output');
+  const summary = path.join(directory, 'summary');
+  const result = spawnSync(
+    process.execPath,
+    [path.join(__dirname, 'stagingRollback.cjs'), 'preflight'],
+    {
+      env: {
+        ...process.env,
+        TARGET_TAG: 'invalid',
+        GITHUB_OUTPUT: output,
+        GITHUB_STEP_SUMMARY: summary,
+        GITHUB_TOKEN: 'synthetic-secret',
+      },
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(
+    fs.readFileSync(output, 'utf8'),
+    /^validation_error=Select one exact staging-success CD tag\./,
+  );
+  assert.equal(fs.existsSync(summary), false);
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
@@ -457,9 +495,11 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
       },
     });
     const mismatchSummary = fs.readFileSync(mismatchSummaryFile, 'utf8');
-    assert.match(mismatchSummary, new RegExp(`- ${service}:.*digest match no`));
-    if (service === 'frontend')
-      assert.match(mismatchSummary, /- backend:.*digest match yes/);
+    assert.match(
+      mismatchSummary,
+      new RegExp(`- ${service}:.*digest match not verified`),
+    );
+    assert.doesNotMatch(mismatchSummary, /digest match yes/);
   }
   fs.writeFileSync(
     deploymentFile,
