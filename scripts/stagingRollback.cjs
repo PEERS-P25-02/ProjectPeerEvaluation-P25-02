@@ -4,6 +4,7 @@ const { runDeployment } = require('./deployStaging.cjs');
 const { parseAnnotatedTag } = require('./stagingHistory.cjs');
 const {
   allRequiredSmokeChecksPassed,
+  REQUIRED_SMOKE_CHECKS,
 } = require('../tests/staging/safe-evidence.cjs');
 
 const TAG_PATTERN = /^staging-success\/cd-[0-9]+-[0-9]+$/;
@@ -140,7 +141,19 @@ async function preflight(options = {}) {
     dispatchSha: env.GITHUB_SHA,
     ref: env.GITHUB_REF,
   });
+  // Mark dispatch validation before remote tag inspection so evidence can
+  // distinguish an invalid dispatch from a rejected target tag.
+  fs.writeFileSync(
+    env.TARGET_FILE || 'staging-rollback-target.json',
+    `${JSON.stringify({ target_tag: input.targetTag, dispatch_validated: true })}\n`,
+  );
   const target = readTarget(input, options);
+  // Save validated tag metadata for accurate failure reporting. The workflow
+  // only uploads this handoff artifact when preflight succeeds.
+  fs.writeFileSync(
+    env.TARGET_FILE || 'staging-rollback-target.json',
+    `${JSON.stringify({ target_tag: input.targetTag, target_tag_object: target.targetObjectId, manifest: target.manifest }, null, 2)}\n`,
+  );
   requireConfiguredServices(target.manifest, env);
   const out = env.GITHUB_OUTPUT;
   if (!out) throw new Error('GITHUB_OUTPUT is required.');
@@ -150,10 +163,6 @@ async function preflight(options = {}) {
     target_frontend_image: target.manifest.frontend_image,
     target_tag_object: target.targetObjectId,
   });
-  fs.writeFileSync(
-    env.TARGET_FILE || 'staging-rollback-target.json',
-    `${JSON.stringify({ target_tag: input.targetTag, target_tag_object: target.targetObjectId, manifest: target.manifest }, null, 2)}\n`,
-  );
   return target;
 }
 
@@ -361,10 +370,54 @@ function writeEvidence(options = {}) {
     env.EVIDENCE_FILE || 'staging-rollback-evidence.json',
     `${JSON.stringify(evidence, null, 2)}\n`,
   );
-  fs.appendFileSync(
-    env.GITHUB_STEP_SUMMARY || '/dev/null',
-    `### Staging ${evidence.report_stage} ${evidence.final_outcome}\n- Phase: \`${evidence.phase}\`\n- Target tag: \`${evidence.target_tag || 'not validated'}\`\n- Target SHA: \`${evidence.target_sha || 'not validated'}\`\n- Backend target digest: \`${evidence.target_backend_image || 'not validated'}\`\n- Frontend target digest: \`${evidence.target_frontend_image || 'not validated'}\`\n- Backend observed digest: \`${evidence.backend_image || 'not observed'}\`\n- Frontend observed digest: \`${evidence.frontend_image || 'not observed'}\`\n- Backend deploy: \`${evidence.backend_deploy_id || 'not started'}\` (${evidence.backend_status || 'unknown'})\n- Frontend deploy: \`${evidence.frontend_deploy_id || 'not started'}\` (${evidence.frontend_status || 'unknown'})\n- Backend health: \`${evidence.backend_health?.http_status ?? 'unknown'} ${evidence.backend_health?.status || ''}\`\n- Smoke: \`${evidence.smoke_outcome}\` (${evidence.smoke_checks.map(({ name, status }) => `${name}: ${status}`).join(', ') || 'no checks'})\n- Reason: ${evidence.reason}\n- Failure: ${evidence.failure_reason || 'none'}\n`,
-  );
+  const summaryFile = env.GITHUB_STEP_SUMMARY || '/dev/null';
+  if (evidence.report_stage === 'preflight') {
+    const targetValidated = target?.manifest
+      ? 'passed'
+      : target?.dispatch_validated
+        ? 'failed'
+        : 'not evaluated';
+    const servicesValidated = target?.manifest
+      ? target.manifest.backend_service_id === env.BACKEND_SERVICE_ID &&
+        target.manifest.frontend_service_id === env.FRONTEND_SERVICE_ID
+      : null;
+    fs.appendFileSync(
+      summaryFile,
+      `### Staging preflight ${evidence.final_outcome}\n- Selected CD tag: \`${evidence.target_tag || 'not validated'}\`\n- Source SHA: \`${evidence.target_sha ? evidence.target_sha.slice(0, 7) : 'not validated'}\`\n- Tag/manifest validation: \`${targetValidated}\`\n- Service ID validation: \`${servicesValidated === null ? 'not evaluated' : servicesValidated ? 'passed' : 'failed'}\`\n- Overall preflight: \`${evidence.final_outcome === 'success' ? 'passed' : 'failed'}\`\n${evidence.final_outcome === 'success' ? '' : `- Failure: ${safe(env.PREFLIGHT_ERROR) || 'Validation failed; inspect the step log.'}\n- Deployment: not started\n`}`,
+    );
+  } else {
+    const shortDigest = (value) => {
+      const match = /@sha256:([0-9a-f]{64})$/.exec(value || '');
+      return match ? `sha256:${match[1].slice(0, 12)}` : 'not validated';
+    };
+    const deploymentLine = (service) => {
+      const targetDigest = evidence[`target_${service}_image`];
+      const status = evidence[`${service}_status`];
+      // The deployer reports success only after both live refs match their requested digests.
+      const digestMatch =
+        evidence.deployment_result === 'success' &&
+        status === 'live' &&
+        evidence[`${service}_deploy_id`] &&
+        targetDigest &&
+        evidence[`${service}_image`] === targetDigest
+          ? 'yes'
+          : 'not verified';
+      return `- ${service}: target ${shortDigest(targetDigest)}; deploy ${evidence[`${service}_deploy_id`] || 'not started'} (${evidence[`${service}_status`] || 'unknown'}); digest match ${digestMatch}`;
+    };
+    const checkByName = new Map(
+      evidence.smoke_checks.map((check) => [check.name, check.status]),
+    );
+    const smokeLines = REQUIRED_SMOKE_CHECKS.map(
+      (name) => `- Smoke ${name}: \`${checkByName.get(name) || 'not run'}\``,
+    ).join('\n');
+    const health = evidence.backend_health
+      ? `${evidence.backend_health.http_status ?? 'unknown'} ${evidence.backend_health.status || ''}`.trim()
+      : 'not evaluated';
+    fs.appendFileSync(
+      summaryFile,
+      `### Staging rollback ${evidence.final_outcome}\n- Selected CD tag: \`${evidence.target_tag || 'not validated'}\` (source SHA \`${evidence.target_sha ? evidence.target_sha.slice(0, 7) : 'not validated'}\`)\n${deploymentLine('backend')}\n${deploymentLine('frontend')}\n- Backend health: \`${health}\`\n${smokeLines}\n- Overall rollback: \`${evidence.final_outcome === 'success' ? 'passed' : 'failed'}\`\n${evidence.failure_reason ? `- Failure: ${evidence.failure_reason}\n` : ''}`,
+    );
+  }
   return evidence;
 }
 
@@ -380,10 +433,13 @@ async function main() {
   } catch (error) {
     const message = safeReason(error.message).slice(0, 320);
     const label = mode === 'preflight' ? 'Preflight failed' : 'Rollback failed';
-    fs.appendFileSync(
-      process.env.GITHUB_STEP_SUMMARY || '/dev/null',
-      `${label}: ${message}\n`,
-    );
+    if (mode === 'preflight' && process.env.GITHUB_OUTPUT)
+      writeOutput(process.env.GITHUB_OUTPUT, { validation_error: message });
+    if (mode !== 'preflight')
+      fs.appendFileSync(
+        process.env.GITHUB_STEP_SUMMARY || '/dev/null',
+        `${label}: ${message}\n`,
+      );
     console.error(`::error::${message}`);
     process.exitCode = 1;
   }

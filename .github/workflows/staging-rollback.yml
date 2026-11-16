@@ -62,6 +62,7 @@ jobs:
           FINAL_OUTCOME: ${{ job.status }}
           REPORT_STAGE: preflight
           PHASE: preflight
+          PREFLIGHT_ERROR: ${{ steps.target.outputs.validation_error }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/stagingRollback.cjs evidence
       # Upload the outcome even when validation fails; pass the target forward only on success.
@@ -193,6 +194,7 @@ jobs:
           SOURCE_SHA: ${{ needs.preflight.outputs.target_sha }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+          SUPPRESS_SUMMARY: 'true'
         run: node scripts/writeStagingSmokeEvidence.cjs
       # Explicit cross-check is the success gate; smoke writer validates shape only.
       - name: Verify deployment and smoke evidence against selected target
