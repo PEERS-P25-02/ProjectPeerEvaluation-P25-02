@@ -1,0 +1,226 @@
+name: Manual Staging Rollback
+# Operators select a verified history tag; this workflow restores its image pair.
+on:
+  workflow_dispatch:
+    inputs:
+      target_tag:
+        description: Exact annotated staging-success history tag
+        required: true
+        type: string
+      reason:
+        description: Why staging is being restored (1 to 500 characters)
+        required: true
+        type: string
+      compatibility_acknowledged:
+        # Image rollback leaves Atlas data and external configuration as they are.
+        description: I checked current database and external-configuration compatibility
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  # Reject malformed requests and history before entering the deployment queue.
+  # This job reads the tag as evidence and pins every later step to github.sha.
+  preflight:
+    name: Read-only Rollback Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      TARGET_TAG: ${{ inputs.target_tag }}
+      ROLLBACK_REASON: ${{ inputs.reason }}
+      COMPATIBILITY_ACKNOWLEDGED: ${{ inputs.compatibility_acknowledged }}
+      BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
+      FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
+      STAGING_BACKEND_NAME: ${{ vars.STAGING_BACKEND_NAME || 'peers-staging-backend' }}
+      STAGING_FRONTEND_NAME: ${{ vars.STAGING_FRONTEND_NAME || 'PEERS Staging Frontend' }}
+      STAGING_BACKEND_URL: ${{ vars.STAGING_BACKEND_URL || 'https://peers-staging-backend.onrender.com' }}
+      STAGING_FRONTEND_URL: ${{ vars.STAGING_FRONTEND_URL || 'https://projectpeerevaluation-p25-02-frontend.onrender.com' }}
+    outputs:
+      target_sha: ${{ steps.target.outputs.target_sha }}
+      target_backend_image: ${{ steps.target.outputs.target_backend_image }}
+      target_frontend_image: ${{ steps.target.outputs.target_frontend_image }}
+    steps:
+      # workflow_dispatch on main supplies this SHA; never check out old target code.
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Validate dispatch and selected annotated history tag
+        id: target
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/stagingRollback.cjs preflight
+      - name: Write bounded preflight outcome evidence
+        if: ${{ always() }}
+        env:
+          FINAL_OUTCOME: ${{ job.status }}
+          REPORT_STAGE: preflight
+          PHASE: preflight
+          PREFLIGHT_ERROR: ${{ steps.target.outputs.validation_error }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/stagingRollback.cjs evidence
+      # Upload the outcome even when validation fails; pass the target forward only on success.
+      - uses: actions/upload-artifact@v7.0.2
+        if: ${{ always() }}
+        with:
+          name: staging-rollback-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: staging-rollback-evidence.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7.0.2
+        if: ${{ success() }}
+        with:
+          name: staging-rollback-target-${{ github.run_id }}-${{ github.run_attempt }}
+          path: staging-rollback-target.json
+          if-no-files-found: error
+
+  # This job holds the same group as the entire automatic CD run. A queued CD
+  # starts afterward and may replace the restored images, as approved.
+  rollback:
+    name: Rollback Staging
+    needs: preflight
+    if: ${{ needs.preflight.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: cd-staging-images
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      packages: read
+    env:
+      TARGET_TAG: ${{ inputs.target_tag }}
+      ROLLBACK_REASON: ${{ inputs.reason }}
+      COMPATIBILITY_ACKNOWLEDGED: ${{ inputs.compatibility_acknowledged }}
+      TARGET_SHA: ${{ needs.preflight.outputs.target_sha }}
+      BACKEND_IMAGE: ${{ needs.preflight.outputs.target_backend_image }}
+      FRONTEND_IMAGE: ${{ needs.preflight.outputs.target_frontend_image }}
+      BACKEND_SERVICE_ID: ${{ vars.BACKEND_SERVICE_ID }}
+      FRONTEND_SERVICE_ID: ${{ vars.FRONTEND_SERVICE_ID }}
+      STAGING_BACKEND_NAME: ${{ vars.STAGING_BACKEND_NAME || 'peers-staging-backend' }}
+      STAGING_FRONTEND_NAME: ${{ vars.STAGING_FRONTEND_NAME || 'PEERS Staging Frontend' }}
+      STAGING_BACKEND_URL: ${{ vars.STAGING_BACKEND_URL || 'https://peers-staging-backend.onrender.com' }}
+      STAGING_FRONTEND_URL: ${{ vars.STAGING_FRONTEND_URL || 'https://projectpeerevaluation-p25-02-frontend.onrender.com' }}
+    steps:
+      # Use the dispatched main workflow code; the target tag supplies data only.
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/download-artifact@v7.0.0
+        with:
+          name: staging-rollback-target-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/target
+      # Prepare smoke tooling inside the job so it is ready after Render deploys.
+      - name: Validate the synthetic smoke fixture token
+        id: fixture_token
+        env:
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: |
+          if [[ ! "$STAGING_EVALUATION_TOKEN" =~ ^[A-Za-z0-9_-]{12,256}$ ]]; then
+            echo "::error::Staging smoke fixture token is not configured."
+            exit 1
+          fi
+          echo "::add-mask::$STAGING_EVALUATION_TOKEN"
+      - name: Install locked dependencies
+        id: dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        id: browser
+        run: npx playwright install --with-deps chromium
+      - name: Authenticate for the exact digest check
+        id: registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Inspect each exact digest once under the lock. Missing images stop before Render POST.
+      - name: Confirm both exact history digests before Render checks
+        id: digest_check
+        env:
+          BACKEND_IMAGE: ${{ needs.preflight.outputs.target_backend_image }}
+          FRONTEND_IMAGE: ${{ needs.preflight.outputs.target_frontend_image }}
+        run: |
+          if ! docker manifest inspect "$BACKEND_IMAGE" >/dev/null; then
+            echo "::error::Backend history digest is unavailable in GHCR."
+            exit 1
+          fi
+          if ! docker manifest inspect "$FRONTEND_IMAGE" >/dev/null; then
+            echo "::error::Frontend history digest is unavailable in GHCR."
+            exit 1
+          fi
+          docker logout ghcr.io
+      # Render's filtered query detects active external deploys; the tag recheck
+      # detects an observed ref change between preflight and mutation.
+      - name: Check Render state and unchanged target before mutation
+        id: mutation_check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          BACKEND_IMAGE: ${{ needs.preflight.outputs.target_backend_image }}
+          FRONTEND_IMAGE: ${{ needs.preflight.outputs.target_frontend_image }}
+        run: |
+          mv evidence/target/staging-rollback-target.json staging-rollback-target.json
+          node scripts/stagingCoordination.cjs mutation-check
+          node scripts/stagingRollback.cjs mutation-check
+      # The shared helper deploys backend first, verifies its image and health,
+      # then deploys and verifies the frontend on the recorded digest.
+      - name: Deploy both recorded image digests and verify backend health
+        id: deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: node scripts/stagingRollback.cjs deploy
+      # Tests come from dispatched main; SOURCE_SHA identifies the restored code in evidence.
+      - name: Run dispatched-main staging smoke checks against restored images
+        id: smoke
+        env:
+          SOURCE_SHA: ${{ needs.preflight.outputs.target_sha }}
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: npx playwright test --config=playwright.staging.config.cjs
+      - name: Write bounded smoke evidence
+        if: ${{ always() }}
+        env:
+          SOURCE_SHA: ${{ needs.preflight.outputs.target_sha }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+          SUPPRESS_SUMMARY: 'true'
+        run: node scripts/writeStagingSmokeEvidence.cjs
+      # Explicit cross-check is the success gate; smoke writer validates shape only.
+      - name: Verify deployment and smoke evidence against selected target
+        id: verify
+        if: ${{ success() }}
+        env:
+          DEPLOYMENT_FILE: staging-deployment.json
+          SMOKE_FILE: staging-smoke-result.json
+        run: node scripts/stagingRollback.cjs verify
+      # Always retain a small redacted audit record, including partial failures.
+      - name: Write redacted rollback outcome evidence
+        if: ${{ always() }}
+        env:
+          DEPLOYMENT_FILE: staging-deployment.json
+          SMOKE_FILE: staging-smoke-result.json
+          FINAL_OUTCOME: ${{ job.status }}
+          REPORT_STAGE: rollback
+          PHASE: ${{ steps.fixture_token.outcome == 'failure' && 'fixture' || steps.dependencies.outcome == 'failure' && 'dependencies' || steps.browser.outcome == 'failure' && 'browser_setup' || steps.registry.outcome == 'failure' && 'registry_auth' || steps.digest_check.outcome == 'failure' && 'digest_check' || steps.mutation_check.outcome == 'failure' && 'coordination' || steps.verify.outcome == 'success' && 'complete' || 'rollback' }}
+          COORDINATION_FAILURE_CATEGORY: ${{ steps.mutation_check.outputs.coordination_failure_category }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+        run: node scripts/stagingRollback.cjs evidence
+      - uses: actions/upload-artifact@v7.0.2
+        if: ${{ always() }}
+        with:
+          name: staging-rollback-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: staging-rollback-evidence.json
+          if-no-files-found: warn

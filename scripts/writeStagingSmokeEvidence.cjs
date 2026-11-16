@@ -26,6 +26,7 @@ try {
   // Keep a bounded empty list when setup fails before Playwright starts.
 }
 
+// Validate identifiers and image digests before copying them into the workflow artifact.
 const validSha = /^[0-9a-f]{40}$/.test(process.env.SOURCE_SHA || '');
 const validImage = (value) =>
   /^ghcr\.io\/peers-p25-02\/projectpeerevaluation-p25-02-(frontend|backend)@sha256:[0-9a-f]{64}$/.test(
@@ -37,6 +38,7 @@ const outcome = ['success', 'failure', 'cancelled', 'skipped'].includes(
   ? process.env.SMOKE_OUTCOME
   : 'failure';
 const requiredChecksPassed = allRequiredSmokeChecksPassed(checks);
+// Success requires the smoke outcome, exact required checks, and valid build inputs together.
 const validationPassed =
   outcome === 'success' &&
   requiredChecksPassed &&
@@ -59,8 +61,14 @@ fs.writeFileSync(
   'staging-smoke-result.json',
   `${JSON.stringify(result, null, 2)}\n`,
 );
-const summary = `### Staging smoke validation ${result.validation_result}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n- All three required checks passed: \`${requiredChecksPassed}\`\n`;
-fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/dev/null', summary);
+const recoveryLink =
+  !validationPassed &&
+  /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.GITHUB_REPOSITORY || '')
+    ? `- Recovery: [Manual Staging Rollback](https://github.com/${process.env.GITHUB_REPOSITORY}/actions/workflows/staging-rollback.yml) with a verified success tag after inspecting this failure.\n`
+    : '';
+const summary = `### Staging smoke validation ${result.validation_result}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n- All three required checks passed: \`${requiredChecksPassed}\`\n${recoveryLink}`;
+if (process.env.SUPPRESS_SUMMARY !== 'true')
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/dev/null', summary);
 if (!validationPassed) {
   console.error(
     '::error::Staging smoke validation did not pass all required checks.',
