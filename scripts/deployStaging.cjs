@@ -6,9 +6,9 @@ const BACKEND_REPOSITORY =
 const FRONTEND_REPOSITORY =
   'ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend';
 const API_BASE = 'https://api.render.com/v1';
-const HEALTH_URL = 'https://peers-staging-backend.onrender.com/api/health';
+const { readStagingServiceConfig } = require('../tests/staging/config.cjs');
 
-function validateInput(input) {
+function validateInput(input, env = input.env || process.env) {
   if (!/^[0-9a-f]{40}$/.test(input.sourceSha || ''))
     throw new Error('Invalid source SHA.');
   for (const [name, ref, repository] of [
@@ -31,11 +31,13 @@ function validateInput(input) {
     if (!/^srv-[a-z0-9]+$/.test(id || ''))
       throw new Error(`Invalid ${name} service ID.`);
   }
+  readStagingServiceConfig(env);
   if (!input.apiKey) throw new Error('RENDER_API_KEY is missing.');
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Deploy backend then frontend, persisting each observed phase for recovery evidence. */
 async function runDeployment(input, options = {}) {
   const now = options.now || (() => new Date().toISOString());
   const record = {
@@ -49,6 +51,7 @@ async function runDeployment(input, options = {}) {
     backend_status: null,
     frontend_status: null,
     backend_health: null,
+    retry_counts: {},
     result: 'pending',
     phase: 'validation',
     failure_reason: null,
@@ -64,13 +67,20 @@ async function runDeployment(input, options = {}) {
   const timeout = options.timeout || 600000;
   const pollInterval = options.pollInterval || 10000;
   const requestTimeout = options.requestTimeout || 30000;
+  let serviceConfig;
   const safeMessage = (message) =>
     input.apiKey
       ? String(message).replaceAll(input.apiKey, '[REDACTED]')
       : String(message);
 
   try {
-    validateInput(input);
+    serviceConfig = readStagingServiceConfig(
+      options.env || input.env || process.env,
+    );
+    validateInput(input, options.env || input.env || process.env);
+    const eligibility = options.eligibility || 'current-main';
+    if (!['current-main', 'verified-history'].includes(eligibility))
+      throw new Error('Unknown staging deployment eligibility policy.');
     const checkMain =
       options.checkMain ||
       (() => {
@@ -83,6 +93,34 @@ async function runDeployment(input, options = {}) {
           .split(/\s+/)[0];
         return tip === input.sourceSha;
       });
+    const retryLimit = options.retryTransient === true ? 2 : 0;
+    const retryBackoffMs = options.retryBackoffMs || [250, 1000];
+    const isTransientReadStatus = (status) => status === 429 || status >= 500;
+    const requestWithRetry = async (operation, url, init = {}) => {
+      const method = init.method || 'GET';
+      let retryCount = 0;
+      while (true) {
+        try {
+          const result = await request(url, init);
+          // A 429 explicitly rejects the deploy request. A 5xx response can
+          // follow an accepted deploy, so POST retries must stop there.
+          const retryable =
+            method === 'GET'
+              ? isTransientReadStatus(result.response.status)
+              : result.response.status === 429;
+          // A 5xx after POST may mean Render accepted it, so retrying could duplicate the deploy.
+          if (!retryable || retryCount >= retryLimit) return result;
+        } catch (error) {
+          if (method !== 'GET' || retryCount >= retryLimit) throw error;
+        }
+        retryCount += 1;
+        record.retry_counts[operation] = retryCount;
+        persist();
+        await wait(
+          retryBackoffMs[Math.min(retryCount - 1, retryBackoffMs.length - 1)],
+        );
+      }
+    };
     const request = async (url, init = {}) => {
       const response = await fetcher(url, {
         ...init,
@@ -101,13 +139,19 @@ async function runDeployment(input, options = {}) {
       return { response, body };
     };
     const deployService = async (kind, serviceId, image) => {
-      record.phase = `${kind}_main_check`;
-      persist();
-      if (!(await checkMain()))
-        throw new Error(`Current main tip changed before ${kind} deploy.`);
+      // CD follows the moving main tip; a verified rollback restores a pinned
+      // historical digest pair even if main advances during recovery.
+      if (eligibility === 'current-main') {
+        // Recheck main immediately before each deploy request to avoid deploying stale CD output.
+        record.phase = `${kind}_main_check`;
+        persist();
+        if (!(await checkMain()))
+          throw new Error(`Current main tip changed before ${kind} deploy.`);
+      }
       record.phase = `${kind}_request`;
       persist();
-      const { response, body } = await request(
+      const { response, body } = await requestWithRetry(
+        `${kind}_deploy_post`,
         `${API_BASE}/services/${serviceId}/deploys`,
         {
           method: 'POST',
@@ -134,7 +178,8 @@ async function runDeployment(input, options = {}) {
       persist();
       const deadline = clock() + timeout;
       while (clock() <= deadline) {
-        const result = await request(
+        const result = await requestWithRetry(
+          `${kind}_status_get`,
           `${API_BASE}/services/${serviceId}/deploys/${body.id}`,
         );
         if (
@@ -163,6 +208,7 @@ async function runDeployment(input, options = {}) {
           );
         }
         if (result.body.status.toLowerCase() === 'live') {
+          // Live status alone is insufficient; Render must report the requested image digest.
           if (result.body.image?.ref !== image)
             throw new Error(
               `${kind} live deploy image does not match the published digest.`,
@@ -181,9 +227,12 @@ async function runDeployment(input, options = {}) {
     let healthy = false;
     while (clock() <= healthDeadline) {
       try {
-        const response = await fetcher(options.healthUrl || HEALTH_URL, {
-          signal: AbortSignal.timeout(requestTimeout),
-        });
+        const response = await fetcher(
+          options.healthUrl || `${serviceConfig.backendUrl}/api/health`,
+          {
+            signal: AbortSignal.timeout(requestTimeout),
+          },
+        );
         let body;
         try {
           body = await response.json();
@@ -242,6 +291,7 @@ async function main() {
     backendServiceId: process.env.BACKEND_SERVICE_ID,
     frontendServiceId: process.env.FRONTEND_SERVICE_ID,
     apiKey: process.env.RENDER_API_KEY,
+    env: process.env,
   };
   const save = (record) => {
     latest = { ...record };

@@ -68,14 +68,18 @@ const writerEnv = {
   GITHUB_STEP_SUMMARY: path.join(workDir, 'summary.md'),
 };
 
-function runWriter(checks, outcome = 'success') {
+function runWriter(checks, outcome = 'success', suppressSummary = false) {
   fs.writeFileSync(
     path.join(reportDir, 'smoke-checks.json'),
     JSON.stringify({ checks }),
   );
   const command = spawnSync(process.execPath, [writer], {
     cwd: workDir,
-    env: { ...writerEnv, SMOKE_OUTCOME: outcome },
+    env: {
+      ...writerEnv,
+      SMOKE_OUTCOME: outcome,
+      SUPPRESS_SUMMARY: suppressSummary ? 'true' : 'false',
+    },
     encoding: 'utf8',
   });
   return {
@@ -91,6 +95,15 @@ try {
   const success = runWriter(passedChecks);
   assert.equal(success.exitCode, 0);
   assert.equal(success.evidence.validation_result, 'success');
+  assert.match(
+    fs.readFileSync(writerEnv.GITHUB_STEP_SUMMARY, 'utf8'),
+    /Staging smoke validation success/,
+  );
+  fs.writeFileSync(writerEnv.GITHUB_STEP_SUMMARY, '');
+  const suppressed = runWriter(passedChecks, 'success', true);
+  assert.equal(suppressed.exitCode, 0);
+  assert.equal(suppressed.evidence.validation_result, 'success');
+  assert.equal(fs.readFileSync(writerEnv.GITHUB_STEP_SUMMARY, 'utf8'), '');
 
   const incompleteChecks = [
     passedChecks.slice(0, 2),
