@@ -67,7 +67,8 @@ const recoveryLink =
     ? `- Recovery: [Manual Staging Rollback](https://github.com/${process.env.GITHUB_REPOSITORY}/actions/workflows/staging-rollback.yml) with a verified success tag after inspecting this failure.\n`
     : '';
 const summary = `### Staging smoke validation ${result.validation_result}\n- Source SHA: \`${result.source_sha}\`\n- Frontend image: \`${result.frontend_image}\`\n- Backend image: \`${result.backend_image}\`\n- Smoke outcome: \`${outcome}\`\n- All three required checks passed: \`${requiredChecksPassed}\`\n${recoveryLink}`;
-fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/dev/null', summary);
+if (process.env.SUPPRESS_SUMMARY !== 'true')
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/dev/null', summary);
 if (!validationPassed) {
   console.error(
     '::error::Staging smoke validation did not pass all required checks.',

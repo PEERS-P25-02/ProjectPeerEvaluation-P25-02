@@ -188,6 +188,71 @@ test('preflight validates main dispatch and target, then mutation check rejects 
     }),
     /configured staging service IDs/,
   );
+  const preflightSummary = path.join(directory, 'preflight-summary.md');
+  const rejectedEnv = {
+    ...env,
+    BACKEND_SERVICE_ID: 'srv-other',
+    REPORT_STAGE: 'preflight',
+    FINAL_OUTCOME: 'failure',
+    GITHUB_STEP_SUMMARY: preflightSummary,
+    EVIDENCE_FILE: path.join(directory, 'preflight-evidence.json'),
+  };
+  writeEvidence({ env: rejectedEnv });
+  const rejectedSummary = fs.readFileSync(preflightSummary, 'utf8');
+  assert.match(rejectedSummary, /Tag\/manifest validation: `passed`/);
+  assert.match(rejectedSummary, /Service ID validation: `failed`/);
+  assert.match(rejectedSummary, /Overall preflight: `failed`/);
+  assert.doesNotMatch(rejectedSummary, /sha256:|dep-|Backend health|Smoke/);
+  assert.doesNotMatch(rejectedSummary, /Failure:|Preflight failed:/);
+
+  const invalidTagFile = path.join(directory, 'invalid-tag-target.json');
+  await assert.rejects(
+    preflight({
+      env: {
+        ...env,
+        TARGET_TAG: 'staging-success/cd-21-1',
+        TARGET_FILE: invalidTagFile,
+      },
+      git: gitStub(),
+    }),
+    /selected target tag name/i,
+  );
+  const invalidTagSummary = path.join(directory, 'invalid-tag-summary.md');
+  writeEvidence({
+    env: {
+      ...env,
+      TARGET_TAG: 'staging-success/cd-21-1',
+      TARGET_FILE: invalidTagFile,
+      REPORT_STAGE: 'preflight',
+      FINAL_OUTCOME: 'failure',
+      GITHUB_STEP_SUMMARY: invalidTagSummary,
+      EVIDENCE_FILE: path.join(directory, 'invalid-tag-evidence.json'),
+    },
+  });
+  assert.match(
+    fs.readFileSync(invalidTagSummary, 'utf8'),
+    /Tag\/manifest validation: `failed`/,
+  );
+
+  const invalidDispatchSummaryBlock = path.join(
+    directory,
+    'invalid-dispatch-block.md',
+  );
+  writeEvidence({
+    env: {
+      ...env,
+      TARGET_TAG: 'invalid',
+      TARGET_FILE: path.join(directory, 'missing-dispatch-target.json'),
+      REPORT_STAGE: 'preflight',
+      FINAL_OUTCOME: 'failure',
+      GITHUB_STEP_SUMMARY: invalidDispatchSummaryBlock,
+      EVIDENCE_FILE: path.join(directory, 'invalid-dispatch-evidence.json'),
+    },
+  });
+  assert.match(
+    fs.readFileSync(invalidDispatchSummaryBlock, 'utf8'),
+    /Tag\/manifest validation: `not evaluated`/,
+  );
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
@@ -361,6 +426,83 @@ test('evidence redacts URLs and secrets and records only the rollback audit fiel
   assert.doesNotMatch(
     fs.readFileSync(summaryFile, 'utf8'),
     /secret\.example|render-secret|github-secret|fixture-secret/,
+  );
+  const rollbackSummary = fs.readFileSync(summaryFile, 'utf8');
+  assert.match(rollbackSummary, /Selected CD tag:/);
+  assert.match(rollbackSummary, /Backend health: `503/);
+  for (const name of REQUIRED_SMOKE_CHECKS)
+    assert.match(rollbackSummary, new RegExp(`Smoke ${name}:`));
+  assert.match(rollbackSummary, /Overall rollback: `failed`/);
+  assert.doesNotMatch(rollbackSummary, new RegExp('b'.repeat(64)));
+  assert.equal(JSON.parse(stored).target_backend_image, manifest.backend_image);
+  for (const service of ['backend', 'frontend']) {
+    const failedDeployment = {
+      result: 'failure',
+      phase: `${service}_request_failed`,
+      failure_reason: `${service} live deploy image does not match the published digest.`,
+      backend_image: manifest.backend_image,
+      frontend_image: manifest.frontend_image,
+      backend_deploy_id: 'dep-newbackend',
+      frontend_deploy_id: 'dep-newfrontend',
+      backend_status: 'live',
+      frontend_status: 'live',
+    };
+    fs.writeFileSync(deploymentFile, JSON.stringify(failedDeployment));
+    const mismatchSummaryFile = path.join(directory, `${service}-mismatch.md`);
+    writeEvidence({
+      env: {
+        ...env,
+        GITHUB_STEP_SUMMARY: mismatchSummaryFile,
+        EVIDENCE_FILE: path.join(directory, `${service}-mismatch.json`),
+      },
+    });
+    const mismatchSummary = fs.readFileSync(mismatchSummaryFile, 'utf8');
+    assert.match(mismatchSummary, new RegExp(`- ${service}:.*digest match no`));
+    if (service === 'frontend')
+      assert.match(mismatchSummary, /- backend:.*digest match yes/);
+  }
+  fs.writeFileSync(
+    deploymentFile,
+    JSON.stringify({
+      result: 'success',
+      phase: 'complete',
+      backend_image: manifest.backend_image,
+      frontend_image: manifest.frontend_image,
+      backend_deploy_id: 'dep-newbackend',
+      frontend_deploy_id: 'dep-newfrontend',
+      backend_status: 'live',
+      frontend_status: 'live',
+      backend_health: { http_status: 200, status: 'OK' },
+    }),
+  );
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({
+      validation_result: 'success',
+      smoke_outcome: 'success',
+      checks: REQUIRED_SMOKE_CHECKS.map((name) => ({ name, status: 'passed' })),
+    }),
+  );
+  const successSummaryFile = path.join(directory, 'success-summary.md');
+  writeEvidence({
+    env: {
+      ...env,
+      FINAL_OUTCOME: 'success',
+      GITHUB_STEP_SUMMARY: successSummaryFile,
+      EVIDENCE_FILE: path.join(directory, 'success-evidence.json'),
+    },
+  });
+  const successSummary = fs.readFileSync(successSummaryFile, 'utf8');
+  assert.match(successSummary, /Overall rollback: `passed`/);
+  assert.match(successSummary, /- backend:.*\(live\); digest match yes/);
+  assert.match(successSummary, /- frontend:.*\(live\); digest match yes/);
+  assert.match(successSummary, new RegExp(`sha256:${'b'.repeat(12)}`));
+  assert.doesNotMatch(successSummary, new RegExp('b'.repeat(64)));
+  for (const name of REQUIRED_SMOKE_CHECKS)
+    assert.ok(successSummary.includes('Smoke ' + name + ': `passed`'));
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({ validation_result: 'failure', smoke_outcome: 'failure' }),
   );
   fs.writeFileSync(
     deploymentFile,

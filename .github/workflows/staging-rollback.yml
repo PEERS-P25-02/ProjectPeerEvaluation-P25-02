@@ -193,6 +193,7 @@ jobs:
           SOURCE_SHA: ${{ needs.preflight.outputs.target_sha }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           STAGING_EVALUATION_TOKEN: ${{ secrets.STAGING_EVALUATION_TOKEN }}
+          SUPPRESS_SUMMARY: 'true'
         run: node scripts/writeStagingSmokeEvidence.cjs
       # Explicit cross-check is the success gate; smoke writer validates shape only.
       - name: Verify deployment and smoke evidence against selected target
