@@ -1,25 +1,61 @@
-# This file keeps unrelated files out of the frontend image build context.
-# TLDR: omits dependencies, local environment files, generated output, and docs.
-.git
-.gitignore
-node_modules
-build
-test-results
-.env
-.env.*
-!.env.example
-npm-debug.log*
-coverage
-src/backend
-docs
-README-historical.md
-DEPLOYMENT_GUIDE.md
-Frontend-Backend API Contract Document
-PROJECT STRUCTURE
-frontend-backend-integration-guide.txt
-render-build-info.txt
-render-env-variables.txt
-start.bat
-start.ps1
-docker-compose.yml
-compose.test.yml
+# Production frontend allowlist: new build inputs need an intentional update.
+**
+!/.npmrc
+!/package.json
+!/package-lock.json
+!/vite.config.mjs
+!/index.html
+!/src/
+!/src/index.jsx
+!/src/frontend/
+!/src/frontend/**
+!/scripts/
+!/scripts/frontendInstrumentation.cjs
+!/public/
+!/public/**
+!/nginx/
+!/nginx/default.conf
+
+# Parent-directory re-inclusions can admit sibling trees. Narrow src to the
+# browser entry points and frontend source before filtering test/generated data.
+src/**
+!/src/index.jsx
+!/src/frontend/
+!/src/frontend/**
+
+# Remove test, generated, local, and unrelated content after directory allows.
+**/test
+**/test/**
+**/tests
+**/tests/**
+**/*.test.*
+**/*.spec.*
+**/coverage
+**/coverage/**
+**/node_modules
+**/build
+**/build/**
+**/node_modules/**
+**/.env
+**/.env.*
+**/.git
+**/.git/**
+**/uploads
+**/uploads/**
+**/dist
+**/dist/**
+**/test-results
+**/test-results/**
+
+# Of the scripts, only the Vite helper and policy belong in this context.
+scripts/**
+!/scripts/frontendInstrumentation.cjs
+!/scripts/coverage/
+scripts/coverage/**
+
+# The frontend image uses standalone Nginx config, not the Compose variant.
+nginx/**
+!/nginx/default.conf
+
+# The instrumentation helper loads this policy during the production build.
+!/scripts/coverage/policy.json

@@ -1,0 +1,29 @@
+# The E2E runner installs locked Playwright dependencies and copies its config
+# plus test tree. This file replaces the root production ignore rules.
+**
+!/.npmrc
+!/package.json
+!/package-lock.json
+!/playwright.config.cjs
+!/tests/
+tests/**
+!/tests/e2e/
+!/tests/e2e/**
+
+# Exclude nested local state and generated output from the runner context.
+**/node_modules
+**/node_modules/**
+**/.env
+**/.env.*
+**/.git
+**/.git/**
+**/coverage
+**/coverage/**
+**/uploads
+**/uploads/**
+**/test-results
+**/test-results/**
+**/build
+**/build/**
+**/dist
+**/dist/**

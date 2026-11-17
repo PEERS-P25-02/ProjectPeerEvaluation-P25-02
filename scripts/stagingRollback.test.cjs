@@ -1,0 +1,597 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const test = require('node:test');
+const { spawnSync } = require('node:child_process');
+const { REQUIRED_SMOKE_CHECKS } = require('../tests/staging/safe-evidence.cjs');
+const {
+  mutationCheck,
+  preflight,
+  readTarget,
+  safeReason,
+  validateDispatch,
+  writeEvidence,
+} = require('./stagingRollback.cjs');
+
+const sha = 'a'.repeat(40);
+const manifest = {
+  kind: 'cd',
+  schema_version: 1,
+  source_sha: sha,
+  backend_image: `ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-backend@sha256:${'b'.repeat(64)}`,
+  frontend_image: `ghcr.io/peers-p25-02/projectpeerevaluation-p25-02-frontend@sha256:${'c'.repeat(64)}`,
+  backend_service_id: 'srv-backend',
+  frontend_service_id: 'srv-frontend',
+  backend_deploy_id: 'dep-backend',
+  frontend_deploy_id: 'dep-frontend',
+  workflow_run_id: '20',
+  workflow_run_attempt: '1',
+  smoke_checks: REQUIRED_SMOKE_CHECKS.map((name) => ({
+    name,
+    result: 'passed',
+  })),
+};
+const tagName = 'staging-success/cd-20-1';
+const tagObject = `object ${sha}\ntype commit\ntag ${tagName}\ntagger Agent <agent@example.com> 0 +0000\n\n${JSON.stringify(manifest)}`;
+const tagObjectId = 'd'.repeat(40);
+
+test('CD and rollback share one mutation group without a CD skip', () => {
+  const cd = fs.readFileSync(
+    path.join(__dirname, '../.github/workflows/cd.yml'),
+    'utf8',
+  );
+  const rollback = fs.readFileSync(
+    path.join(__dirname, '../.github/workflows/staging-rollback.yml'),
+    'utf8',
+  );
+  for (const workflow of [cd, rollback]) {
+    assert.match(workflow, /group: cd-staging-images/);
+    assert.match(workflow, /cancel-in-progress: false/);
+    assert.match(workflow, /queue: max/);
+  }
+  assert.doesNotMatch(cd, /stagingCoordination\.cjs cd-guard|outputs\.skip/);
+  assert.equal((rollback.match(/docker manifest inspect/g) || []).length, 2);
+  assert.ok(
+    rollback.indexOf('docker manifest inspect') <
+      rollback.indexOf('node scripts/stagingCoordination.cjs mutation-check'),
+  );
+  assert.ok(
+    rollback.indexOf('node scripts/stagingCoordination.cjs mutation-check') <
+      rollback.indexOf('node scripts/stagingRollback.cjs deploy'),
+  );
+  assert.ok(
+    rollback.indexOf('node scripts/stagingRollback.cjs verify') <
+      rollback.indexOf('Write redacted rollback outcome evidence'),
+  );
+  for (const key of [
+    'STAGING_BACKEND_NAME',
+    'STAGING_FRONTEND_NAME',
+    'STAGING_BACKEND_URL',
+    'STAGING_FRONTEND_URL',
+  ]) {
+    assert.match(cd, new RegExp(`vars\\.${key} \\|\\|`));
+    assert.match(rollback, new RegExp(`vars\\.${key} \\|\\|`));
+  }
+  assert.match(
+    rollback,
+    /COORDINATION_FAILURE_CATEGORY:.*mutation_check\.outputs/,
+  );
+  assert.match(rollback, /contents: read/);
+  assert.match(rollback, /stagingRollback\.cjs verify/);
+  assert.doesNotMatch(
+    rollback,
+    /contents: write|stagingRollback\.cjs record|staging-success\/rollback-/,
+  );
+});
+
+function gitStub(currentObjectId = tagObjectId) {
+  return (args) => {
+    if (args[0] === 'ls-remote') return '';
+    if (args[0] === 'fetch') return '';
+    if (args[0] === 'cat-file' && args[1] === '-t') return 'tag';
+    if (args[0] === 'rev-parse') return currentObjectId;
+    if (args[0] === 'cat-file' && args[1] === 'tag') return tagObject;
+    if (args[0] === 'cat-file' && args[1] === '-e') return '';
+    throw new Error(`Unexpected git args: ${args.join(' ')}`);
+  };
+}
+
+test('dispatch validation requires an exact CD success target, bounded reason, ack, and main SHA', () => {
+  const input = {
+    targetTag: tagName,
+    reason: 'Restore after deployment incident',
+    acknowledged: 'true',
+    dispatchSha: sha,
+    ref: 'refs/heads/main',
+  };
+  assert.equal(validateDispatch(input).targetTag, tagName);
+  assert.throws(
+    () => validateDispatch({ ...input, targetTag: 'staging-last-success' }),
+    /exact staging-success CD/,
+  );
+  assert.throws(
+    () =>
+      validateDispatch({
+        ...input,
+        targetTag: 'staging-success/rollback-20-1',
+      }),
+    /exact staging-success CD/,
+  );
+  assert.throws(
+    () => validateDispatch({ ...input, acknowledged: 'false' }),
+    /Acknowledge/,
+  );
+  assert.throws(
+    () => validateDispatch({ ...input, reason: '   ' }),
+    /1 to 500/,
+  );
+  assert.throws(
+    () => validateDispatch({ ...input, ref: 'refs/heads/feature' }),
+    /dispatched from main/,
+  );
+  assert.throws(
+    () => validateDispatch({ ...input, dispatchSha: 'not-a-commit' }),
+    /dispatched from main/,
+  );
+});
+
+test('target reader fetches and validates the exact annotated manifest object', () => {
+  const target = readTarget({ targetTag: tagName }, { git: gitStub() });
+  assert.equal(target.targetObjectId, tagObjectId);
+  assert.equal(target.manifest.source_sha, sha);
+  assert.equal(
+    readTarget({ targetTag: tagName }, { git: gitStub('e'.repeat(40)) })
+      .targetObjectId,
+    'e'.repeat(40),
+  );
+  assert.throws(
+    () =>
+      readTarget({ targetTag: 'staging-success/cd-21-1' }, { git: gitStub() }),
+    /selected target tag name/i,
+  );
+});
+
+test('preflight validates main dispatch and target, then mutation check rejects a changed tag', async () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'rollback-preflight-'),
+  );
+  const env = {
+    TARGET_TAG: tagName,
+    ROLLBACK_REASON: 'Restore after deployment incident',
+    COMPATIBILITY_ACKNOWLEDGED: 'true',
+    GITHUB_SHA: sha,
+    GITHUB_REF: 'refs/heads/main',
+    GITHUB_OUTPUT: path.join(directory, 'output'),
+    TARGET_FILE: path.join(directory, 'target.json'),
+    BACKEND_SERVICE_ID: manifest.backend_service_id,
+    FRONTEND_SERVICE_ID: manifest.frontend_service_id,
+  };
+  fs.writeFileSync(env.GITHUB_OUTPUT, '');
+  const target = await preflight({ env, git: gitStub() });
+  assert.equal(target.manifest.source_sha, sha);
+  assert.match(
+    fs.readFileSync(env.GITHUB_OUTPUT, 'utf8'),
+    /target_tag_object=/,
+  );
+  assert.equal(
+    JSON.parse(fs.readFileSync(env.TARGET_FILE, 'utf8')).target_tag,
+    tagName,
+  );
+  assert.throws(
+    () => mutationCheck({ env, git: gitStub('e'.repeat(40)) }),
+    /changed after preflight/,
+  );
+  await assert.rejects(
+    preflight({
+      env: { ...env, BACKEND_SERVICE_ID: 'srv-other' },
+      git: gitStub(),
+    }),
+    /configured staging service IDs/,
+  );
+  const preflightSummary = path.join(directory, 'preflight-summary.md');
+  const rejectedEnv = {
+    ...env,
+    BACKEND_SERVICE_ID: 'srv-other',
+    REPORT_STAGE: 'preflight',
+    FINAL_OUTCOME: 'failure',
+    PREFLIGHT_ERROR:
+      'Selected history tag does not match configured service IDs: synthetic-secret https://example.test',
+    GITHUB_TOKEN: 'synthetic-secret',
+    GITHUB_STEP_SUMMARY: preflightSummary,
+    EVIDENCE_FILE: path.join(directory, 'preflight-evidence.json'),
+  };
+  writeEvidence({ env: rejectedEnv });
+  const rejectedSummary = fs.readFileSync(preflightSummary, 'utf8');
+  assert.match(rejectedSummary, /Tag\/manifest validation: `passed`/);
+  assert.match(rejectedSummary, /Service ID validation: `failed`/);
+  assert.match(rejectedSummary, /Overall preflight: `failed`/);
+  assert.match(
+    rejectedSummary,
+    /Failure: Selected history tag does not match configured service IDs:/,
+  );
+  assert.match(rejectedSummary, /Deployment: not started/);
+  assert.doesNotMatch(rejectedSummary, /synthetic-secret|example\.test/);
+  assert.equal((rejectedSummary.match(/- Failure:/g) || []).length, 1);
+  assert.doesNotMatch(rejectedSummary, /sha256:|dep-|Backend health|Smoke/);
+  assert.doesNotMatch(rejectedSummary, /Preflight failed:/);
+
+  const invalidTagFile = path.join(directory, 'invalid-tag-target.json');
+  await assert.rejects(
+    preflight({
+      env: {
+        ...env,
+        TARGET_TAG: 'staging-success/cd-21-1',
+        TARGET_FILE: invalidTagFile,
+      },
+      git: gitStub(),
+    }),
+    /selected target tag name/i,
+  );
+  const invalidTagSummary = path.join(directory, 'invalid-tag-summary.md');
+  writeEvidence({
+    env: {
+      ...env,
+      TARGET_TAG: 'staging-success/cd-21-1',
+      TARGET_FILE: invalidTagFile,
+      REPORT_STAGE: 'preflight',
+      FINAL_OUTCOME: 'failure',
+      GITHUB_STEP_SUMMARY: invalidTagSummary,
+      EVIDENCE_FILE: path.join(directory, 'invalid-tag-evidence.json'),
+    },
+  });
+  assert.match(
+    fs.readFileSync(invalidTagSummary, 'utf8'),
+    /Tag\/manifest validation: `failed`/,
+  );
+
+  const invalidDispatchSummaryBlock = path.join(
+    directory,
+    'invalid-dispatch-block.md',
+  );
+  writeEvidence({
+    env: {
+      ...env,
+      TARGET_TAG: 'invalid',
+      TARGET_FILE: path.join(directory, 'missing-dispatch-target.json'),
+      REPORT_STAGE: 'preflight',
+      FINAL_OUTCOME: 'failure',
+      GITHUB_STEP_SUMMARY: invalidDispatchSummaryBlock,
+      EVIDENCE_FILE: path.join(directory, 'invalid-dispatch-evidence.json'),
+    },
+  });
+  assert.match(
+    fs.readFileSync(invalidDispatchSummaryBlock, 'utf8'),
+    /Tag\/manifest validation: `not evaluated`/,
+  );
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('preflight sends one sanitized validation error to the outcome step', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-error-'));
+  const output = path.join(directory, 'output');
+  const summary = path.join(directory, 'summary');
+  const result = spawnSync(
+    process.execPath,
+    [path.join(__dirname, 'stagingRollback.cjs'), 'preflight'],
+    {
+      env: {
+        ...process.env,
+        TARGET_TAG: 'invalid',
+        GITHUB_OUTPUT: output,
+        GITHUB_STEP_SUMMARY: summary,
+        GITHUB_TOKEN: 'synthetic-secret',
+      },
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(
+    fs.readFileSync(output, 'utf8'),
+    /^validation_error=Select one exact staging-success CD tag\./,
+  );
+  assert.equal(fs.existsSync(summary), false);
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('success gate binds live deploy and smoke evidence to selected CD digests', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-verify-'));
+  const targetFile = path.join(directory, 'target.json');
+  const deploymentFile = path.join(directory, 'deployment.json');
+  const smokeFile = path.join(directory, 'smoke.json');
+  fs.writeFileSync(
+    targetFile,
+    JSON.stringify({ target_tag: tagName, manifest }),
+  );
+  const deployment = {
+    source_sha: sha,
+    backend_image: manifest.backend_image,
+    frontend_image: manifest.frontend_image,
+    backend_service_id: manifest.backend_service_id,
+    frontend_service_id: manifest.frontend_service_id,
+    backend_deploy_id: 'dep-newbackend',
+    frontend_deploy_id: 'dep-newfrontend',
+    backend_status: 'live',
+    frontend_status: 'live',
+    backend_health: { http_status: 200, status: 'OK' },
+    result: 'success',
+  };
+  const smoke = {
+    source_sha: sha,
+    backend_image: manifest.backend_image,
+    frontend_image: manifest.frontend_image,
+    validation_result: 'success',
+    smoke_outcome: 'success',
+    checks: REQUIRED_SMOKE_CHECKS.map((name) => ({ name, status: 'passed' })),
+  };
+  fs.writeFileSync(deploymentFile, JSON.stringify(deployment));
+  fs.writeFileSync(smokeFile, JSON.stringify(smoke));
+  const env = {
+    TARGET_FILE: targetFile,
+    DEPLOYMENT_FILE: deploymentFile,
+    SMOKE_FILE: smokeFile,
+  };
+  const { verifySuccess } = require('./stagingRollback.cjs');
+  const result = verifySuccess({ env });
+  assert.equal(result.deployment.backend_deploy_id, 'dep-newbackend');
+  for (const bad of [
+    { ...deployment, backend_image: 'wrong' },
+    { ...deployment, frontend_status: 'building' },
+    { ...deployment, backend_health: { http_status: 503, status: null } },
+    { ...deployment, backend_deploy_id: null },
+    { ...deployment, backend_deploy_id: manifest.backend_deploy_id },
+    { ...deployment, frontend_deploy_id: manifest.frontend_deploy_id },
+  ]) {
+    fs.writeFileSync(deploymentFile, JSON.stringify(bad));
+    assert.throws(() => verifySuccess({ env }), /Deployment evidence/);
+  }
+  fs.writeFileSync(deploymentFile, JSON.stringify(deployment));
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({ ...smoke, source_sha: 'f'.repeat(40) }),
+  );
+  assert.throws(() => verifySuccess({ env }), /smoke checks/);
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('evidence redacts URLs and secrets and records only the rollback audit fields', () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'rollback-evidence-'),
+  );
+  const targetFile = path.join(directory, 'target.json');
+  const deploymentFile = path.join(directory, 'deployment.json');
+  const smokeFile = path.join(directory, 'smoke.json');
+  const evidenceFile = path.join(directory, 'evidence.json');
+  const summaryFile = path.join(directory, 'summary.md');
+  fs.writeFileSync(
+    targetFile,
+    JSON.stringify({
+      target_tag: tagName,
+      target_tag_object: tagObjectId,
+      manifest,
+    }),
+  );
+  fs.writeFileSync(
+    deploymentFile,
+    JSON.stringify({
+      backend_deploy_id: 'dep-newbackend',
+      phase: 'backend_health',
+      result: 'failure',
+      failure_reason: 'https://secret.example/token',
+      backend_health: {
+        http_status: 503,
+        status: 'render-secret https://secret.example/token',
+      },
+      retry_counts: { backend_status_get: 2 },
+    }),
+  );
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({
+      validation_result: 'failure',
+      smoke_outcome: 'failure',
+      checks: [
+        {
+          name: 'test',
+          status: 'failed',
+        },
+      ],
+    }),
+  );
+  const env = {
+    TARGET_FILE: targetFile,
+    DEPLOYMENT_FILE: deploymentFile,
+    SMOKE_FILE: smokeFile,
+    EVIDENCE_FILE: evidenceFile,
+    GITHUB_STEP_SUMMARY: summaryFile,
+    REPORT_STAGE: 'rollback',
+    TARGET_TAG: tagName,
+    ROLLBACK_REASON: `incident at https://example.com ${'x'.repeat(600)}`,
+    GITHUB_ACTOR: 'tester',
+    GITHUB_SHA: sha,
+    RENDER_API_KEY: 'render-secret',
+    GITHUB_TOKEN: 'github-secret',
+    STAGING_EVALUATION_TOKEN: 'fixture-secret',
+  };
+  env.ROLLBACK_REASON = `${'x'.repeat(495)}render-secret`;
+  fs.writeFileSync(
+    deploymentFile,
+    JSON.stringify({
+      backend_deploy_id: 'dep-newbackend',
+      phase: 'backend_health',
+      result: 'failure',
+      failure_reason: 'render-secret github-secret fixture-secret',
+      backend_health: {
+        http_status: 503,
+        status: 'render-secret https://secret.example/token',
+      },
+      retry_counts: { backend_status_get: 2 },
+    }),
+  );
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({
+      validation_result: 'failure',
+      smoke_outcome: 'failure',
+      checks: [
+        {
+          name: 'test',
+          status: 'failed',
+        },
+      ],
+    }),
+  );
+  const evidence = writeEvidence({ env });
+  assert.equal(evidence.target_tag, tagName);
+  assert.equal(evidence.target_sha, sha);
+  assert.equal(evidence.dispatch_sha, sha);
+  assert.equal(evidence.backend_health.http_status, 503);
+  assert.equal(evidence.backend_health.status, '[REDACTED] [URL REDACTED]');
+  assert.equal(evidence.smoke_checks[0].status, 'failed');
+  assert.equal(evidence.smoke_checks[0].diagnostic, undefined);
+  assert.equal(evidence.failure_reason, '[REDACTED] [REDACTED] [REDACTED]');
+  assert.ok(evidence.reason.length <= 500);
+  assert.doesNotMatch(evidence.reason, /render-secret|render-/);
+  assert.equal(
+    safeReason('see https://example.com/path'),
+    'see [URL REDACTED]',
+  );
+  const stored = fs.readFileSync(evidenceFile, 'utf8');
+  assert.doesNotMatch(
+    stored,
+    /secret\.example|render-secret|github-secret|fixture-secret|workflow_steps/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(summaryFile, 'utf8'),
+    /secret\.example|render-secret|github-secret|fixture-secret/,
+  );
+  const rollbackSummary = fs.readFileSync(summaryFile, 'utf8');
+  assert.match(rollbackSummary, /Selected CD tag:/);
+  assert.match(rollbackSummary, /Backend health: `503/);
+  for (const name of REQUIRED_SMOKE_CHECKS)
+    assert.match(rollbackSummary, new RegExp(`Smoke ${name}:`));
+  assert.match(rollbackSummary, /Overall rollback: `failed`/);
+  assert.doesNotMatch(rollbackSummary, new RegExp('b'.repeat(64)));
+  assert.equal(JSON.parse(stored).target_backend_image, manifest.backend_image);
+  for (const service of ['backend', 'frontend']) {
+    const failedDeployment = {
+      result: 'failure',
+      phase: `${service}_request_failed`,
+      failure_reason: `${service} live deploy image does not match the published digest.`,
+      backend_image: manifest.backend_image,
+      frontend_image: manifest.frontend_image,
+      backend_deploy_id: 'dep-newbackend',
+      frontend_deploy_id: 'dep-newfrontend',
+      backend_status: 'live',
+      frontend_status: 'live',
+    };
+    fs.writeFileSync(deploymentFile, JSON.stringify(failedDeployment));
+    const mismatchSummaryFile = path.join(directory, `${service}-mismatch.md`);
+    writeEvidence({
+      env: {
+        ...env,
+        GITHUB_STEP_SUMMARY: mismatchSummaryFile,
+        EVIDENCE_FILE: path.join(directory, `${service}-mismatch.json`),
+      },
+    });
+    const mismatchSummary = fs.readFileSync(mismatchSummaryFile, 'utf8');
+    assert.match(
+      mismatchSummary,
+      new RegExp(`- ${service}:.*digest match not verified`),
+    );
+    assert.doesNotMatch(mismatchSummary, /digest match yes/);
+  }
+  fs.writeFileSync(
+    deploymentFile,
+    JSON.stringify({
+      result: 'success',
+      phase: 'complete',
+      backend_image: manifest.backend_image,
+      frontend_image: manifest.frontend_image,
+      backend_deploy_id: 'dep-newbackend',
+      frontend_deploy_id: 'dep-newfrontend',
+      backend_status: 'live',
+      frontend_status: 'live',
+      backend_health: { http_status: 200, status: 'OK' },
+    }),
+  );
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({
+      validation_result: 'success',
+      smoke_outcome: 'success',
+      checks: REQUIRED_SMOKE_CHECKS.map((name) => ({ name, status: 'passed' })),
+    }),
+  );
+  const successSummaryFile = path.join(directory, 'success-summary.md');
+  writeEvidence({
+    env: {
+      ...env,
+      FINAL_OUTCOME: 'success',
+      GITHUB_STEP_SUMMARY: successSummaryFile,
+      EVIDENCE_FILE: path.join(directory, 'success-evidence.json'),
+    },
+  });
+  const successSummary = fs.readFileSync(successSummaryFile, 'utf8');
+  assert.match(successSummary, /Overall rollback: `passed`/);
+  assert.match(successSummary, /- backend:.*\(live\); digest match yes/);
+  assert.match(successSummary, /- frontend:.*\(live\); digest match yes/);
+  assert.match(successSummary, new RegExp(`sha256:${'b'.repeat(12)}`));
+  assert.doesNotMatch(successSummary, new RegExp('b'.repeat(64)));
+  for (const name of REQUIRED_SMOKE_CHECKS)
+    assert.ok(successSummary.includes('Smoke ' + name + ': `passed`'));
+  fs.writeFileSync(
+    smokeFile,
+    JSON.stringify({ validation_result: 'failure', smoke_outcome: 'failure' }),
+  );
+  fs.writeFileSync(
+    deploymentFile,
+    JSON.stringify({ result: 'success', phase: 'complete' }),
+  );
+  const smokeFailure = writeEvidence({
+    env: {
+      ...env,
+      EVIDENCE_FILE: path.join(directory, 'smoke-failure-evidence.json'),
+    },
+  });
+  assert.equal(smokeFailure.phase, 'smoke');
+  const missingSmoke = writeEvidence({
+    env: {
+      ...env,
+      SMOKE_FILE: path.join(directory, 'missing-smoke.json'),
+      EVIDENCE_FILE: path.join(directory, 'missing-smoke-evidence.json'),
+    },
+  });
+  assert.equal(missingSmoke.phase, 'smoke');
+  const fallback = writeEvidence({
+    env: {
+      ...env,
+      DEPLOYMENT_FILE: path.join(directory, 'missing-deployment.json'),
+      SMOKE_FILE: path.join(directory, 'missing-smoke.json'),
+      EVIDENCE_FILE: path.join(directory, 'fallback-evidence.json'),
+    },
+  });
+  assert.equal(
+    fallback.failure_reason,
+    'Rollback workflow failed; inspect the Actions run for step details.',
+  );
+  const coordinationFailure = writeEvidence({
+    env: {
+      EVIDENCE_FILE: path.join(directory, 'coordination-evidence.json'),
+      FINAL_OUTCOME: 'failure',
+      REPORT_STAGE: 'preflight',
+      COORDINATION_FAILURE_CATEGORY: 'frontend_name_mismatch',
+    },
+  });
+  assert.equal(coordinationFailure.phase, 'coordination');
+  assert.equal(coordinationFailure.report_stage, 'preflight');
+  assert.equal(
+    coordinationFailure.failure_reason,
+    'Coordination check failed: frontend_name_mismatch.',
+  );
+  assert.equal(coordinationFailure.deployment_result, 'not_started');
+  assert.equal(coordinationFailure.backend_deploy_id, null);
+  assert.equal(coordinationFailure.frontend_deploy_id, null);
+  assert.equal(coordinationFailure.smoke_outcome, 'not_started');
+  fs.rmSync(directory, { recursive: true, force: true });
+});

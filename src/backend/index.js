@@ -7,6 +7,7 @@ require('dotenv').config({
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const redactEvaluationToken = require('./utils/redactEvaluationToken');
 
 const app = express();
 
@@ -28,7 +29,9 @@ app.use(express.json());
 
 // Request logger middleware
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.log(
+    `[${new Date().toISOString()}] ${req.method} ${redactEvaluationToken(req.originalUrl)}`,
+  );
   next();
 });
 
